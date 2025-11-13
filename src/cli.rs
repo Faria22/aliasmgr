@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(
@@ -15,19 +15,11 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Add a new alias
-    #[command(visible_alias = "a")]
-    Add {
-        // /// Name of the alias
-        // name: String,
-        // /// Command the alias represents
-        // command: String,
-        // /// Add alias to a  group
-        // #[arg(short, long)]
-        // group: Option<String>,
-        /// Create a new alias group
-        #[command(subcommand)]
-        command: AddCommands,
-    },
+    #[command(
+        visible_alias = "a",
+        about = "Add a new alias (default) or manage alias groups"
+    )]
+    Add(AddCommand),
     /// Remove an existing alias
     #[command(visible_alias = "rm")]
     Remove {
@@ -102,6 +94,27 @@ pub enum Commands {
     Sync,
 }
 
+#[derive(Args)]
+#[command(
+    args_conflicts_with_subcommands = true,
+    subcommand_help_heading = "Additional actions",
+    subcommand_value_name = "ACTION"
+)]
+pub struct AddCommand {
+    /// Name of the alias (default behavior when NAME is provided)
+    #[arg()]
+    pub name: Option<String>,
+    /// Command the alias represents
+    #[arg()]
+    pub command: Option<String>,
+    /// Add alias to a group
+    #[arg(short, long)]
+    pub group: Option<String>,
+    /// Optional action: creating a group (default action adds an alias)
+    #[command(subcommand)]
+    pub subcommand: Option<AddCommands>,
+}
+
 #[derive(Subcommand)]
 pub enum GroupRename {
     /// Rename a group
@@ -115,16 +128,6 @@ pub enum GroupRename {
 
 #[derive(Subcommand)]
 pub enum AddCommands {
-    /// Add a new alias
-    Alias {
-        /// Name of the alias
-        name: String,
-        /// Command the alias represents
-        command: String,
-        /// Add alias to a  group
-        #[arg(short, long)]
-        group: Option<String>,
-    },
     /// Create a new group
     #[command(visible_alias = "g")]
     Group {
@@ -132,15 +135,6 @@ pub enum AddCommands {
         name: String,
     },
 }
-
-// #[derive(Subcommand)]
-// pub enum GroupCreate {
-//     /// Create a new group
-//     Group {
-//         /// Name of the group
-//         name: String,
-//     },
-// }
 
 #[derive(Subcommand)]
 pub enum GroupRemove {
