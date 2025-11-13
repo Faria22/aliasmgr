@@ -14,27 +14,14 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Add a new alias
-    #[command(
-        visible_alias = "a",
-        about = "Add a new alias (default) or manage alias groups"
-    )]
+    /// Add a new alias or alias group
+    #[command(visible_alias = "a")]
     Add(AddCommand),
-    /// Remove an existing alias
+
+    /// Remove an existing alias or alias group
     #[command(visible_alias = "rm")]
-    Remove {
-        /// Name of the alias
-        name: Option<String>,
-        /// Remove all aliases from a group (the group will still exist)
-        #[arg(short, long)]
-        group: Option<String>,
-        /// Remove all aliases (together with their groups)
-        #[arg(short, long)]
-        all: bool,
-        /// Remove an alias group
-        #[command(subcommand)]
-        group_remove: Option<GroupRemove>,
-    },
+    Remove(RemoveCommand),
+
     /// List all active aliases
     #[command(visible_alias = "ls")]
     List {
@@ -45,6 +32,7 @@ pub enum Commands {
         #[arg(short, long)]
         all: bool,
     },
+
     /// Enable an alias
     #[command(visible_alias = "en")]
     Enable {
@@ -57,6 +45,7 @@ pub enum Commands {
         #[arg(short, long)]
         all: bool,
     },
+
     /// Disable an alias
     #[command(visible_alias = "dis")]
     Disable {
@@ -69,6 +58,7 @@ pub enum Commands {
         #[arg(short, long)]
         all: bool,
     },
+
     /// Rename an existing alias
     #[command(visible_alias = "rn")]
     Rename {
@@ -83,13 +73,16 @@ pub enum Commands {
         #[command(subcommand)]
         group_rename: Option<GroupRename>,
     },
+
     /// Edit an existing alias
     #[command(visible_alias = "ed")]
     Edit {
+        /// Name of the alias
         name: String,
-        old_command: String,
+        /// New command for the alias
         new_command: String,
     },
+
     /// Synchronize aliases with configuration file
     Sync,
 }
@@ -112,7 +105,48 @@ pub struct AddCommand {
     pub group: Option<String>,
     /// Optional action: creating a group (default action adds an alias)
     #[command(subcommand)]
-    pub subcommand: Option<AddCommands>,
+    pub subcommand: Option<AddGroupCommands>,
+}
+
+#[derive(Subcommand)]
+pub enum AddGroupCommands {
+    /// Create a new group
+    #[command(visible_alias = "g")]
+    Group {
+        /// Name of the group
+        name: String,
+    },
+}
+
+#[derive(Args)]
+#[command(
+    args_conflicts_with_subcommands = true,
+    subcommand_help_heading = "Additional actions",
+    subcommand_value_name = "ACTION"
+)]
+pub struct RemoveCommand {
+    /// Name of the alias
+    #[arg()]
+    pub name: Option<String>,
+    /// Remove all aliases from a group (the group will still exist)
+    #[arg()]
+    pub group: Option<String>,
+    /// Remove all aliases (together with their groups)
+    #[arg()]
+    pub all: bool,
+    /// Optional action: creating a group (default action adds an alias)
+    #[command(subcommand)]
+    pub subcommand: Option<RemoveGroupCommands>,
+}
+
+#[derive(Subcommand)]
+pub enum RemoveGroupCommands {
+    /// Remove a group
+    #[command(visible_alias = "g")]
+    Group {
+        /// Name of the group
+        name: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -123,16 +157,6 @@ pub enum GroupRename {
         old: String,
         /// New name of the group
         new: String,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum AddCommands {
-    /// Create a new group
-    #[command(visible_alias = "g")]
-    Group {
-        /// Name of the group
-        name: String,
     },
 }
 
