@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 mod add;
 mod disable;
@@ -24,6 +25,10 @@ use rename::RenameCommand;
     disable_help_subcommand = true
 )]
 pub struct Cli {
+    /// Location of the configuration file
+    #[arg()]
+    pub config: Option<PathBuf>,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -60,4 +65,7 @@ pub enum Commands {
 
     /// Synchronize aliases with configuration file
     Sync,
+
+    /// Initialize aliasmgr
+    Init,
 }
