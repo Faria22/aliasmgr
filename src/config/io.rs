@@ -1,3 +1,4 @@
+use log::{debug, warn};
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
@@ -24,11 +25,14 @@ pub fn load_config(cli: &Cli) -> Result<Config, Box<dyn Error>> {
     let path = config_path(cli);
 
     if !path.exists() {
+        warn!("Config file {:?} does not exist, using empty config", path);
         return Ok(Config {
             aliases: HashMap::new(),
             groups: HashMap::new(),
         });
     }
+
+    debug!("Loading config from {:?}", path);
 
     let content = fs::read_to_string(path)?;
     let cfg: ConfigSpec = toml::from_str(&content)?;
@@ -41,6 +45,8 @@ pub fn save_config(cli: &Cli, config: &Config) -> io::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
+
+    debug!("Saving config to {:?}", path);
 
     let spec = convert_config_to_spec(config);
     let content = toml::to_string_pretty(&spec).expect("failed to serialize config");
