@@ -95,17 +95,23 @@ mod tests {
         Config { aliases, groups }
     }
 
+    fn sample_cli(config_path: &std::path::Path) -> Cli {
+        Cli {
+            config: Some(config_path.to_path_buf()),
+            command: Commands::Sync,
+            debug: false,
+            verbose: false,
+            quiet: false,
+        }
+    }
+
     #[test]
     fn test_load_config() {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("aliases.toml");
         fs::write(&temp_conf, sample_toml()).unwrap();
 
-        let cli = Cli {
-            config: Some(temp_conf.clone()),
-            command: Commands::Sync,
-        };
-
+        let cli = sample_cli(&temp_conf);
         let cfg = load_config(&cli).unwrap();
         assert_eq!(cfg, expected_config());
     }
@@ -115,11 +121,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("aliases.toml");
 
-        let cli = Cli {
-            config: Some(temp_conf.clone()),
-            command: Commands::Sync,
-        };
-
+        let cli = sample_cli(&temp_conf);
         let config = expected_config();
         save_config(&cli, &config).unwrap();
 
