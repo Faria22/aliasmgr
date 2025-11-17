@@ -1,6 +1,6 @@
-mod io;
+pub(crate) mod io;
 pub(crate) mod spec;
-mod types;
+pub(crate) mod types;
 
 #[cfg(test)]
 mod tests {
