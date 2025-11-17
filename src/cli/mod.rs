@@ -29,6 +29,19 @@ pub struct Cli {
     #[arg()]
     pub config: Option<PathBuf>,
 
+    /// Enable verbose output
+    #[arg(short, long)]
+    pub verbose: bool,
+
+    /// Only show errors
+    #[arg(short, long)]
+    pub quiet: bool,
+
+    /// Show debug information
+    #[arg(long)]
+    pub debug: bool,
+
+    /// Subcommands
     #[command(subcommand)]
     pub command: Commands,
 }
