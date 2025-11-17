@@ -25,20 +25,20 @@ use rename::RenameCommand;
     disable_help_subcommand = true
 )]
 pub struct Cli {
-    /// Location of the configuration file
-    #[arg()]
+    /// Custom location of the configuration file
+    #[arg(short, long, value_name = "FILE", global = true)]
     pub config: Option<PathBuf>,
 
     /// Enable verbose output
-    #[arg(short, long)]
+    #[arg(short, long, global = true)]
     pub verbose: bool,
 
     /// Only show errors
-    #[arg(short, long)]
+    #[arg(short, long, global = true)]
     pub quiet: bool,
 
     /// Show debug information
-    #[arg(long)]
+    #[arg(long, global = true)]
     pub debug: bool,
 
     /// Subcommands
