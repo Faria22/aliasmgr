@@ -39,6 +39,14 @@ pub fn add_alias(
                     if let Some(g) = group {
                         info!("Creating group '{}'.", g);
                         add_group(config, g, enabled);
+                        if let Err(_) = add_alias_to_config(config, name, command, Some(g), enabled)
+                        {
+                            eprintln!(
+                                "Error: Failed to add alias '{}' after creating group '{}'.",
+                                name, g
+                            );
+                            return false;
+                        }
                     } else {
                         eprintln!("Error: No group name provided.");
                         return false;
