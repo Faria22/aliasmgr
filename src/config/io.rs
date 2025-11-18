@@ -1,17 +1,14 @@
 use log::{debug, warn};
-use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
 use std::{fs, io};
 
-use crate::cli::Cli;
-
 use super::spec::{ConfigSpec, convert_config_to_spec, convert_spec_to_config};
 use super::types::Config;
 
-pub fn config_path(cli: &Cli) -> PathBuf {
-    if let Some(config_path) = &cli.config {
-        return config_path.to_path_buf();
+pub fn config_path(path: Option<PathBuf>) -> PathBuf {
+    if let Some(p) = path {
+        return p.clone();
     }
 
     cross_xdg::BaseDirs::new()
@@ -21,8 +18,8 @@ pub fn config_path(cli: &Cli) -> PathBuf {
         .join("aliases.toml")
 }
 
-pub fn load_config(cli: &Cli) -> Result<Config, Box<dyn Error>> {
-    let path = config_path(cli);
+pub fn load_config(path: Option<PathBuf>) -> Result<Config, Box<dyn Error>> {
+    let path = config_path(path);
 
     if !path.exists() {
         warn!("Config file {:?} does not exist, using empty config", path);
@@ -36,8 +33,8 @@ pub fn load_config(cli: &Cli) -> Result<Config, Box<dyn Error>> {
     Ok(convert_spec_to_config(cfg))
 }
 
-pub fn save_config(cli: &Cli, config: &Config) -> io::Result<()> {
-    let path = config_path(&cli);
+pub fn save_config(path: Option<PathBuf>, config: &Config) -> io::Result<()> {
+    let path = config_path(path);
 
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
