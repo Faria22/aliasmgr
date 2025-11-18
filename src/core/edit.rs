@@ -5,16 +5,18 @@ enum EditError {
     AliasDoesNotExist,
 }
 
-pub fn edit_alias(config: &mut Config, name: &str, new_command: &str) {
+pub fn edit_alias(config: &mut Config, name: &str, new_command: &str) -> bool {
     if let Err(e) = edit_alias_in_config(config, name, new_command) {
         match e {
             EditError::AliasDoesNotExist => {
                 eprintln!("Error: Alias '{}' does not exist.", name);
+                return false;
             }
         }
     }
 
     info!("Alias '{}' edited successfully.", name);
+    true
 }
 
 fn edit_alias_in_config(

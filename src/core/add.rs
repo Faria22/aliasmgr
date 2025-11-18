@@ -14,7 +14,7 @@ pub fn add_alias(
     command: &str,
     group: Option<&str>,
     enabled: bool,
-) {
+) -> bool {
     if let Err(e) = add_alias_to_config(config, name, command, group, enabled) {
         match e {
             AddError::AliasAlreadyExists => {
@@ -24,9 +24,10 @@ pub fn add_alias(
                 std::io::stdin().read_line(&mut input).unwrap();
                 if input.trim().to_lowercase() == "y" {
                     info!("Overwriting alias '{}'.", name);
-                    edit_alias(config, name, command);
+                    return edit_alias(config, name, command);
                 } else if input.trim().to_lowercase() != "n" && !input.trim().is_empty() {
                     eprintln!("Invalid input. Alias '{}' was not modified.", name);
+                    return false;
                 }
             }
             AddError::GroupDoesNotExist => {
@@ -40,33 +41,40 @@ pub fn add_alias(
                         add_group(config, g, enabled);
                     } else {
                         eprintln!("Error: No group name provided.");
+                        return false;
                     }
                 } else if input.trim().to_lowercase() != "n" && !input.trim().is_empty() {
                     eprintln!("Invalid input. Alias '{}' was not added.", name);
+                    return false;
                 }
             }
             _ => {
                 eprintln!("Error: Failed to add alias '{}'.", name);
+                return false;
             }
         }
     }
 
     info!("Alias '{}' added successfully.", name);
+    true
 }
 
-pub fn add_group(config: &mut Config, name: &str, enabled: bool) {
+pub fn add_group(config: &mut Config, name: &str, enabled: bool) -> bool {
     if let Err(e) = add_group_to_config(config, name, enabled) {
         match e {
             AddError::GroupAlreadyExists => {
                 println!("Group '{}' already exists. No changes made.", name);
+                return false;
             }
             _ => {
                 eprintln!("Error: Failed to add group '{}'.", name);
+                return false;
             }
         }
     }
 
     info!("Group '{}' added successfully.", name);
+    true
 }
 
 fn add_alias_to_config(

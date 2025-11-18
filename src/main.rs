@@ -29,19 +29,26 @@ fn main() {
     let mut config = load_config(cli.config.as_ref()).expect("Failed to load configuration");
     debug!("Configuration loaded: {:?}", config);
 
-    match cli.command {
+    let successul: bool = match cli.command {
         Commands::Add(cmd) => match cmd.target {
-            AddTarget::Alias(args) => {
-                add_alias(
-                    &mut config,
-                    &args.name,
-                    &args.command,
-                    args.group.as_deref(),
-                    !args.disabled,
-                );
-            }
+            AddTarget::Alias(args) => add_alias(
+                &mut config,
+                &args.name,
+                &args.command,
+                args.group.as_deref(),
+                !args.disabled,
+            ),
             AddTarget::Group(args) => add_group(&mut config, &args.name, !args.disabled),
         },
-        _ => eprintln!("This command is not implemented yet."),
+        _ => {
+            eprintln!("This command is not implemented yet.");
+            false
+        }
+    };
+
+    if successul {
+        println!("Operation completed successfully.");
+    } else {
+        eprintln!("Operation failed.");
     }
 }
