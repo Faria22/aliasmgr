@@ -29,16 +29,30 @@ pub struct Cli {
     #[arg(short, long, value_name = "FILE", global = true)]
     pub config: Option<PathBuf>,
 
-    /// Enable verbose output
-    #[arg(short, long, global = true)]
+    /// Increase output verbosity
+    #[arg(
+        short,
+        long,
+        global = true,
+        conflicts_with_all = ["quiet", "debug"]
+    )]
     pub verbose: bool,
 
-    /// Only show errors
-    #[arg(short, long, global = true)]
+    /// Silence all output except errors
+    #[arg(
+        short,
+        long,
+        global = true,
+        conflicts_with_all = ["verbose", "debug"]
+    )]
     pub quiet: bool,
 
-    /// Show debug information
-    #[arg(long, global = true)]
+    /// Enable debug logging
+    #[arg(
+        long,
+        global = true,
+        conflicts_with_all = ["verbose", "quiet"]
+    )]
     pub debug: bool,
 
     /// Subcommands
