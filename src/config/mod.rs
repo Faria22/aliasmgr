@@ -30,62 +30,32 @@ mod tests {
         let mut groups = HashMap::new();
         aliases.insert(
             "py".into(),
-            Alias {
-                command: "python3".into(),
-                enabled: true,
-                group: None,
-                detailed: false,
-            },
+            Alias::new("python3".into(), true, None, false),
         );
 
         aliases.insert(
             "js".into(),
-            Alias {
-                command: "node".into(),
-                enabled: false,
-                group: None,
-                detailed: true,
-            },
+            Alias::new("node".into(), false, None, true),
         );
 
         aliases.insert(
             "ga".into(),
-            Alias {
-                command: "git add".into(),
-                enabled: true,
-                group: Some("git".into()),
-                detailed: false,
-            },
+            Alias::new("git add".into(), true, Some("git".into()), false),
         );
 
         aliases.insert(
             "gc".into(),
-            Alias {
-                command: "git commit".into(),
-                enabled: true,
-                group: Some("git".into()),
-                detailed: true,
-            },
+            Alias::new("git commit".into(), true, Some("git".into()), true),
         );
 
         aliases.insert(
             "bar".into(),
-            Alias {
-                command: "echo 'Hello World'".into(),
-                enabled: true,
-                group: Some("foo".into()),
-                detailed: false,
-            },
+            Alias::new("echo 'Hello World'".into(), true, Some("foo".into()), false),
         );
 
         aliases.insert(
             "ll".into(),
-            Alias {
-                command: "ls -la".into(),
-                enabled: true,
-                group: Some("foo".into()),
-                detailed: true,
-            },
+            Alias::new("ls -la".into(), true, Some("foo".into()), true),
         );
 
         groups.insert("git".into(), true);

@@ -100,18 +100,10 @@ pub(crate) fn convert_config_to_spec(config: &Config) -> ConfigSpec {
 
 fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Alias {
     match spec {
-        AliasSpecTypes::Simple(command) => Alias {
-            command,
-            enabled: true,
-            group,
-            detailed: false,
-        },
-        AliasSpecTypes::Detailed(alias_spec) => Alias {
-            command: alias_spec.command,
-            enabled: alias_spec.enabled,
-            group,
-            detailed: true,
-        },
+        AliasSpecTypes::Simple(command) => Alias::new(command, true, group, false),
+        AliasSpecTypes::Detailed(alias_spec) => {
+            Alias::new(alias_spec.command, alias_spec.enabled, group, true)
+        }
         AliasSpecTypes::Group(_) => panic!("nested groups are not supported"),
     }
 }

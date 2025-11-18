@@ -134,12 +134,12 @@ fn add_alias_to_config(
 
     config.aliases.insert(
         alias.into(),
-        Alias {
-            command: command.into(),
-            group: group.map(|g| g.to_string()),
+        Alias::new(
+            command.into(),
             enabled,
-            detailed: if enabled { false } else { true },
-        },
+            group.map(|g| g.to_string()),
+            if enabled { false } else { true },
+        ),
     );
 
     info!("Alias '{}' added with command '{}'.", alias, command);
@@ -171,12 +171,7 @@ mod test {
         assert!(result.is_ok());
         assert_eq!(
             config.aliases.get("ll"),
-            Some(&Alias {
-                command: "ls -la".into(),
-                group: None,
-                detailed: false,
-                enabled: true,
-            })
+            Some(&Alias::new("ls -la".into(), true, None, false))
         );
     }
 
@@ -185,32 +180,17 @@ mod test {
         let mut config = Config::new();
         config.aliases.insert(
             "gs".into(),
-            Alias {
-                command: "git status".into(),
-                group: Some("git".into()),
-                detailed: false,
-                enabled: true,
-            },
+            Alias::new("git status".into(), true, Some("git".into()), false),
         );
         let result = add_alias_to_config(&mut config, "ll", "ls -la", None, true);
         assert!(result.is_ok());
         assert_eq!(
             config.aliases.get("gs"),
-            Some(&Alias {
-                command: "git status".into(),
-                group: Some("git".into()),
-                enabled: true,
-                detailed: false,
-            })
+            Some(&Alias::new("git status".into(), true, Some("git".into()), false))
         );
         assert_eq!(
             config.aliases.get("ll"),
-            Some(&Alias {
-                command: "ls -la".into(),
-                group: None,
-                detailed: false,
-                enabled: true,
-            })
+            Some(&Alias::new("ls -la".into(), true, None, false))
         );
     }
 
@@ -221,12 +201,7 @@ mod test {
         assert!(result.is_ok());
         assert_eq!(
             config.aliases.get("ll"),
-            Some(&Alias {
-                command: "ls -la".into(),
-                group: None,
-                detailed: true,
-                enabled: false,
-            })
+            Some(&Alias::new("ls -la".into(), false, None, true))
         );
     }
 
@@ -235,12 +210,7 @@ mod test {
         let mut config = Config::new();
         config.aliases.insert(
             "ll".into(),
-            Alias {
-                command: "ls -l".into(),
-                group: None,
-                detailed: false,
-                enabled: true,
-            },
+            Alias::new("ls -l".into(), true, None, false),
         );
         let result = add_alias_to_config(&mut config, "ll", "ls -la", None, true);
         assert!(result.is_err());
@@ -262,12 +232,12 @@ mod test {
         assert!(result.is_ok());
         assert_eq!(
             config.aliases.get("ll"),
-            Some(&Alias {
-                command: "ls -la".into(),
-                group: Some("file_ops".into()),
-                detailed: false,
-                enabled: true,
-            })
+            Some(&Alias::new(
+                "ls -la".into(),
+                true,
+                Some("file_ops".into()),
+                false
+            ))
         );
         assert!(config.groups.contains_key("file_ops"))
     }
