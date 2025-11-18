@@ -1,4 +1,5 @@
 use crate::config::types::Config;
+use log::info;
 
 enum EditError {
     AliasDoesNotExist,
@@ -12,6 +13,8 @@ pub fn edit_alias(config: &mut Config, name: &str, new_command: &str) {
             }
         }
     }
+
+    info!("Alias '{}' edited successfully.", name);
 }
 
 fn edit_alias_in_config(
@@ -20,10 +23,13 @@ fn edit_alias_in_config(
     new_command: &str,
 ) -> Result<(), EditError> {
     if !config.aliases.contains_key(name) {
+        info!("Alias '{}' does not exist.", name);
         return Err(EditError::AliasDoesNotExist);
     }
 
     config.aliases.get_mut(name).unwrap().command = new_command.into();
+
+    info!("Alias '{}' command updated to '{}'.", name, new_command);
 
     Ok(())
 }

@@ -1,5 +1,6 @@
 use crate::config::types::{Alias, Config};
 use crate::core::edit::edit_alias;
+use log::info;
 
 enum AddError {
     GroupAlreadyExists,
@@ -22,6 +23,7 @@ pub fn add_alias(
                 let mut input = String::new();
                 std::io::stdin().read_line(&mut input).unwrap();
                 if input.trim().to_lowercase() == "y" {
+                    info!("Overwriting alias '{}'.", name);
                     edit_alias(config, name, command);
                 } else if input.trim().to_lowercase() != "n" && !input.trim().is_empty() {
                     eprintln!("Invalid input. Alias '{}' was not modified.", name);
@@ -34,6 +36,7 @@ pub fn add_alias(
                 std::io::stdin().read_line(&mut input).unwrap();
                 if input.trim().to_lowercase() == "y" {
                     if let Some(g) = group {
+                        info!("Creating group '{}'.", g);
                         add_group(config, g, enabled);
                     } else {
                         eprintln!("Error: No group name provided.");
@@ -47,6 +50,8 @@ pub fn add_alias(
             }
         }
     }
+
+    info!("Alias '{}' added successfully.", name);
 }
 
 pub fn add_group(config: &mut Config, name: &str, enabled: bool) {
@@ -60,6 +65,8 @@ pub fn add_group(config: &mut Config, name: &str, enabled: bool) {
             }
         }
     }
+
+    info!("Group '{}' added successfully.", name);
 }
 
 fn add_alias_to_config(
@@ -71,10 +78,12 @@ fn add_alias_to_config(
 ) -> Result<(), AddError> {
     // Check if alias already exists
     if config.aliases.contains_key(alias) {
+        info!("Alias '{}' already exists.", alias);
         return Err(AddError::AliasAlreadyExists);
     }
 
     if group.is_some_and(|g| !config.groups.contains_key(g)) {
+        info!("Group '{:?}' does not exist.", group);
         return Err(AddError::GroupDoesNotExist);
     }
 
@@ -88,15 +97,20 @@ fn add_alias_to_config(
         },
     );
 
+    info!("Alias '{}' added with command '{}'.", alias, command);
+
     Ok(())
 }
 
 fn add_group_to_config(config: &mut Config, group: &str, enabled: bool) -> Result<(), AddError> {
     if config.groups.contains_key(group) {
+        info!("Group '{}' already exists.", group);
         return Err(AddError::GroupAlreadyExists);
     }
 
     config.groups.insert(group.into(), enabled);
+
+    info!("Group '{}' added with enabled status '{}'.", group, enabled);
 
     Ok(())
 }
