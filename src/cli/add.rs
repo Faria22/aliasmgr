@@ -10,12 +10,19 @@ pub struct AddCommand {
     /// Name of the alias to create
     #[arg()]
     pub name: Option<String>,
+
     /// Command aliased
     #[arg()]
     pub command: Option<String>,
+
     /// Add alias to GROUP
     #[arg(short, long, value_name = "GROUP")]
     pub group: Option<String>,
+
+    /// Add alias as disabled
+    #[arg(short, long, default_value_t = false)]
+    pub disabled: bool,
+
     /// Optional action: create a brand new group
     #[command(subcommand)]
     pub subcommand: Option<AddGroupCommands>,
@@ -29,5 +36,9 @@ pub enum AddGroupCommands {
         /// Name of the group to create
         #[arg()]
         name: String,
+
+        /// Create group as disabled
+        #[arg(short, long, default_value_t = false)]
+        disabled: bool,
     },
 }
