@@ -1,13 +1,13 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-mod add;
-mod disable;
-mod edit;
-mod enable;
-mod list;
-mod remove;
-mod rename;
+pub(crate) mod add;
+pub(crate) mod disable;
+pub(crate) mod edit;
+pub(crate) mod enable;
+pub(crate) mod list;
+pub(crate) mod remove;
+pub(crate) mod rename;
 
 use add::AddCommand;
 use disable::DisableCommand;
