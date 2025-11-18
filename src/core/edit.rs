@@ -27,3 +27,35 @@ fn edit_alias_in_config(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::types::{Alias, Config};
+
+    #[test]
+    fn test_edit_alias_success() {
+        let mut config = Config::new();
+        config.aliases.insert(
+            "test".into(),
+            Alias {
+                command: "old_command".into(),
+                enabled: true,
+                detailed: false,
+                group: None,
+            },
+        );
+
+        let result = edit_alias_in_config(&mut config, "test", "new_command");
+
+        assert!(result.is_ok());
+        assert_eq!(config.aliases.get("test").unwrap().command, "new_command");
+    }
+
+    #[test]
+    fn test_edit_alias_nonexistent() {
+        let mut config = Config::new();
+        let result = edit_alias_in_config(&mut config, "nonexistent", "new_command");
+        assert!(matches!(result, Err(EditError::AliasDoesNotExist)));
+    }
+}
