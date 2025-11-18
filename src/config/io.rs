@@ -1,4 +1,4 @@
-use log::{debug, warn};
+use log::{info, warn};
 use std::error::Error;
 use std::path::PathBuf;
 use std::{fs, io};
@@ -8,6 +8,7 @@ use super::types::Config;
 
 pub fn config_path(path: Option<&PathBuf>) -> PathBuf {
     if let Some(p) = path {
+        info!("Using custom config path: {:?}", p);
         return p.clone();
     }
 
@@ -26,7 +27,7 @@ pub fn load_config(path: Option<&PathBuf>) -> Result<Config, Box<dyn Error>> {
         return Ok(Config::new());
     }
 
-    debug!("Loading config from {:?}", path);
+    info!("Loading config from {:?}", path);
 
     let content = fs::read_to_string(path)?;
     let cfg: ConfigSpec = toml::from_str(&content)?;
@@ -36,11 +37,15 @@ pub fn load_config(path: Option<&PathBuf>) -> Result<Config, Box<dyn Error>> {
 pub fn save_config(path: Option<&PathBuf>, config: &Config) -> io::Result<()> {
     let path = config_path(path);
 
+    if !path.exists() {
+        warn!("Config file {:?} does not exist, creating it", path);
+    }
+
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
 
-    debug!("Saving config to {:?}", path);
+    info!("Saving config to {:?}", path);
 
     let spec = convert_config_to_spec(config);
     let content = toml::to_string_pretty(&spec).expect("failed to serialize config");

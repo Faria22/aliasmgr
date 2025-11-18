@@ -6,7 +6,7 @@ use clap::Parser;
 use cli::{Cli, Commands, add::AddTarget};
 use config::io::load_config;
 use core::add::{add_alias, add_group};
-use log::{LevelFilter, debug};
+use log::LevelFilter;
 
 fn main() {
     let cli = Cli::parse();
@@ -27,7 +27,6 @@ fn main() {
         .init();
 
     let mut config = load_config(cli.config.as_ref()).expect("Failed to load configuration");
-    debug!("Configuration loaded: {:?}", config);
 
     let successul: bool = match cli.command {
         Commands::Add(cmd) => match cmd.target {
