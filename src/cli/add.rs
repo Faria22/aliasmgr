@@ -1,19 +1,32 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args)]
-#[command(
-    args_conflicts_with_subcommands = true,
-    subcommand_help_heading = "Group actions",
-    subcommand_value_name = "ACTION"
-)]
 pub struct AddCommand {
+    /// What to add
+    #[command(subcommand)]
+    pub target: AddTarget,
+}
+
+#[derive(Subcommand)]
+pub enum AddTarget {
+    /// Add a new alias
+    #[command(visible_alias = "a")]
+    Alias(AddAliasArgs),
+
+    /// Create a new group
+    #[command(visible_alias = "g")]
+    Group(AddGroupArgs),
+}
+
+#[derive(Args)]
+pub struct AddAliasArgs {
     /// Name of the alias to create
     #[arg()]
-    pub name: Option<String>,
+    pub name: String,
 
     /// Command aliased
     #[arg()]
-    pub command: Option<String>,
+    pub command: String,
 
     /// Add alias to GROUP
     #[arg(short, long, value_name = "GROUP")]
@@ -22,23 +35,15 @@ pub struct AddCommand {
     /// Add alias as disabled
     #[arg(short, long, default_value_t = false)]
     pub disabled: bool,
-
-    /// Optional action: create a brand new group
-    #[command(subcommand)]
-    pub subcommand: Option<AddGroupCommands>,
 }
 
-#[derive(Subcommand)]
-pub enum AddGroupCommands {
-    /// Create a new group
-    #[command(visible_alias = "g")]
-    Group {
-        /// Name of the group to create
-        #[arg()]
-        name: String,
+#[derive(Args)]
+pub struct AddGroupArgs {
+    /// Name of the group to create
+    #[arg()]
+    pub name: String,
 
-        /// Create group as disabled
-        #[arg(short, long, default_value_t = false)]
-        disabled: bool,
-    },
+    /// Create group as disabled
+    #[arg(short, long, default_value_t = false)]
+    pub disabled: bool,
 }
