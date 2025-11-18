@@ -50,7 +50,16 @@ pub fn add_alias(
 }
 
 pub fn add_group(config: &mut Config, name: &str, enabled: bool) {
-    todo!("Implement add_group function with user prompts for existing groups");
+    if let Err(e) = add_group_to_config(config, name, enabled) {
+        match e {
+            AddError::GroupAlreadyExists => {
+                println!("Group '{}' already exists. No changes made.", name);
+            }
+            _ => {
+                eprintln!("Error: Failed to add group '{}'.", name);
+            }
+        }
+    }
 }
 
 fn add_alias_to_config(
