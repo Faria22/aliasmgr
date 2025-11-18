@@ -8,6 +8,64 @@ enum AddError {
     GroupDoesNotExist,
 }
 
+fn handle_existing_alias(config: &mut Config, name: &str, command: &str) -> bool {
+    println!("Alias '{}' already exists.", name);
+    println!("Would you like to overwrite it? (y/N)");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+    if input.trim().to_lowercase() == "y" {
+        info!("Overwriting alias '{}'.", name);
+        return edit_alias(config, name, command);
+    } else if input.trim().to_lowercase() != "n" && !input.trim().is_empty() {
+        eprintln!("Invalid input. Alias '{}' was not modified.", name);
+        return false;
+    }
+    true
+}
+
+fn handle_non_existing_group(
+    config: &mut Config,
+    alias: &str,
+    command: &str,
+    group: &str,
+    enabled: bool,
+) -> bool {
+    println!("Group '{}' does not exist.", group);
+    println!("Would you like to create it? (y/N)");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+    if input.trim().to_lowercase() == "y" {
+        info!("Creating group '{}'.", group);
+        add_group(config, group, enabled);
+        if let Err(e) = add_alias_to_config(config, alias, command, Some(group), enabled) {
+            match e {
+                AddError::AliasAlreadyExists => {
+                    return handle_existing_alias(config, alias, command);
+                }
+                _ => {
+                    eprintln!(
+                        "Error: Failed to add alias '{}' after creating group '{}'.",
+                        alias, group
+                    );
+                    return false;
+                }
+            }
+        } else {
+            info!("Alias '{}' added successfully to group '{}'.", alias, group);
+            true
+        }
+    } else if input.trim().to_lowercase() == "n" {
+        info!(
+            "Alias '{}' was not added due to missing group '{}' not being added",
+            alias, group
+        );
+        return true;
+    } else {
+        eprintln!("Invalid input. Alias '{}' was not added.", alias);
+        return false;
+    }
+}
+
 pub fn add_alias(
     config: &mut Config,
     name: &str,
@@ -17,44 +75,15 @@ pub fn add_alias(
 ) -> bool {
     if let Err(e) = add_alias_to_config(config, name, command, group, enabled) {
         match e {
-            AddError::AliasAlreadyExists => {
-                println!("Alias '{}' already exists.", name);
-                println!("Would you like to overwrite it? (y/N)");
-                let mut input = String::new();
-                std::io::stdin().read_line(&mut input).unwrap();
-                if input.trim().to_lowercase() == "y" {
-                    info!("Overwriting alias '{}'.", name);
-                    return edit_alias(config, name, command);
-                } else if input.trim().to_lowercase() != "n" && !input.trim().is_empty() {
-                    eprintln!("Invalid input. Alias '{}' was not modified.", name);
-                    return false;
-                }
-            }
+            AddError::AliasAlreadyExists => return handle_existing_alias(config, name, command),
             AddError::GroupDoesNotExist => {
-                println!("Group '{:?}' does not exist.", group);
-                println!("Would you like to create it? (y/N)");
-                let mut input = String::new();
-                std::io::stdin().read_line(&mut input).unwrap();
-                if input.trim().to_lowercase() == "y" {
-                    if let Some(g) = group {
-                        info!("Creating group '{}'.", g);
-                        add_group(config, g, enabled);
-                        if let Err(_) = add_alias_to_config(config, name, command, Some(g), enabled)
-                        {
-                            eprintln!(
-                                "Error: Failed to add alias '{}' after creating group '{}'.",
-                                name, g
-                            );
-                            return false;
-                        }
-                    } else {
-                        eprintln!("Error: No group name provided.");
-                        return false;
-                    }
-                } else if input.trim().to_lowercase() != "n" && !input.trim().is_empty() {
-                    eprintln!("Invalid input. Alias '{}' was not added.", name);
-                    return false;
-                }
+                return handle_non_existing_group(
+                    config,
+                    name,
+                    command,
+                    group.expect("group cannot be None in this arm"),
+                    enabled,
+                );
             }
             _ => {
                 eprintln!("Error: Failed to add alias '{}'.", name);
