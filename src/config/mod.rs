@@ -7,7 +7,7 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::config::io::{load_config, save_config};
     use crate::config::spec::{ConfigSpec, convert_config_to_spec, convert_spec_to_config};
-    use crate::config::types::{Alias, Config, Group};
+    use crate::config::types::{Alias, Config};
     use assert_fs::TempDir;
     use std::collections::HashMap;
     use std::fs;
@@ -15,14 +15,14 @@ mod tests {
     fn sample_toml() -> &'static str {
         r#"
         py = "python3"
-        js = { command = "node", enable = false }
+        js = { command = "node", enabled = false }
         [git]
         ga = "git add"
-        gc = { command = "git commit", enable = true }
+        gc = { command = "git commit", enabled = true }
         [foo]
-        enable = false
+        enabled = false
         bar = "echo 'Hello World'"
-        ll = { command = "ls -la", enable = true }
+        ll = { command = "ls -la", enabled = true }
         "#
     }
 
@@ -33,7 +33,7 @@ mod tests {
             "py".into(),
             Alias {
                 command: "python3".into(),
-                enable: true,
+                enabled: true,
                 group: None,
                 detailed: false,
             },
@@ -43,7 +43,7 @@ mod tests {
             "js".into(),
             Alias {
                 command: "node".into(),
-                enable: false,
+                enabled: false,
                 group: None,
                 detailed: true,
             },
@@ -53,7 +53,7 @@ mod tests {
             "ga".into(),
             Alias {
                 command: "git add".into(),
-                enable: true,
+                enabled: true,
                 group: Some("git".into()),
                 detailed: false,
             },
@@ -63,7 +63,7 @@ mod tests {
             "gc".into(),
             Alias {
                 command: "git commit".into(),
-                enable: true,
+                enabled: true,
                 group: Some("git".into()),
                 detailed: true,
             },
@@ -73,7 +73,7 @@ mod tests {
             "bar".into(),
             Alias {
                 command: "echo 'Hello World'".into(),
-                enable: true,
+                enabled: true,
                 group: Some("foo".into()),
                 detailed: false,
             },
@@ -83,14 +83,14 @@ mod tests {
             "ll".into(),
             Alias {
                 command: "ls -la".into(),
-                enable: true,
+                enabled: true,
                 group: Some("foo".into()),
                 detailed: true,
             },
         );
 
-        groups.insert("git".into(), Group { enable: true });
-        groups.insert("foo".into(), Group { enable: false });
+        groups.insert("git".into(), true);
+        groups.insert("foo".into(), false);
 
         Config { aliases, groups }
     }

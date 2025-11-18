@@ -26,10 +26,7 @@ pub fn load_config(cli: &Cli) -> Result<Config, Box<dyn Error>> {
 
     if !path.exists() {
         warn!("Config file {:?} does not exist, using empty config", path);
-        return Ok(Config {
-            aliases: HashMap::new(),
-            groups: HashMap::new(),
-        });
+        return Ok(Config::new());
     }
 
     debug!("Loading config from {:?}", path);

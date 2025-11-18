@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::types::{Alias, Config, Group};
+use super::types::{Alias, Config};
 
 fn default_enabled() -> bool {
     true
@@ -12,13 +12,13 @@ pub struct AliasSpec {
     pub command: String,
 
     #[serde(default = "default_enabled")]
-    pub enable: bool,
+    pub enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct GroupSpec {
     #[serde(default = "default_enabled")]
-    pub enable: bool,
+    pub enabled: bool,
 
     #[serde(flatten)]
     pub aliases: HashMap<String, AliasSpecTypes>,
@@ -52,14 +52,14 @@ fn convert_alias_to_spec(alias: &Alias) -> AliasSpecTypes {
     } else {
         AliasSpecTypes::Detailed(AliasSpec {
             command: alias.command.clone(),
-            enable: alias.enable,
+            enabled: alias.enabled,
         })
     }
 }
 
 fn convert_group_to_spec(
     group_name: &str,
-    group: &Group,
+    enabled: bool,
     aliases: &HashMap<String, Alias>,
 ) -> AliasSpecTypes {
     let mut alias_specs = HashMap::new();
@@ -71,7 +71,7 @@ fn convert_group_to_spec(
     }
 
     AliasSpecTypes::Group(GroupSpec {
-        enable: group.enable,
+        enabled,
         aliases: alias_specs,
     })
 }
@@ -91,7 +91,7 @@ pub(crate) fn convert_config_to_spec(config: &Config) -> ConfigSpec {
     for (group_name, group) in &config.groups {
         entries.insert(
             group_name.clone(),
-            convert_group_to_spec(group_name, group, &config.aliases),
+            convert_group_to_spec(group_name, *group, &config.aliases),
         );
     }
 
@@ -102,13 +102,13 @@ fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Alias {
     match spec {
         AliasSpecTypes::Simple(command) => Alias {
             command,
-            enable: true,
+            enabled: true,
             group,
             detailed: false,
         },
         AliasSpecTypes::Detailed(alias_spec) => Alias {
             command: alias_spec.command,
-            enable: alias_spec.enable,
+            enabled: alias_spec.enabled,
             group,
             detailed: true,
         },
@@ -123,12 +123,7 @@ pub(crate) fn convert_spec_to_config(spec: ConfigSpec) -> Config {
     for (name, entry) in spec.entries {
         match entry {
             AliasSpecTypes::Group(group_spec) => {
-                groups.insert(
-                    name.clone(),
-                    Group {
-                        enable: group_spec.enable,
-                    },
-                );
+                groups.insert(name.clone(), group_spec.enabled);
 
                 for (alias_name, alias_entry) in group_spec.aliases {
                     let alias = convert_spec_to_alias(alias_entry, Some(name.clone()));
