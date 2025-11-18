@@ -9,6 +9,6 @@ use core::add::add_alias;
 
 fn main() {
     let cli = Cli::parse();
-    let config = load_config(cli.config).expect("Failed to load configuration");
+    let config = load_config(cli.config.as_ref()).expect("Failed to load configuration");
     println!("Configuration loaded: {:?}", config);
 }

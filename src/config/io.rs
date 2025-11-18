@@ -6,7 +6,7 @@ use std::{fs, io};
 use super::spec::{ConfigSpec, convert_config_to_spec, convert_spec_to_config};
 use super::types::Config;
 
-pub fn config_path(path: Option<PathBuf>) -> PathBuf {
+pub fn config_path(path: Option<&PathBuf>) -> PathBuf {
     if let Some(p) = path {
         return p.clone();
     }
@@ -18,7 +18,7 @@ pub fn config_path(path: Option<PathBuf>) -> PathBuf {
         .join("aliases.toml")
 }
 
-pub fn load_config(path: Option<PathBuf>) -> Result<Config, Box<dyn Error>> {
+pub fn load_config(path: Option<&PathBuf>) -> Result<Config, Box<dyn Error>> {
     let path = config_path(path);
 
     if !path.exists() {
@@ -33,7 +33,7 @@ pub fn load_config(path: Option<PathBuf>) -> Result<Config, Box<dyn Error>> {
     Ok(convert_spec_to_config(cfg))
 }
 
-pub fn save_config(path: Option<PathBuf>, config: &Config) -> io::Result<()> {
+pub fn save_config(path: Option<&PathBuf>, config: &Config) -> io::Result<()> {
     let path = config_path(path);
 
     if let Some(parent) = path.parent() {

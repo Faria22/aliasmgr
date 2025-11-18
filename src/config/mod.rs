@@ -4,7 +4,6 @@ pub(crate) mod types;
 
 #[cfg(test)]
 mod tests {
-    use crate::cli::{Cli, Commands};
     use crate::config::io::{load_config, save_config};
     use crate::config::spec::{ConfigSpec, convert_config_to_spec, convert_spec_to_config};
     use crate::config::types::{Alias, Config};
@@ -95,24 +94,13 @@ mod tests {
         Config { aliases, groups }
     }
 
-    fn sample_cli(config_path: &std::path::Path) -> Cli {
-        Cli {
-            config: Some(config_path.to_path_buf()),
-            command: Commands::Sync,
-            debug: false,
-            verbose: false,
-            quiet: false,
-        }
-    }
-
     #[test]
     fn test_load_config() {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("aliases.toml");
         fs::write(&temp_conf, sample_toml()).unwrap();
 
-        let cli = sample_cli(&temp_conf);
-        let cfg = load_config(&cli).unwrap();
+        let cfg = load_config(Some(&temp_conf)).unwrap();
         assert_eq!(cfg, expected_config());
     }
 
@@ -121,9 +109,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("aliases.toml");
 
-        let cli = sample_cli(&temp_conf);
         let config = expected_config();
-        save_config(&cli, &config).unwrap();
+        save_config(Some(&temp_conf), &config).unwrap();
 
         let saved_content = fs::read_to_string(&temp_conf).unwrap();
         let parsed_spec: ConfigSpec = toml::from_str(&saved_content).unwrap();
