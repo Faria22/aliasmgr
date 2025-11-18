@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq)]
 pub struct Alias {
     pub command: String,
     pub enabled: bool,
@@ -8,7 +8,7 @@ pub struct Alias {
     pub detailed: bool,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq)]
 pub struct Config {
     pub aliases: HashMap<String, Alias>,
     pub groups: HashMap<String, bool>,

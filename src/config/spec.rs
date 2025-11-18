@@ -7,7 +7,7 @@ fn default_enabled() -> bool {
     true
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct AliasSpec {
     pub command: String,
 
@@ -15,7 +15,7 @@ pub struct AliasSpec {
     pub enabled: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct GroupSpec {
     #[serde(default = "default_enabled")]
     pub enabled: bool,
@@ -24,7 +24,7 @@ pub struct GroupSpec {
     pub aliases: HashMap<String, AliasSpecTypes>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum AliasSpecTypes {
     // foo = "bar"
@@ -40,7 +40,7 @@ pub enum AliasSpecTypes {
     Group(GroupSpec),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConfigSpec {
     #[serde(flatten)]
     pub entries: HashMap<String, AliasSpecTypes>,
