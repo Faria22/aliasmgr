@@ -1,4 +1,6 @@
+use super::list::{GroupId, get_all_groups};
 use crate::config::types::Config;
+use std::fmt::Write;
 
 /// Generates the content of the alias script file based on the provided configuration.
 ///
@@ -8,7 +10,24 @@ use crate::config::types::Config;
 /// # Returns
 /// A string representing the content of the alias script file.
 pub fn generate_alias_script_content(config: &Config) -> String {
-    todo!("Implement file string generation based on Config")
+    let mut content = String::new();
+
+    for (group, aliases) in get_all_groups(config) {
+        // Only add groups that are enabled, `ungrouped` is always enabled
+        if match group {
+            GroupId::Ungrouped => true,
+            GroupId::Named(g) => *config.groups.get(&g).unwrap(),
+        } {
+            for alias in &aliases {
+                let alias_obj = config.aliases.get(alias).unwrap();
+                if alias_obj.enabled {
+                    writeln!(content, "alias {}='{}'", alias, alias_obj.command).unwrap();
+                }
+            }
+        }
+    }
+
+    content
 }
 
 #[cfg(test)]
