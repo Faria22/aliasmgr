@@ -4,25 +4,13 @@ pub(crate) mod list;
 pub(crate) mod r#move;
 pub(crate) mod sync;
 
-use thiserror::Error;
-
 /// Represents possible failure cases in core operations.
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum Failure {
-    #[error("Alias does not exist")]
     AliasDoesNotExist,
-
-    #[error("Group does not exist")]
     GroupDoesNotExist,
-
-    #[error("Alias already exists")]
     AliasAlreadyExists,
-
-    #[error("Group already exists")]
     GroupAlreadyExists,
-
-    #[error("Config file $0 does not exist.")]
-    ConfigFileNotFound(String),
 }
 
 /// Represents the outcome of core operations.
