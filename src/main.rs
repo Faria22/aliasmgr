@@ -13,6 +13,7 @@ use core::Outcome;
 
 use app::add::handle_add;
 use app::config_path::determine_config_path;
+use app::shell::determine_shell;
 
 use core::sync::generate_alias_script_content;
 
@@ -38,6 +39,10 @@ fn main() {
 
     let path = determine_config_path()
         .expect("Custom config path did not exist and user chose not to use it.");
+    debug!("Using config path: {:?}", path);
+
+    let shell = determine_shell();
+    debug!("Determined shell: {:?}", shell);
 
     let mut config = load_config(path.as_ref()).expect("Failed to load configuration");
     debug!("Loaded configuration: {:?}", config);
