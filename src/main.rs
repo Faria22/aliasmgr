@@ -14,6 +14,8 @@ use core::Outcome;
 use app::add::handle_add;
 use app::config_path::determine_config_path;
 
+use core::sync::generate_alias_script_content;
+
 use log::{LevelFilter, debug};
 
 fn main() {
@@ -43,13 +45,14 @@ fn main() {
     let result = match cli.command {
         // Add new alias or group
         Commands::Add(cmd) => handle_add(cmd, &mut config),
+        Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(&config))),
         _ => todo!("command not implemented yet"),
     };
 
     match result {
         Ok(Outcome::Command(msg)) => println!("Command needs to be run: {}", msg),
         Ok(Outcome::NoChanges) => println!("No changes were made."),
-        Ok(Outcome::ConfigChanged) => println!("Configuration needs to be updated."),
+        Ok(Outcome::ConfigChanged) => println!("Configuration has changed."),
         Err(_) => eprintln!("An error occurred."),
     }
 }
