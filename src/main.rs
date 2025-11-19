@@ -5,6 +5,7 @@ mod core;
 use clap::Parser;
 use cli::{Cli, Commands, add::AddTarget};
 use config::io::load_config;
+use core::Outcome;
 use core::add::{add_alias, add_group};
 use log::{LevelFilter, debug};
 
@@ -43,9 +44,10 @@ fn main() {
         _ => todo!("command not implemented yet"),
     };
 
-    if let Ok(_) = result {
-        println!("Operation completed successfully.");
-    } else {
-        eprintln!("Operation failed.");
+    match result {
+        Ok(Outcome::Command(msg)) => println!("Command needs to be run: {}", msg),
+        Ok(Outcome::NoChanges) => println!("No changes were made."),
+        Ok(Outcome::ConfigChanged) => println!("Configuration needs to be updated."),
+        Err(_) => eprintln!("An error occurred."),
     }
 }
