@@ -20,18 +20,20 @@ use log::info;
 /// - `Ok(())` if the alias was edited successfully.
 /// - `Err(EditError)` if an error occurred.
 pub fn edit_alias(config: &mut Config, name: &str, new_command: &str) -> Result<Outcome, Failure> {
-    if !config.aliases.contains_key(name) {
-        info!("Alias '{}' does not exist.", name);
-        return Err(Failure::AliasDoesNotExist);
+    match config.aliases.get_mut(name) {
+        Some(alias) => {
+            alias.command = new_command.into();
+            info!("Alias '{}' command updated to '{}'.", name, new_command);
+            return Ok(Outcome::Command(format!(
+                "alias {}='{}'",
+                name, new_command
+            )));
+        }
+        None => {
+            info!("Alias '{}' does not exist.", name);
+            return Err(Failure::AliasDoesNotExist);
+        }
     }
-
-    config.aliases.get_mut(name).unwrap().command = new_command.into();
-
-    info!("Alias '{}' command updated to '{}'.", name, new_command);
-    Ok(Outcome::Command(format!(
-        "alias {}='{}'",
-        name, new_command
-    )))
 }
 
 #[cfg(test)]
