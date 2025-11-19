@@ -12,6 +12,9 @@ use std::fmt::Write;
 pub fn generate_alias_script_content(config: &Config) -> String {
     let mut content = String::new();
 
+    // Reset all existing aliases
+    writeln!(content, "unalias -a").unwrap();
+
     for (group, aliases) in get_all_groups(config) {
         // Only add groups that are enabled, `ungrouped` is always enabled
         if match group {
@@ -34,6 +37,24 @@ pub fn generate_alias_script_content(config: &Config) -> String {
 mod tests {
     use super::*;
     use crate::config::types::Alias;
+
+    #[test]
+    fn empty_config_only_contains_reset_command() {
+        let config = Config::new();
+        let file_string = generate_alias_script_content(&config);
+        assert!(file_string.contains("unalias -a"));
+    }
+
+    #[test]
+    fn filled_config_contains_reset_command() {
+        let mut config = Config::new();
+        config.aliases.insert(
+            "my_alias".to_string(),
+            Alias::new("echo Hello".to_string(), true, None, false),
+        );
+        let file_string = generate_alias_script_content(&config);
+        assert!(file_string.contains("unalias -a"));
+    }
 
     #[test]
     fn file_content_contains_enabled_alias() {
