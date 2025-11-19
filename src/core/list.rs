@@ -28,6 +28,12 @@ pub enum GroupId {
 pub fn get_all_groups(config: &Config) -> HashMap<GroupId, Vec<String>> {
     let mut groups = HashMap::<GroupId, Vec<String>>::new();
 
+    // Initialize the groups with empty vectors
+    groups.insert(GroupId::Ungrouped, Vec::new());
+    for group_name in config.groups.keys() {
+        groups.insert(GroupId::Named(group_name.clone()), Vec::new());
+    }
+
     // Populate the groups with alias names
     for (alias_name, alias) in &config.aliases {
         let key = alias
@@ -35,7 +41,10 @@ pub fn get_all_groups(config: &Config) -> HashMap<GroupId, Vec<String>> {
             .clone()
             .map(GroupId::Named)
             .unwrap_or(GroupId::Ungrouped);
-        groups.entry(key).or_default().push(alias_name.clone());
+        groups
+            .get_mut(&key)
+            .expect("group is in alias, but not in the group vector")
+            .push(alias_name.clone());
     }
 
     groups
