@@ -3,11 +3,11 @@
 //! ! The configuration is serialized and deserialized using the TOML format.
 //! ! It also handles the creation of necessary directories if they do not exist.
 
-use log::{info, warn};
+use log::{debug, info, warn};
 use std::path::PathBuf;
 use std::{fs, io};
 
-use crate::core::Outcome;
+use crate::core::{Failure, Outcome};
 use anyhow::Result;
 
 use super::spec::{ConfigSpec, convert_config_to_spec, convert_spec_to_config};
@@ -66,7 +66,7 @@ pub fn load_config(path: Option<&PathBuf>) -> Result<Config> {
 ///
 /// # Returns
 /// A `Result` indicating success or failure.
-pub fn save_config(path: Option<&PathBuf>, config: &Config) -> Result<Outcome, io::Error> {
+pub fn save_config(path: Option<&PathBuf>, config: &Config) -> Result<Outcome> {
     let path = config_path(path);
 
     if !path.exists() {
@@ -77,11 +77,30 @@ pub fn save_config(path: Option<&PathBuf>, config: &Config) -> Result<Outcome, i
         fs::create_dir_all(parent)?;
     }
 
+    if path.exists() {
+        debug!("Overwriting existing config at {:?}", path);
+    } else {
+        println!(
+            "File {:?} does not exist. Do you want to create it? (y/n)",
+            path
+        );
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        if input.trim().to_lowercase() == "y" {
+        } else if input.trim().to_lowercase() == "n" {
+            println!("No configuration was saved.");
+            return Ok(Outcome::NoChanges);
+        } else {
+            eprintln!("Invalid input. No configuration was saved.");
+            return Err(Failure::InvalidInput(input.trim().to_string()).into());
+        }
+    }
+
     info!("Saving config to {:?}", path);
 
     let spec = convert_config_to_spec(config);
     let content = toml::to_string_pretty(&spec).expect("failed to serialize config");
     fs::write(path, content)?;
 
-    Ok(Outcome::Success)
+    Ok(Outcome::NoChanges)
 }
