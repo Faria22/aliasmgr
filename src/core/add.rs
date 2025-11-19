@@ -8,7 +8,7 @@
 
 use crate::config::types::{Alias, Config};
 use crate::core::edit::edit_alias;
-use crate::core::{ReturnError, ReturnStatus};
+use crate::core::{Failure, Outcome};
 use log::info;
 
 /// Errors that can occur when adding an alias or group.
@@ -33,7 +33,7 @@ fn handle_existing_alias(
     config: &mut Config,
     name: &str,
     command: &str,
-) -> Result<ReturnStatus, ReturnError> {
+) -> Result<Outcome, Failure> {
     println!("Alias '{}' already exists.", name);
     println!("Would you like to overwrite it? (y/N)");
     let mut input = String::new();
@@ -44,20 +44,20 @@ fn handle_existing_alias(
         return match edit_alias(config, name, command) {
             Ok(_) => {
                 info!("Alias '{}' overwritten successfully.", name);
-                Ok(ReturnStatus::Success)
+                Ok(Outcome::Success)
             }
             Err(e) => {
                 eprintln!("Error: Failed to overwrite alias '{}'.", name);
-                Err(ReturnError::Edit(e))
+                Err(Failure::Edit(e))
             }
         };
     } else if input.trim().to_lowercase() != "n" && !input.trim().is_empty() {
         eprintln!("Invalid input. Alias '{}' was not modified.", name);
-        return Err(ReturnError::InvalidInput);
+        return Err(Failure::InvalidInput);
     }
 
     info!("Alias '{}' was not modified.", name);
-    Ok(ReturnStatus::NoChanges)
+    Ok(Outcome::NoChanges)
 }
 
 /// Handles the case where a specified group does not exist.
@@ -79,7 +79,7 @@ fn handle_non_existing_group(
     command: &str,
     group: &str,
     enabled: bool,
-) -> Result<ReturnStatus, ReturnError> {
+) -> Result<Outcome, Failure> {
     println!("Group '{}' does not exist.", group);
     println!("Would you like to create it? (y/N)");
     let mut input = String::new();
@@ -97,7 +97,7 @@ fn handle_non_existing_group(
         }
 
         info!("Alias '{}' added successfully to group '{}'.", alias, group);
-        return Ok(ReturnStatus::Success);
+        return Ok(Outcome::Success);
     }
 
     if input.trim().to_lowercase() == "n" {
@@ -105,11 +105,11 @@ fn handle_non_existing_group(
             "Alias '{}' was not added due to missing group '{}' not being added",
             alias, group
         );
-        return Ok(ReturnStatus::NoChanges);
+        return Ok(Outcome::NoChanges);
     }
 
     eprintln!("Invalid input. Alias '{}' was not added.", alias);
-    return Err(ReturnError::InvalidInput);
+    return Err(Failure::InvalidInput);
 }
 
 /// Adds an alias to the configuration.
@@ -130,7 +130,7 @@ pub fn add_alias(
     command: &str,
     group: Option<&str>,
     enabled: bool,
-) -> Result<ReturnStatus, ReturnError> {
+) -> Result<Outcome, Failure> {
     if let Err(e) = add_alias_to_config(config, name, command, group, enabled) {
         match e {
             AddError::AliasAlreadyExists => return handle_existing_alias(config, name, command),
@@ -148,7 +148,7 @@ pub fn add_alias(
     }
 
     info!("Alias '{}' added successfully.", name);
-    Ok(ReturnStatus::Success)
+    Ok(Outcome::Success)
 }
 
 /// Adds a group to the configuration.
@@ -161,23 +161,19 @@ pub fn add_alias(
 /// # Returns
 /// - `ReturnStatus`: Result of the group addition attempt.
 /// - `ReturnError`: Error encountered during the process.
-pub fn add_group(
-    config: &mut Config,
-    name: &str,
-    enabled: bool,
-) -> Result<ReturnStatus, ReturnError> {
+pub fn add_group(config: &mut Config, name: &str, enabled: bool) -> Result<Outcome, Failure> {
     if let Err(e) = add_group_to_config(config, name, enabled) {
         match e {
             AddError::GroupAlreadyExists => {
                 println!("Group '{}' already exists. No changes made.", name);
-                return Ok(ReturnStatus::NoChanges);
+                return Ok(Outcome::NoChanges);
             }
             _ => unreachable!("Unexpected error when adding group"),
         }
     }
 
     info!("Group '{}' added successfully.", name);
-    Ok(ReturnStatus::Success)
+    Ok(Outcome::Success)
 }
 
 /// Internal function to add an alias to the configuration.
@@ -197,7 +193,7 @@ fn add_alias_to_config(
     command: &str,
     group: Option<&str>,
     enabled: bool,
-) -> Result<ReturnStatus, AddError> {
+) -> Result<Outcome, AddError> {
     // Check if alias already exists
     if config.aliases.contains_key(alias) {
         info!("Alias '{}' already exists.", alias);
@@ -221,7 +217,7 @@ fn add_alias_to_config(
 
     info!("Alias '{}' added with command '{}'.", alias, command);
 
-    Ok(ReturnStatus::Success)
+    Ok(Outcome::Success)
 }
 
 /// Internal function to add a group to the configuration.
@@ -237,7 +233,7 @@ fn add_group_to_config(
     config: &mut Config,
     group: &str,
     enabled: bool,
-) -> Result<ReturnStatus, AddError> {
+) -> Result<Outcome, AddError> {
     if config.groups.contains_key(group) {
         info!("Group '{}' already exists.", group);
         return Err(AddError::GroupAlreadyExists);
@@ -247,7 +243,7 @@ fn add_group_to_config(
 
     info!("Group '{}' added with enabled status '{}'.", group, enabled);
 
-    Ok(ReturnStatus::Success)
+    Ok(Outcome::Success)
 }
 
 #[cfg(test)]

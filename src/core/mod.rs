@@ -5,12 +5,12 @@ pub(crate) mod sync;
 
 use edit::EditError;
 
-pub enum ReturnError {
+pub enum Failure {
     Edit(EditError),
     InvalidInput,
 }
 
-pub enum ReturnStatus {
+pub enum Outcome {
     Success,
     NoChanges,
 }

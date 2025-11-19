@@ -7,7 +7,7 @@ use log::{info, warn};
 use std::path::PathBuf;
 use std::{fs, io};
 
-use crate::core::ReturnStatus;
+use crate::core::Outcome;
 use anyhow::Result;
 
 use super::spec::{ConfigSpec, convert_config_to_spec, convert_spec_to_config};
@@ -66,7 +66,7 @@ pub fn load_config(path: Option<&PathBuf>) -> Result<Config> {
 ///
 /// # Returns
 /// A `Result` indicating success or failure.
-pub fn save_config(path: Option<&PathBuf>, config: &Config) -> Result<ReturnStatus, io::Error> {
+pub fn save_config(path: Option<&PathBuf>, config: &Config) -> Result<Outcome, io::Error> {
     let path = config_path(path);
 
     if !path.exists() {
@@ -83,5 +83,5 @@ pub fn save_config(path: Option<&PathBuf>, config: &Config) -> Result<ReturnStat
     let content = toml::to_string_pretty(&spec).expect("failed to serialize config");
     fs::write(path, content)?;
 
-    Ok(ReturnStatus::Success)
+    Ok(Outcome::Success)
 }
