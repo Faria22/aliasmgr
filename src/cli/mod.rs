@@ -6,6 +6,7 @@ pub(crate) mod disable;
 pub(crate) mod edit;
 pub(crate) mod enable;
 pub(crate) mod list;
+pub(crate) mod r#move;
 pub(crate) mod remove;
 pub(crate) mod rename;
 
@@ -14,6 +15,7 @@ use disable::DisableCommand;
 use edit::EditCommand;
 use enable::EnableCommand;
 use list::ListCommand;
+use r#move::MoveCommand;
 use remove::RemoveCommand;
 use rename::RenameCommand;
 
@@ -89,6 +91,10 @@ pub enum Commands {
     /// Edit an existing alias
     #[command(visible_alias = "ed")]
     Edit(EditCommand),
+
+    /// Move an alias to a different group
+    #[command(visible_alias = "mv")]
+    Move(MoveCommand),
 
     /// Synchronize aliases with configuration file
     Sync,
