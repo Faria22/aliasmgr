@@ -1,5 +1,12 @@
 use crate::config::types::Config;
 
+/// Generates the content of the alias script file based on the provided configuration.
+///
+/// # Arguments
+/// * `config` - A reference to the configuration object containing aliases and groups.
+///
+/// # Returns
+/// A string representing the content of the alias script file.
 pub fn generate_alias_script_content(config: &Config) -> String {
     todo!("Implement file string generation based on Config")
 }
