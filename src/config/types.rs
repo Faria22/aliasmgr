@@ -1,5 +1,9 @@
+//! Configuration types for command aliases.
+//! ! This module defines the structures used to represent command aliases and their configurations.
+
 use std::collections::HashMap;
 
+/// Representation of an alias in the configuration.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Alias {
     pub command: String,
@@ -8,6 +12,7 @@ pub struct Alias {
     pub detailed: bool,
 }
 
+/// Constructor for Alias with validation.
 impl Alias {
     pub fn new(command: String, enabled: bool, group: Option<String>, detailed: bool) -> Self {
         if !enabled && !detailed {
@@ -23,12 +28,14 @@ impl Alias {
     }
 }
 
+/// Overall configuration containing aliases and groups.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Config {
     pub aliases: HashMap<String, Alias>,
     pub groups: HashMap<String, bool>,
 }
 
+/// Constructor for Config.
 impl Config {
     pub fn new() -> Self {
         Config {

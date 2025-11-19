@@ -1,3 +1,8 @@
+//! Specification structures and conversion functions for alias configuration.
+//! This module defines the structures used for serializing and deserializing
+//! alias configurations, as well as functions to convert between the internal
+//! representation and the specification representation.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -7,6 +12,7 @@ fn default_enabled() -> bool {
     true
 }
 
+/// Specification structures for serialization/deserialization of alias.
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct AliasSpec {
     pub command: String,
@@ -15,6 +21,7 @@ pub struct AliasSpec {
     pub enabled: bool,
 }
 
+/// Specification for a group of aliases.
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct GroupSpec {
     #[serde(default = "default_enabled")]
@@ -24,6 +31,7 @@ pub struct GroupSpec {
     pub aliases: HashMap<String, AliasSpecTypes>,
 }
 
+/// Different types of alias specifications.
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum AliasSpecTypes {
@@ -40,12 +48,20 @@ pub enum AliasSpecTypes {
     Group(GroupSpec),
 }
 
+/// Overall configuration specification.
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConfigSpec {
     #[serde(flatten)]
     pub entries: HashMap<String, AliasSpecTypes>,
 }
 
+/// Convert an Alias to its corresponding AliasSpecTypes representation.
+///
+/// # Arguments
+/// * `alias` - A reference to the Alias to be converted.
+///
+/// # Returns
+/// * An AliasSpecTypes representation of the given Alias.
 fn convert_alias_to_spec(alias: &Alias) -> AliasSpecTypes {
     if !alias.detailed {
         AliasSpecTypes::Simple(alias.command.clone())
@@ -57,6 +73,15 @@ fn convert_alias_to_spec(alias: &Alias) -> AliasSpecTypes {
     }
 }
 
+/// Convert a group of aliases to its corresponding AliasSpecTypes representation.
+///
+/// # Arguments
+/// * `group_name` - The name of the group.
+/// * `enabled` - A boolean indicating if the group is enabled.
+/// * `aliases` - A reference to the HashMap of all aliases.
+///
+/// # Returns
+/// * An AliasSpecTypes representation of the group.
 fn convert_group_to_spec(
     group_name: &str,
     enabled: bool,
@@ -76,7 +101,14 @@ fn convert_group_to_spec(
     })
 }
 
-pub(crate) fn convert_config_to_spec(config: &Config) -> ConfigSpec {
+/// Convert a Config to its corresponding ConfigSpec representation.
+///
+/// # Arguments
+/// * `config` - A reference to the Config to be converted.
+///
+/// # Returns
+/// * A ConfigSpec representation of the given Config.
+pub fn convert_config_to_spec(config: &Config) -> ConfigSpec {
     let mut entries = HashMap::new();
 
     for (name, alias) in &config.aliases {
@@ -98,6 +130,14 @@ pub(crate) fn convert_config_to_spec(config: &Config) -> ConfigSpec {
     ConfigSpec { entries }
 }
 
+/// Convert an AliasSpecTypes to its corresponding Alias representation.
+///
+/// # Arguments
+/// * `spec` - The AliasSpecTypes to be converted.
+/// * `group` - An optional group name for the alias.
+///
+/// # Returns
+/// * An Alias representation of the given AliasSpecTypes.
 fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Alias {
     match spec {
         AliasSpecTypes::Simple(command) => Alias::new(command, true, group, false),
@@ -108,7 +148,14 @@ fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Alias {
     }
 }
 
-pub(crate) fn convert_spec_to_config(spec: ConfigSpec) -> Config {
+/// Convert a ConfigSpec to its corresponding Config representation.
+///
+/// # Arguments
+/// * `spec` - The ConfigSpec to be converted.
+///
+/// # Returns
+/// * A Config representation of the given ConfigSpec.
+pub fn convert_spec_to_config(spec: ConfigSpec) -> Config {
     let mut aliases = HashMap::new();
     let mut groups = HashMap::new();
 

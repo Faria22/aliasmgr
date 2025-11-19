@@ -1,3 +1,13 @@
+//! Configuration module for managing command aliases and groups.
+//! This module provides functionality to load, save, and manipulate
+//! alias configurations, including serialization and deserialization
+//! using the TOML format.
+//!
+//! # Modules
+//! - `io`: Functions for loading and saving configuration files.
+//! - `spec`: Specification structures and conversion functions for alias configuration.
+//! - `types`: Core data structures representing aliases and configurations.
+
 pub(crate) mod io;
 pub(crate) mod spec;
 pub(crate) mod types;
@@ -28,15 +38,9 @@ mod tests {
     fn expected_config() -> Config {
         let mut aliases = HashMap::new();
         let mut groups = HashMap::new();
-        aliases.insert(
-            "py".into(),
-            Alias::new("python3".into(), true, None, false),
-        );
+        aliases.insert("py".into(), Alias::new("python3".into(), true, None, false));
 
-        aliases.insert(
-            "js".into(),
-            Alias::new("node".into(), false, None, true),
-        );
+        aliases.insert("js".into(), Alias::new("node".into(), false, None, true));
 
         aliases.insert(
             "ga".into(),
