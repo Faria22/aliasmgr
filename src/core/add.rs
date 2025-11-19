@@ -6,9 +6,9 @@
 //! - `add_alias`: Adds an alias to the configuration.
 //! - `add_group`: Adds a group to the configuration.
 
+use super::edit::edit_alias;
+use super::{Failure, Outcome};
 use crate::config::types::{Alias, Config};
-use crate::core::edit::edit_alias;
-use crate::core::{Failure, Outcome};
 use log::info;
 
 /// Handles the case where an alias already exists.

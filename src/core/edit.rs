@@ -5,8 +5,8 @@
 //! # Functions
 //! - `edit_alias`: Edits an alias in the configuration.
 
+use super::{Failure, Outcome};
 use crate::config::types::Config;
-use crate::core::{Failure, Outcome};
 use log::info;
 
 /// Edits an alias in the given configuration.
