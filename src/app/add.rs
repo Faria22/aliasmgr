@@ -72,7 +72,7 @@ pub fn handle_add(cmd: AddCommand, config: &mut Config) -> Result<Outcome, Failu
                         }
 
                         // Update enabled status if it is different from the previous one
-                        if !args.disabled != !config.aliases.get(&args.name).unwrap().enabled {
+                        if args.disabled == config.aliases.get(&args.name).unwrap().enabled {
                             let alias = config.aliases.get_mut(&args.name).unwrap();
                             alias.enabled = !args.disabled;
                             info!(
