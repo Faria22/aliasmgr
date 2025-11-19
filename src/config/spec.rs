@@ -111,15 +111,17 @@ fn convert_group_to_spec(
 pub fn convert_config_to_spec(config: &Config) -> ConfigSpec {
     let mut entries = HashMap::new();
 
+    // First, add all aliases that are not part of any group.
     for (name, alias) in &config.aliases {
-        if let Some(group_name) = &alias.group {
-            if config.groups.contains_key(group_name) {
-                continue;
-            }
+        if let Some(group_name) = &alias.group
+            && config.groups.contains_key(group_name)
+        {
+            continue;
         }
         entries.insert(name.clone(), convert_alias_to_spec(alias));
     }
 
+    // Then, add all groups.
     for (group_name, group) in &config.groups {
         entries.insert(
             group_name.clone(),
