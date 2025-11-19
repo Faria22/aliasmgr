@@ -13,6 +13,7 @@ use core::Outcome;
 
 use app::add::handle_add;
 use app::config_path::determine_config_path;
+use app::r#move::handle_move;
 use app::shell::determine_shell;
 
 use core::sync::generate_alias_script_content;
@@ -49,8 +50,9 @@ fn main() {
 
     let result = match cli.command {
         // Add new alias or group
-        Commands::Add(cmd) => handle_add(cmd, &mut config),
+        Commands::Add(cmd) => handle_add(&mut config, cmd),
         Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(&config))),
+        Commands::Move(cmd) => handle_move(&mut config, cmd),
         _ => todo!("command not implemented yet"),
     };
 

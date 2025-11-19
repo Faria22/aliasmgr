@@ -11,7 +11,7 @@ use crate::cli::{AddCommand, AddTarget};
 
 use log::info;
 
-pub fn handle_add(cmd: AddCommand, config: &mut Config) -> Result<Outcome, Failure> {
+pub fn handle_add(config: &mut Config, cmd: AddCommand) -> Result<Outcome, Failure> {
     match cmd.target {
         // Add alias
         AddTarget::Alias(args) => match add_alias(

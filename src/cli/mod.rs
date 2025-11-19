@@ -12,14 +12,14 @@ mod rename;
 
 pub(crate) mod interaction;
 
-pub use add::{AddCommand, AddTarget};
+pub(crate) use add::{AddCommand, AddTarget};
+pub(crate) use r#move::MoveCommand;
 
 use disable::DisableCommand;
 use edit::EditCommand;
 use enable::EnableCommand;
 use init::InitCommand;
 use list::ListCommand;
-use r#move::MoveCommand;
 use remove::RemoveCommand;
 use rename::RenameCommand;
 
