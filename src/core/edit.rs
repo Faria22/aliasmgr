@@ -1,24 +1,52 @@
+//! Module for editing aliases in the configuration.
+//! Provides functionality to edit existing aliases.
+//! Handles errors when trying to edit non-existent aliases.
+//!
+//! # Functions
+//! - `edit_alias`: Edits an alias in the configuration.
+
 use crate::config::types::Config;
 use log::info;
 
-enum EditError {
+/// Errors that can occur while editing an alias.
+pub enum EditError {
     AliasDoesNotExist,
 }
 
-pub fn edit_alias(config: &mut Config, name: &str, new_command: &str) -> bool {
-    if let Err(e) = edit_alias_in_config(config, name, new_command) {
+/// Edits an alias in the given configuration.
+///
+/// # Arguments
+/// - `config`: Mutable reference to the configuration.
+/// - `name`: Name of the alias to edit.
+/// - `new_command`: New command for the alias.
+///
+/// # Returns
+/// - `Ok(())` if the alias was edited successfully.
+/// - `Err(EditError)` if an error occurred.
+pub fn edit_alias(config: &mut Config, name: &str, new_command: &str) -> Result<(), EditError> {
+    edit_alias_in_config(config, name, new_command).map_err(|e| {
         match e {
             EditError::AliasDoesNotExist => {
                 eprintln!("Error: Alias '{}' does not exist.", name);
-                return false;
             }
         }
-    }
+        e
+    })?;
 
     info!("Alias '{}' edited successfully.", name);
-    true
+    Ok(())
 }
 
+/// Internal function to edit an alias in the configuration.
+///
+/// # Arguments
+/// - `config`: Mutable reference to the configuration.
+/// - `name`: Name of the alias to edit.
+/// - `new_command`: New command for the alias.
+///
+/// # Returns
+/// - `Ok(())` if the alias was edited successfully.
+/// - `Err(EditError)` if an error occurred.
 fn edit_alias_in_config(
     config: &mut Config,
     name: &str,

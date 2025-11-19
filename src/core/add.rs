@@ -1,78 +1,136 @@
+//! Module for adding aliases and groups to the configuration.
+//! Provides functions to add aliases and groups, handling cases where they
+//! already exist or where groups do not exist.
+//!
+//! # Functions
+//! - `add_alias`: Adds an alias to the configuration.
+//! - `add_group`: Adds a group to the configuration.
+
 use crate::config::types::{Alias, Config};
 use crate::core::edit::edit_alias;
+use crate::core::{ReturnError, ReturnStatus};
 use log::info;
 
+/// Errors that can occur when adding an alias or group.
 enum AddError {
     GroupAlreadyExists,
     AliasAlreadyExists,
     GroupDoesNotExist,
 }
 
-fn handle_existing_alias(config: &mut Config, name: &str, command: &str) -> bool {
+/// Handles the case where an alias already exists.
+/// Prompts the user to overwrite the existing alias.
+///
+/// # Arguments
+/// - `config`: The configuration to modify.
+/// - `name`: The name of the existing alias.
+/// - `command`: The command for the alias.
+///
+/// # Returns
+/// - `ReturnStatus`: Result of the alias addition attempt.
+/// - `AliasError`: Error encountered during the process.
+fn handle_existing_alias(
+    config: &mut Config,
+    name: &str,
+    command: &str,
+) -> Result<ReturnStatus, ReturnError> {
     println!("Alias '{}' already exists.", name);
     println!("Would you like to overwrite it? (y/N)");
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap();
+
     if input.trim().to_lowercase() == "y" {
         info!("Overwriting alias '{}'.", name);
-        return edit_alias(config, name, command);
+        return match edit_alias(config, name, command) {
+            Ok(_) => {
+                info!("Alias '{}' overwritten successfully.", name);
+                Ok(ReturnStatus::Success)
+            }
+            Err(e) => {
+                eprintln!("Error: Failed to overwrite alias '{}'.", name);
+                Err(ReturnError::Edit(e))
+            }
+        };
     } else if input.trim().to_lowercase() != "n" && !input.trim().is_empty() {
         eprintln!("Invalid input. Alias '{}' was not modified.", name);
-        return false;
+        return Err(ReturnError::InvalidInput);
     }
-    true
+
+    info!("Alias '{}' was not modified.", name);
+    Ok(ReturnStatus::NoChanges)
 }
 
+/// Handles the case where a specified group does not exist.
+/// Prompts the user to create the group.
+///
+/// # Arguments
+/// - `config`: The configuration to modify.
+/// - `alias`: The name of the alias to add.
+/// - `command`: The command for the alias.
+/// - `group`: The name of the non-existing group.
+/// - `enabled`: Whether the alias should be enabled.
+///
+/// # Returns
+/// - `AliasReturnStatus`: Result of the alias addition attempt.
+/// - `AliasError`: Error encountered during the process.
 fn handle_non_existing_group(
     config: &mut Config,
     alias: &str,
     command: &str,
     group: &str,
     enabled: bool,
-) -> bool {
+) -> Result<ReturnStatus, ReturnError> {
     println!("Group '{}' does not exist.", group);
     println!("Would you like to create it? (y/N)");
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap();
     if input.trim().to_lowercase() == "y" {
         info!("Creating group '{}'.", group);
-        add_group(config, group, enabled);
+        add_group(config, group, enabled)?;
         if let Err(e) = add_alias_to_config(config, alias, command, Some(group), enabled) {
             match e {
                 AddError::AliasAlreadyExists => {
                     return handle_existing_alias(config, alias, command);
                 }
-                _ => {
-                    eprintln!(
-                        "Error: Failed to add alias '{}' after creating group '{}'.",
-                        alias, group
-                    );
-                    return false;
-                }
+                _ => unreachable!("Unexpected error after creating group"),
             }
-        } else {
-            info!("Alias '{}' added successfully to group '{}'.", alias, group);
-            true
         }
-    } else if input.trim().to_lowercase() == "n" {
+
+        info!("Alias '{}' added successfully to group '{}'.", alias, group);
+        return Ok(ReturnStatus::Success);
+    }
+
+    if input.trim().to_lowercase() == "n" {
         info!(
             "Alias '{}' was not added due to missing group '{}' not being added",
             alias, group
         );
-        return true;
-    } else {
-        eprintln!("Invalid input. Alias '{}' was not added.", alias);
-        return false;
+        return Ok(ReturnStatus::NoChanges);
     }
+
+    eprintln!("Invalid input. Alias '{}' was not added.", alias);
+    return Err(ReturnError::InvalidInput);
 }
 
+/// Adds an alias to the configuration.
+///
+/// # Arguments
+/// - `config`: The configuration to modify.
+/// - `name`: The name of the alias.
+/// - `command`: The command for the alias.
+/// - `group`: An optional group for the alias.
+/// - `enabled`: Whether the alias should be enabled.
+///
+/// # Returns
+/// - `ReturnStatus`: Result of the alias addition attempt.
+/// - `ReturnError`: Error encountered during the process.
 pub fn add_alias(
     config: &mut Config,
     name: &str,
     command: &str,
     group: Option<&str>,
     enabled: bool,
-) -> bool {
+) -> Result<ReturnStatus, ReturnError> {
     if let Err(e) = add_alias_to_config(config, name, command, group, enabled) {
         match e {
             AddError::AliasAlreadyExists => return handle_existing_alias(config, name, command),
@@ -85,42 +143,61 @@ pub fn add_alias(
                     enabled,
                 );
             }
-            _ => {
-                eprintln!("Error: Failed to add alias '{}'.", name);
-                return false;
-            }
+            _ => unreachable!("Unexpected error when adding alias"),
         }
     }
 
     info!("Alias '{}' added successfully.", name);
-    true
+    Ok(ReturnStatus::Success)
 }
 
-pub fn add_group(config: &mut Config, name: &str, enabled: bool) -> bool {
+/// Adds a group to the configuration.
+///
+/// # Arguments
+/// - `config`: The configuration to modify.
+/// - `name`: The name of the group.
+/// - `enabled`: Whether the group should be enabled.
+///
+/// # Returns
+/// - `ReturnStatus`: Result of the group addition attempt.
+/// - `ReturnError`: Error encountered during the process.
+pub fn add_group(
+    config: &mut Config,
+    name: &str,
+    enabled: bool,
+) -> Result<ReturnStatus, ReturnError> {
     if let Err(e) = add_group_to_config(config, name, enabled) {
         match e {
             AddError::GroupAlreadyExists => {
                 println!("Group '{}' already exists. No changes made.", name);
-                return false;
+                return Ok(ReturnStatus::NoChanges);
             }
-            _ => {
-                eprintln!("Error: Failed to add group '{}'.", name);
-                return false;
-            }
+            _ => unreachable!("Unexpected error when adding group"),
         }
     }
 
     info!("Group '{}' added successfully.", name);
-    true
+    Ok(ReturnStatus::Success)
 }
 
+/// Internal function to add an alias to the configuration.
+///
+/// # Arguments
+/// - `config`: The configuration to modify.
+/// - `alias`: The name of the alias.
+/// - `command`: The command for the alias.
+/// - `group`: An optional group for the alias.
+/// - `enabled`: Whether the alias should be enabled.
+///
+///# Returns
+/// - `Result<ReturnStatus, AddError>`: Ok if the alias was added successfully, Err otherwise.
 fn add_alias_to_config(
     config: &mut Config,
     alias: &str,
     command: &str,
     group: Option<&str>,
     enabled: bool,
-) -> Result<(), AddError> {
+) -> Result<ReturnStatus, AddError> {
     // Check if alias already exists
     if config.aliases.contains_key(alias) {
         info!("Alias '{}' already exists.", alias);
@@ -144,10 +221,23 @@ fn add_alias_to_config(
 
     info!("Alias '{}' added with command '{}'.", alias, command);
 
-    Ok(())
+    Ok(ReturnStatus::Success)
 }
 
-fn add_group_to_config(config: &mut Config, group: &str, enabled: bool) -> Result<(), AddError> {
+/// Internal function to add a group to the configuration.
+///
+/// # Arguments
+/// - `config`: The configuration to modify.
+/// - `group`: The name of the group.
+/// - `enabled`: Whether the group should be enabled.
+///
+/// # Returns
+/// - `Result<ReturnStatus, AddError>`: Ok if the group was added successfully, Err otherwise.
+fn add_group_to_config(
+    config: &mut Config,
+    group: &str,
+    enabled: bool,
+) -> Result<ReturnStatus, AddError> {
     if config.groups.contains_key(group) {
         info!("Group '{}' already exists.", group);
         return Err(AddError::GroupAlreadyExists);
@@ -157,7 +247,7 @@ fn add_group_to_config(config: &mut Config, group: &str, enabled: bool) -> Resul
 
     info!("Group '{}' added with enabled status '{}'.", group, enabled);
 
-    Ok(())
+    Ok(ReturnStatus::Success)
 }
 
 #[cfg(test)]
@@ -186,7 +276,12 @@ mod test {
         assert!(result.is_ok());
         assert_eq!(
             config.aliases.get("gs"),
-            Some(&Alias::new("git status".into(), true, Some("git".into()), false))
+            Some(&Alias::new(
+                "git status".into(),
+                true,
+                Some("git".into()),
+                false
+            ))
         );
         assert_eq!(
             config.aliases.get("ll"),
@@ -208,10 +303,9 @@ mod test {
     #[test]
     fn add_existing_alias() {
         let mut config = Config::new();
-        config.aliases.insert(
-            "ll".into(),
-            Alias::new("ls -l".into(), true, None, false),
-        );
+        config
+            .aliases
+            .insert("ll".into(), Alias::new("ls -l".into(), true, None, false));
         let result = add_alias_to_config(&mut config, "ll", "ls -la", None, true);
         assert!(result.is_err());
     }

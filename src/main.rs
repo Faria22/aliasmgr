@@ -29,7 +29,7 @@ fn main() {
     let mut config = load_config(cli.config.as_ref()).expect("Failed to load configuration");
     debug!("Loaded configuration: {:?}", config);
 
-    let successul: bool = match cli.command {
+    let result = match cli.command {
         Commands::Add(cmd) => match cmd.target {
             AddTarget::Alias(args) => add_alias(
                 &mut config,
@@ -40,13 +40,10 @@ fn main() {
             ),
             AddTarget::Group(args) => add_group(&mut config, &args.name, !args.disabled),
         },
-        _ => {
-            eprintln!("This command is not implemented yet.");
-            false
-        }
+        _ => unimplemented!("command not implemented yet"),
     };
 
-    if successul {
+    if let Ok(_) = result {
         println!("Operation completed successfully.");
     } else {
         eprintln!("Operation failed.");
