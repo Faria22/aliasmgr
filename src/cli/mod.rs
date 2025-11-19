@@ -100,5 +100,6 @@ pub enum Commands {
     Sync,
 
     /// Initialize aliasmgr
+    #[command(hide = true)]
     Init,
 }
