@@ -46,7 +46,7 @@ pub fn add_alias(
             command.into(),
             enabled,
             group.map(|g| g.to_string()),
-            if enabled { false } else { true },
+            !enabled, // detailed output needs to be true if alias is disabled, and can be false otherwise
         ),
     );
 
