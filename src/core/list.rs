@@ -57,16 +57,16 @@ pub fn get_single_group(config: &Config, identifier: GroupId) -> Vec<String> {
         return config
             .aliases
             .iter()
-            .filter_map(|(alias_name, alias)| {
-                (alias.group.as_ref()? == name).then(|| alias_name.clone())
-            })
+            .filter(|(_, alias)| alias.group.as_ref() == Some(name))
+            .map(|(alias_name, _)| alias_name.clone())
             .collect();
     }
 
     config
         .aliases
         .iter()
-        .filter_map(|(alias_name, alias)| alias.group.is_none().then(|| alias_name.clone()))
+        .filter(|(_, alias)| alias.group.is_none())
+        .map(|(alias_name, _)| alias_name.clone())
         .collect()
 }
 
