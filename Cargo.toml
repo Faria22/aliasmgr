@@ -9,6 +9,7 @@ edition = "2024"
 anyhow = "1.0.100"
 clap = { version = "4.5.51", features = ["derive"] }
 cross-xdg = "2.0.0"
+dialoguer = "0.12.0"
 env_logger = "0.11.8"
 log = "0.4.28"
 serde = { version = "1.0.228", features = ["derive"] }

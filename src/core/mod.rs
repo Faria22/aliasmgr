@@ -1,6 +1,7 @@
 pub(crate) mod add;
 pub(crate) mod edit;
 pub(crate) mod list;
+pub(crate) mod r#move;
 pub(crate) mod sync;
 
 use thiserror::Error;
@@ -20,8 +21,8 @@ pub enum Failure {
     #[error("Group already exists")]
     GroupAlreadyExists,
 
-    #[error("Invalid input: {0}")]
-    InvalidInput(String),
+    #[error("Config file $0 does not exist.")]
+    ConfigFileNotFound(String),
 }
 
 /// Represents the outcome of core operations.

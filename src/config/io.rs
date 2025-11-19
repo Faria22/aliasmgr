@@ -4,10 +4,9 @@
 //! ! It also handles the creation of necessary directories if they do not exist.
 
 use log::{debug, info, warn};
+use std::fs;
 use std::path::PathBuf;
-use std::{fs, io};
 
-use crate::core::{Failure, Outcome};
 use anyhow::Result;
 
 use super::spec::{ConfigSpec, convert_config_to_spec, convert_spec_to_config};
@@ -44,13 +43,12 @@ pub fn config_path(path: Option<&PathBuf>) -> PathBuf {
 /// A `Result` containing the loaded `Config` or an error.
 pub fn load_config(path: Option<&PathBuf>) -> Result<Config> {
     let path = config_path(path);
+    info!("Loading config from {:?}", path);
 
     if !path.exists() {
-        warn!("Config file {:?} does not exist, using empty config", path);
+        info!("Config file {:?} does not exist, using empty config", path);
         return Ok(Config::new());
     }
-
-    info!("Loading config from {:?}", path);
 
     let content = fs::read_to_string(path)?;
     let cfg: ConfigSpec = toml::from_str(&content)?;
@@ -66,8 +64,8 @@ pub fn load_config(path: Option<&PathBuf>) -> Result<Config> {
 ///
 /// # Returns
 /// A `Result` indicating success or failure.
-pub fn save_config(path: Option<&PathBuf>, config: &Config) -> Result<Outcome> {
-    let path = config_path(path);
+pub fn save_config(custom_path: Option<&PathBuf>, config: &Config) -> Result<()> {
+    let path = config_path(custom_path);
 
     if !path.exists() {
         warn!("Config file {:?} does not exist, creating it", path);
@@ -80,27 +78,12 @@ pub fn save_config(path: Option<&PathBuf>, config: &Config) -> Result<Outcome> {
     if path.exists() {
         debug!("Overwriting existing config at {:?}", path);
     } else {
-        println!(
-            "File {:?} does not exist. Do you want to create it? (y/n)",
-            path
-        );
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        if input.trim().to_lowercase() == "y" {
-        } else if input.trim().to_lowercase() == "n" {
-            println!("No configuration was saved.");
-            return Ok(Outcome::NoChanges);
-        } else {
-            eprintln!("Invalid input. No configuration was saved.");
-            return Err(Failure::InvalidInput(input.trim().to_string()).into());
-        }
+        info!("Saving content into new config at {:?}", path);
     }
-
-    info!("Saving config to {:?}", path);
 
     let spec = convert_config_to_spec(config);
     let content = toml::to_string_pretty(&spec).expect("failed to serialize config");
     fs::write(path, content)?;
 
-    Ok(Outcome::NoChanges)
+    Ok(())
 }

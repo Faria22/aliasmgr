@@ -1,12 +1,19 @@
+mod app;
 mod cli;
 mod config;
 mod core;
 
 use clap::Parser;
-use cli::{Cli, Commands, add::AddTarget};
+
+use cli::{Cli, Commands};
+
 use config::io::load_config;
+
 use core::Outcome;
-use core::add::{add_alias, add_group};
+
+use app::add::handle_add;
+use app::config_path::determine_config_path;
+
 use log::{LevelFilter, debug};
 
 fn main() {
@@ -27,20 +34,15 @@ fn main() {
         .parse_default_env()
         .init();
 
-    let mut config = load_config(cli.config.as_ref()).expect("Failed to load configuration");
+    let path = determine_config_path()
+        .expect("Custom config path did not exist and user chose not to use it.");
+
+    let mut config = load_config(path.as_ref()).expect("Failed to load configuration");
     debug!("Loaded configuration: {:?}", config);
 
     let result = match cli.command {
-        Commands::Add(cmd) => match cmd.target {
-            AddTarget::Alias(args) => add_alias(
-                &mut config,
-                &args.name,
-                &args.command,
-                args.group.as_deref(),
-                !args.disabled,
-            ),
-            AddTarget::Group(args) => add_group(&mut config, &args.name, !args.disabled),
-        },
+        // Add new alias or group
+        Commands::Add(cmd) => handle_add(cmd, &mut config),
         _ => todo!("command not implemented yet"),
     };
 

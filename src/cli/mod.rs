@@ -1,19 +1,23 @@
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
 
-pub(crate) mod add;
-pub(crate) mod disable;
-pub(crate) mod edit;
-pub(crate) mod enable;
-pub(crate) mod list;
-pub(crate) mod r#move;
-pub(crate) mod remove;
-pub(crate) mod rename;
+mod add;
+mod disable;
+mod edit;
+mod enable;
+mod init;
+mod list;
+mod r#move;
+mod remove;
+mod rename;
 
-use add::AddCommand;
+pub(crate) mod interaction;
+
+pub use add::{AddCommand, AddTarget};
+
 use disable::DisableCommand;
 use edit::EditCommand;
 use enable::EnableCommand;
+use init::InitCommand;
 use list::ListCommand;
 use r#move::MoveCommand;
 use remove::RemoveCommand;
@@ -27,10 +31,6 @@ use rename::RenameCommand;
     disable_help_subcommand = true
 )]
 pub struct Cli {
-    /// Custom location of the configuration file
-    #[arg(short, long, value_name = "FILE", global = true)]
-    pub config: Option<PathBuf>,
-
     /// Increase output verbosity
     #[arg(
         short,
@@ -101,5 +101,5 @@ pub enum Commands {
 
     /// Initialize aliasmgr
     #[command(hide = true)]
-    Init,
+    Init(InitCommand),
 }
