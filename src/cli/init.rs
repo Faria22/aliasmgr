@@ -8,6 +8,6 @@ pub struct InitCommand {
     pub shell: String,
 
     /// Custom location of the configuration file
-    #[arg(long, hide = true)]
+    #[arg(long)]
     pub config: Option<PathBuf>,
 }
