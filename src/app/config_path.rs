@@ -20,6 +20,6 @@ pub fn determine_config_path() -> Result<Option<PathBuf>> {
             path.to_str().unwrap()
         );
     } else {
-        return Ok(None);
+        Ok(None)
     }
 }

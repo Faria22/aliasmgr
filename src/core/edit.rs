@@ -24,14 +24,14 @@ pub fn edit_alias(config: &mut Config, name: &str, new_command: &str) -> Result<
         Some(alias) => {
             alias.command = new_command.into();
             info!("Alias '{}' command updated to '{}'.", name, new_command);
-            return Ok(Outcome::Command(format!(
+            Ok(Outcome::Command(format!(
                 "alias {}='{}'",
                 name, new_command
-            )));
+            )))
         }
         None => {
             info!("Alias '{}' does not exist.", name);
-            return Err(Failure::AliasDoesNotExist);
+            Err(Failure::AliasDoesNotExist)
         }
     }
 }

@@ -63,11 +63,11 @@ pub fn get_single_group(config: &Config, identifier: GroupId) -> Vec<String> {
             .collect();
     }
 
-    return config
+    config
         .aliases
         .iter()
         .filter_map(|(alias_name, alias)| alias.group.is_none().then(|| alias_name.clone()))
-        .collect();
+        .collect()
 }
 
 #[cfg(test)]
