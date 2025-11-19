@@ -40,7 +40,7 @@ pub fn handle_add(cmd: AddCommand, config: &mut Config) -> Result<Outcome, Failu
                         {
                             info!("Moving alias '{}' to group '{:?}'.", &args.name, args.group);
                             if let Err(Failure::GroupDoesNotExist) =
-                                move_alias(&args.name, &args.group)
+                                move_alias(config, &args.name, &args.group)
                             {
                                 // If the group does not exist, we ask the user if they want to create it
                                 if create_non_existent_group(
