@@ -40,7 +40,7 @@ fn main() {
             ),
             AddTarget::Group(args) => add_group(&mut config, &args.name, !args.disabled),
         },
-        _ => unimplemented!("command not implemented yet"),
+        _ => todo!("command not implemented yet"),
     };
 
     if let Ok(_) = result {
