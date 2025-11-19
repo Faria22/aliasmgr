@@ -28,24 +28,14 @@ pub enum GroupId {
 pub fn get_all_groups(config: &Config) -> HashMap<GroupId, Vec<String>> {
     let mut groups = HashMap::<GroupId, Vec<String>>::new();
 
-    // Initialize the groups with the group names and the ungrouped category
-    groups.insert(GroupId::Ungrouped, Vec::new());
-    for (group, _) in &config.groups {
-        groups.insert(GroupId::Named(group.into()), Vec::new());
-    }
-
     // Populate the groups with alias names
     for (alias_name, alias) in &config.aliases {
-        let group_identifier = if let Some(g) = &alias.group {
-            GroupId::Named(g.into())
-        } else {
-            GroupId::Ungrouped
-        };
-
-        groups
-            .get_mut(&group_identifier)
-            .unwrap()
-            .push(alias_name.into());
+        let key = alias
+            .group
+            .clone()
+            .map(GroupId::Named)
+            .unwrap_or(GroupId::Ungrouped);
+        groups.entry(key).or_default().push(alias_name.clone());
     }
 
     groups
