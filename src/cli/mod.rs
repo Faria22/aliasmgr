@@ -72,7 +72,7 @@ pub enum Commands {
     #[command(visible_alias = "rm")]
     Remove(RemoveCommand),
 
-    /// List aliases
+    /// List all active aliases
     #[command(visible_alias = "ls")]
     List(ListCommand),
 
