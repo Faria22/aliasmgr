@@ -64,7 +64,7 @@ pub fn load_config(path: Option<&PathBuf>) -> Result<Config> {
 ///
 /// # Returns
 /// A `Result` indicating success or failure.
-pub fn save_config(custom_path: Option<&PathBuf>, config: &Config) -> Result<()> {
+pub fn save_config(config: &Config, custom_path: Option<&PathBuf>) -> Result<()> {
     let path = config_path(custom_path);
 
     if !path.exists() {

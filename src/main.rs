@@ -7,10 +7,11 @@ use clap::Parser;
 
 use cli::{Cli, Commands};
 
-use config::io::load_config;
+use config::io::{load_config, save_config};
 
 use core::Outcome;
 
+use app::COMMAND_HEADER;
 use app::add::handle_add;
 use app::config_path::determine_config_path;
 use app::r#move::handle_move;
@@ -57,7 +58,11 @@ fn main() {
     };
 
     match result {
-        Ok(Outcome::Command(msg)) => println!("Command needs to be run: {}", msg),
+        Ok(Outcome::Command(msg)) => {
+            debug!("Generated command output: {}", msg);
+            save_config(&config, path.as_ref()).expect("Failed to save configuration");
+            println!("{}\n{}", COMMAND_HEADER, msg);
+        }
         Ok(Outcome::NoChanges) => println!("No changes were made."),
         Ok(Outcome::ConfigChanged) => println!("Configuration has changed."),
         Err(_) => eprintln!("An error occurred."),

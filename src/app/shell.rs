@@ -1,3 +1,5 @@
 pub fn determine_shell() -> String {
-    todo!()
+    todo!(
+        "this function needs to degermine the user's shell that will be exported to the environment"
+    )
 }

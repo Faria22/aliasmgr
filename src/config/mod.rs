@@ -84,7 +84,7 @@ mod tests {
         let temp_conf = temp_dir.path().join("aliases.toml");
 
         let config = expected_config();
-        save_config(Some(&temp_conf), &config).unwrap();
+        save_config(&config, Some(&temp_conf)).unwrap();
 
         let saved_content = fs::read_to_string(&temp_conf).unwrap();
         let parsed_spec: ConfigSpec = toml::from_str(&saved_content).unwrap();
