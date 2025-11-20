@@ -11,11 +11,10 @@ use config::io::{load_config, save_config};
 
 use core::Outcome;
 
-use app::COMMAND_HEADER;
 use app::add::handle_add;
 use app::config_path::determine_config_path;
 use app::r#move::handle_move;
-use app::shell::determine_shell;
+use app::shell::{determine_shell, send_alias_deltas_to_shell};
 
 use core::sync::generate_alias_script_content;
 
@@ -61,13 +60,18 @@ fn main() {
         Ok(Outcome::Command(msg)) => {
             debug!("Generated command output: {}", msg);
             save_config(&config, path.as_ref()).expect("Failed to save configuration");
-            println!("{}\n{}", COMMAND_HEADER, msg); // Display the command header and generated command for the shell to load
+            send_alias_deltas_to_shell(&msg);
         }
-        Ok(Outcome::NoChanges) => println!("No changes were made."),
+        Ok(Outcome::NoChanges) => {
+            debug!("No changes made to configuration or shell.");
+        }
         Ok(Outcome::ConfigChanged) => {
-            save_config(&config, path.as_ref()).expect("Failed to save configuration");
+            if save_config(&config, path.as_ref()).is_err() {
+                eprintln!("Failed to save updated configuration.");
+                return;
+            }
             debug!("New configuration saved.");
         }
-        Err(_) => eprintln!("An error occurred."),
+        Err(_) => debug!("An error occurred during command execution."),
     }
 }
