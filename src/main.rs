@@ -61,10 +61,13 @@ fn main() {
         Ok(Outcome::Command(msg)) => {
             debug!("Generated command output: {}", msg);
             save_config(&config, path.as_ref()).expect("Failed to save configuration");
-            println!("{}\n{}", COMMAND_HEADER, msg);
+            println!("{}\n{}", COMMAND_HEADER, msg); // Display the command header and generated command for the shell to load
         }
         Ok(Outcome::NoChanges) => println!("No changes were made."),
-        Ok(Outcome::ConfigChanged) => println!("Configuration has changed."),
+        Ok(Outcome::ConfigChanged) => {
+            save_config(&config, path.as_ref()).expect("Failed to save configuration");
+            debug!("New configuration saved.");
+        }
         Err(_) => eprintln!("An error occurred."),
     }
 }

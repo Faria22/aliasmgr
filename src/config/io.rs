@@ -78,7 +78,7 @@ pub fn save_config(config: &Config, custom_path: Option<&PathBuf>) -> Result<()>
     if path.exists() {
         debug!("Overwriting existing config at {:?}", path);
     } else {
-        info!("Saving content into new config at {:?}", path);
+        debug!("Saving content into new config at {:?}", path);
     }
 
     let spec = convert_config_to_spec(config);
