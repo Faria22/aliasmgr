@@ -5,8 +5,8 @@ use crate::core::r#move::move_alias;
 
 use crate::config::types::Config;
 
-use crate::cli::MoveCommand;
 use crate::cli::interaction::create_non_existent_group;
+use crate::cli::r#move::MoveCommand;
 
 use log::info;
 

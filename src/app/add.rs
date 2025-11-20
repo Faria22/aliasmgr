@@ -6,8 +6,8 @@ use crate::core::r#move::move_alias;
 
 use crate::config::types::Config;
 
+use crate::cli::add::{AddCommand, AddTarget};
 use crate::cli::interaction::{create_non_existent_group, overwrite_existing_alias};
-use crate::cli::{AddCommand, AddTarget};
 
 use log::info;
 

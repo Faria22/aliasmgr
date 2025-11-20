@@ -1,25 +1,24 @@
 use clap::{Parser, Subcommand};
 
-mod add;
-mod disable;
-mod edit;
-mod enable;
-mod init;
-mod list;
-mod r#move;
-mod remove;
-mod rename;
+pub(crate) mod add;
+pub(crate) mod disable;
+pub(crate) mod edit;
+pub(crate) mod enable;
+pub(crate) mod init;
+pub(crate) mod list;
+pub(crate) mod r#move;
+pub(crate) mod remove;
+pub(crate) mod rename;
 
 pub(crate) mod interaction;
 
-pub(crate) use add::{AddCommand, AddTarget};
-pub(crate) use r#move::MoveCommand;
-
+use add::AddCommand;
 use disable::DisableCommand;
 use edit::EditCommand;
 use enable::EnableCommand;
 use init::InitCommand;
 use list::ListCommand;
+use r#move::MoveCommand;
 use remove::RemoveCommand;
 use rename::RenameCommand;
 
