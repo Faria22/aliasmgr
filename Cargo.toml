@@ -1,9 +1,10 @@
 [package]
 name = "aliasmgr"
 version = "0.1.0"
-description = "An alias manager written in Rust"
+description = "A CLI alias manager"
 authors = ["Felipe Faria <fariafelipe22@outlook.com>"]
 edition = "2024"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1.0.100"
