@@ -8,6 +8,7 @@
 //! - `get_single_group`: Returns aliases for a specific group.
 
 use crate::config::types::Config;
+use crate::core::Failure;
 use std::collections::HashMap;
 use std::vec::Vec;
 
@@ -57,26 +58,76 @@ pub fn get_all_groups(config: &Config) -> HashMap<GroupId, Vec<String>> {
 ///
 /// # Returns
 /// A vector of alias names belonging to the specified group.
-pub fn get_single_group(config: &Config, identifier: GroupId) -> Vec<String> {
+pub fn get_single_group(config: &Config, identifier: GroupId) -> Result<Vec<String>, Failure> {
     if let GroupId::Named(name) = &identifier {
         if !config.groups.contains_key(name) {
-            return Vec::new();
+            return Err(Failure::GroupDoesNotExist);
         }
 
-        return config
+        return Ok(config
             .aliases
             .iter()
             .filter(|(_, alias)| alias.group.as_ref() == Some(name))
             .map(|(alias_name, _)| alias_name.clone())
-            .collect();
+            .collect());
     }
 
-    config
+    Ok(config
         .aliases
         .iter()
         .filter(|(_, alias)| alias.group.is_none())
         .map(|(alias_name, _)| alias_name.clone())
-        .collect()
+        .collect())
+}
+
+/// Retrieves all disabled aliases grouped by their respective groups from the configuration.
+///
+/// # Arguments
+/// * `config` - A reference to the configuration containing groups and aliases.
+///
+/// # Returns
+/// A HashMap where keys are GroupId (either named or ungrouped) and values
+/// are vectors of disabled alias names belonging to those groups.
+pub fn get_disabled_aliases_grouped(config: &Config) -> HashMap<GroupId, Vec<String>> {
+    let mut groups = get_all_groups(config);
+    groups.retain(|group_name, group| {
+        if let GroupId::Named(g) = group_name {
+            // Add entire group if it's disabled
+            return !config.groups.get(g).unwrap_or(&true);
+        }
+
+        // Retain only disabled aliases
+        group.retain(|alias| !config.aliases[alias].enabled);
+        true
+    });
+
+    groups
+}
+
+/// Retrieves all enabled aliases grouped by their respective groups from the configuration.
+///
+/// # Arguments
+/// * `config` - A reference to the configuration containing groups and aliases.
+///
+/// # Returns
+/// A HashMap where keys are GroupId (either named or ungrouped) and values
+/// are vectors of enabled alias names belonging to those groups.
+pub fn get_enabled_aliases_grouped(config: &Config) -> HashMap<GroupId, Vec<String>> {
+    let mut groups = get_all_groups(config);
+    groups.retain(|group_name, group| {
+        // Skip entire group if it's disabled
+        if let GroupId::Named(g) = group_name
+            && !config.groups.get(g).unwrap_or(&true)
+        {
+            return false;
+        }
+
+        // Retain only enabled aliases
+        group.retain(|alias| config.aliases[alias].enabled);
+        true
+    });
+
+    groups
 }
 
 #[cfg(test)]
@@ -90,7 +141,9 @@ mod tests {
 
         groups.insert("group1".into(), true);
         groups.insert("group2".into(), true);
+        groups.insert("group3".into(), false);
 
+        // Named group with enabled and disabled aliases
         aliases.insert(
             "alias1".into(),
             Alias {
@@ -101,6 +154,17 @@ mod tests {
             },
         );
         aliases.insert(
+            "alias1_disabled".into(),
+            Alias {
+                command: "cmd1".into(),
+                group: Some("group1".into()),
+                detailed: true,
+                enabled: false,
+            },
+        );
+
+        // Another named group with only enabled aliases
+        aliases.insert(
             "alias2".into(),
             Alias {
                 command: "cmd2".into(),
@@ -109,13 +173,44 @@ mod tests {
                 enabled: true,
             },
         );
+        //
+        // Named group that is disabled with enabled and disabled aliases
         aliases.insert(
             "alias3".into(),
             Alias {
                 command: "cmd3".into(),
+                group: Some("group3".into()),
+                detailed: false,
+                enabled: true,
+            },
+        );
+        aliases.insert(
+            "alias3_disabled".into(),
+            Alias {
+                command: "cmd3".into(),
+                group: Some("group3".into()),
+                detailed: true,
+                enabled: false,
+            },
+        );
+
+        // Ungrouped aliases
+        aliases.insert(
+            "alias4".into(),
+            Alias {
+                command: "cmd4".into(),
                 group: None,
                 detailed: false,
                 enabled: true,
+            },
+        );
+        aliases.insert(
+            "alias4_disabled".into(),
+            Alias {
+                command: "cmd4".into(),
+                group: None,
+                detailed: false,
+                enabled: false,
             },
         );
 
@@ -127,10 +222,20 @@ mod tests {
         let config = create_test_config();
 
         let group = get_single_group(&config, GroupId::Named("group1".into()));
-        assert_eq!(group.len(), 1);
-        assert_eq!(group[0], "alias1".to_string());
+
+        assert!(group.is_ok());
+        let group = group.unwrap();
+
+        assert_eq!(group.len(), 2);
+
+        assert!(group.contains(&"alias1".to_string()));
+        assert!(group.contains(&"alias1_disabled".to_string()));
+
         assert!(!group.contains(&"alias2".to_string()));
         assert!(!group.contains(&"alias3".to_string()));
+        assert!(!group.contains(&"alias3_disabled".to_string()));
+        assert!(!group.contains(&"alias4".to_string()));
+        assert!(!group.contains(&"alias4_disabled".to_string()));
     }
 
     #[test]
@@ -138,17 +243,27 @@ mod tests {
         let config = create_test_config();
 
         let ungrouped = get_single_group(&config, GroupId::Ungrouped);
-        assert_eq!(ungrouped.len(), 1);
-        assert_eq!(ungrouped[0], "alias3".to_string());
+
+        assert!(ungrouped.is_ok());
+        let ungrouped = ungrouped.unwrap();
+
+        assert_eq!(ungrouped.len(), 2);
+
+        assert!(ungrouped.contains(&"alias4".to_string()));
+        assert!(ungrouped.contains(&"alias4_disabled".to_string()));
+
         assert!(!ungrouped.contains(&"alias1".to_string()));
+        assert!(!ungrouped.contains(&"alias1_disabled".to_string()));
         assert!(!ungrouped.contains(&"alias2".to_string()));
+        assert!(!ungrouped.contains(&"alias3".to_string()));
+        assert!(!ungrouped.contains(&"alias3_disabled".to_string()));
     }
 
     #[test]
-    fn test_get_single_group_empty() {
+    fn test_get_nonexistent_group() {
         let config = Config::new();
         let group = get_single_group(&config, GroupId::Named("nonexistent".into()));
-        assert_eq!(group.len(), 0);
+        assert!(group.is_err());
     }
 
     #[test]
@@ -158,19 +273,39 @@ mod tests {
 
         assert!(groups.contains_key(&GroupId::Named("group1".into())));
         assert!(groups.contains_key(&GroupId::Named("group2".into())));
+        assert!(groups.contains_key(&GroupId::Named("group3".into())));
         assert!(groups.contains_key(&GroupId::Ungrouped));
 
-        assert_eq!(
-            groups.get(&GroupId::Named("group1".into())).unwrap(),
-            &vec!["alias1".to_string()]
+        assert!(
+            groups
+                .get(&GroupId::Named("group1".into()))
+                .unwrap()
+                .contains(&"alias1".to_string())
         );
-        assert_eq!(
-            groups.get(&GroupId::Named("group2".into())).unwrap(),
-            &vec!["alias2".to_string()]
+        assert!(
+            groups
+                .get(&GroupId::Named("group1".into()))
+                .unwrap()
+                .contains(&"alias1_disabled".to_string())
         );
-        assert_eq!(
-            groups.get(&GroupId::Ungrouped).unwrap(),
-            &vec!["alias3".to_string()]
+
+        assert!(
+            groups
+                .get(&GroupId::Named("group2".into()))
+                .unwrap()
+                .contains(&"alias2".to_string())
+        );
+        assert!(
+            groups
+                .get(&GroupId::Named("group3".into()))
+                .unwrap()
+                .contains(&"alias3".to_string())
+        );
+        assert!(
+            groups
+                .get(&GroupId::Ungrouped)
+                .unwrap()
+                .contains(&"alias4".to_string())
         );
     }
 
@@ -188,17 +323,14 @@ mod tests {
         let groups = get_all_groups(&config);
         assert_eq!(groups.len(), 3); // group1, group2, ungrouped
         assert_eq!(
-            groups.get(&GroupId::Named("group1".into())).unwrap(),
-            &Vec::<String>::new()
+            groups.get(&GroupId::Named("group1".into())).unwrap().len(),
+            0
         );
         assert_eq!(
-            groups.get(&GroupId::Named("group2".into())).unwrap(),
-            &Vec::<String>::new()
+            groups.get(&GroupId::Named("group2".into())).unwrap().len(),
+            0
         );
-        assert_eq!(
-            groups.get(&GroupId::Ungrouped).unwrap(),
-            &Vec::<String>::new()
-        );
+        assert_eq!(groups.get(&GroupId::Ungrouped).unwrap().len(), 0);
     }
 
     #[test]
@@ -208,10 +340,7 @@ mod tests {
         let groups = get_all_groups(&config);
         assert_eq!(groups.len(), 1); // Only ungrouped should be present
         assert!(groups.contains_key(&GroupId::Ungrouped));
-        assert_eq!(
-            groups.get(&GroupId::Ungrouped).unwrap(),
-            &Vec::<String>::new()
-        );
+        assert_eq!(groups.get(&GroupId::Ungrouped).unwrap().len(), 0);
     }
 
     #[test]
@@ -232,9 +361,63 @@ mod tests {
         };
         let groups = get_all_groups(&config);
         assert_eq!(groups.len(), 1); // Only ungrouped should be present
-        assert_eq!(
-            groups.get(&GroupId::Ungrouped).unwrap(),
-            &vec!["alias1".to_string()]
+        assert!(
+            groups
+                .get(&GroupId::Ungrouped)
+                .unwrap()
+                .contains(&"alias1".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_disabled_aliases() {
+        let config = create_test_config();
+        let disabled = get_disabled_aliases_grouped(&config);
+        assert!(disabled.get(&GroupId::Named("group1".into())).is_none());
+        assert!(disabled.get(&GroupId::Named("group2".into())).is_none());
+        assert!(
+            disabled
+                .get(&GroupId::Named("group3".into()))
+                .unwrap()
+                .contains(&"alias3".to_string())
+        );
+        assert!(
+            disabled
+                .get(&GroupId::Named("group3".into()))
+                .unwrap()
+                .contains(&"alias3_disabled".to_string())
+        );
+
+        assert!(
+            disabled
+                .get(&GroupId::Ungrouped)
+                .unwrap()
+                .contains(&"alias4_disabled".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_enabled_aliases() {
+        let config = create_test_config();
+        let enabled = get_enabled_aliases_grouped(&config);
+        assert!(
+            enabled
+                .get(&GroupId::Named("group1".into()))
+                .unwrap()
+                .contains(&"alias1".to_string())
+        );
+        assert!(
+            enabled
+                .get(&GroupId::Named("group2".into()))
+                .unwrap()
+                .contains(&"alias2".to_string())
+        );
+        assert!(enabled.get(&GroupId::Named("group3".into())).is_none());
+        assert!(
+            enabled
+                .get(&GroupId::Ungrouped)
+                .unwrap()
+                .contains(&"alias4".to_string())
         );
     }
 }

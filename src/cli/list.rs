@@ -4,7 +4,7 @@ use clap::{ArgGroup, Args};
 #[command(
     group(
         ArgGroup::new("list_scope")
-            .args(["group", "all"])
+            .args(["group", "all", "disabled"])
             .multiple(false)
     )
 )]

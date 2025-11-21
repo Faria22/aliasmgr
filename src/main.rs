@@ -13,6 +13,7 @@ use core::Outcome;
 
 use app::add::handle_add;
 use app::config_path::determine_config_path;
+use app::list::handle_list;
 use app::r#move::handle_move;
 use app::shell::{determine_shell, send_alias_deltas_to_shell};
 
@@ -55,6 +56,7 @@ fn main() {
         Commands::Add(cmd) => handle_add(&mut config, cmd),
         Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(&config))),
         Commands::Move(cmd) => handle_move(&mut config, cmd),
+        Commands::List(cmd) => handle_list(&config, cmd),
         _ => todo!("command not implemented yet"),
     };
 
