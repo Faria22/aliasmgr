@@ -34,6 +34,8 @@ fn main() {
     };
 
     env_logger::Builder::new()
+        .format_timestamp(None)
+        .format_target(false)
         .filter_level(level)
         .parse_default_env()
         .init();
