@@ -104,7 +104,8 @@ pub fn handle_list(config: &Config, cmd: ListCommand) -> Result<Outcome, Failure
                 Err(Failure::GroupDoesNotExist)
             }
             Ok(aliases) => {
-                print!("{}", format_aliases_list(config, &aliases)?);
+                let group_id = GroupId::Named(group);
+                print!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
                 Ok(Outcome::NoChanges)
             }
             Err(e) => unreachable!("unexpected error: {:?}", e),
