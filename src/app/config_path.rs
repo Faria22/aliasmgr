@@ -4,12 +4,10 @@ use std::path::PathBuf;
 
 use anyhow::{Result, bail};
 
-pub fn config_env_var() -> &'static str {
-    "ALIASMGR_CONFIG_PATH"
-}
+pub const CONFIG_FILE_ENV_VAR: &str = "ALIASMGR_CONFIG_PATH";
 
 pub fn determine_config_path() -> Result<Option<PathBuf>> {
-    if let Ok(path) = env::var(config_env_var()) {
+    if let Ok(path) = env::var(CONFIG_FILE_ENV_VAR) {
         let path = PathBuf::from(path);
         if path.exists() {
             return Ok(Some(path));

@@ -18,35 +18,29 @@ impl fmt::Display for ShellType {
     }
 }
 
-fn default_shell() -> ShellType {
-    ShellType::Bash
-}
+pub const DEFAULT_SHELL: ShellType = ShellType::Bash;
 
-pub fn shell_env_var() -> &'static str {
-    "ALIASMGR_SHELL"
-}
+pub const SHELL_ENV_VAR: &str = "ALIASMGR_SHELL";
 
 pub fn determine_shell() -> ShellType {
-    match std::env::var(shell_env_var()) {
+    match std::env::var(SHELL_ENV_VAR) {
         Ok(val) => match ShellType::from_str(&val, true) {
             Ok(shell) => shell,
             Err(_) => {
                 warn!(
                     "Invalid {} value: {}. Using {} as default shell.",
-                    shell_env_var(),
-                    val,
-                    default_shell()
+                    SHELL_ENV_VAR, val, DEFAULT_SHELL
                 );
-                default_shell()
+                DEFAULT_SHELL
             }
         },
         Err(_) => {
             warn!(
                 "{} environment variable not set. Please set it using the init command.",
-                shell_env_var()
+                SHELL_ENV_VAR
             );
-            warn!("Using {} as default shell.", default_shell());
-            default_shell()
+            warn!("Using {} as default shell.", DEFAULT_SHELL);
+            DEFAULT_SHELL
         }
     }
 }

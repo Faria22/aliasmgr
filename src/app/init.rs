@@ -1,5 +1,5 @@
-use super::config_path::config_env_var;
-use super::shell::shell_env_var;
+use super::config_path::CONFIG_FILE_ENV_VAR;
+use super::shell::SHELL_ENV_VAR;
 use crate::cli::init::InitCommand;
 
 fn aliasmgr_shell_function() -> &'static str {
@@ -28,9 +28,9 @@ aliasmgr() {
 
 pub fn handle_init(cmd: InitCommand) -> String {
     let mut content = String::from("# Alias Manager Initialization Script\n");
-    content += &format!("export {}={}\n", shell_env_var(), cmd.shell);
+    content += &format!("export {}={}\n", SHELL_ENV_VAR, cmd.shell);
     if let Some(config_path) = cmd.config {
-        content += &format!("export {}={:?}\n", config_env_var(), config_path);
+        content += &format!("export {}={:?}\n", CONFIG_FILE_ENV_VAR, config_path);
     }
 
     content += aliasmgr_shell_function();
