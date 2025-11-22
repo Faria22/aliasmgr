@@ -71,7 +71,7 @@ pub enum Commands {
     #[command(visible_alias = "rm")]
     Remove(RemoveCommand),
 
-    /// List all active aliases
+    /// List aliases
     #[command(visible_alias = "ls")]
     List(ListCommand),
 

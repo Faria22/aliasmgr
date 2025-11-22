@@ -1,4 +1,4 @@
-use super::list::{GroupId, get_all_groups};
+use super::list::{GroupId, get_all_aliases_grouped};
 use crate::config::types::Config;
 use std::fmt::Write;
 
@@ -15,7 +15,7 @@ pub fn generate_alias_script_content(config: &Config) -> String {
     // Reset all existing aliases
     writeln!(content, "unalias -a").unwrap();
 
-    for (group, aliases) in get_all_groups(config) {
+    for (group, aliases) in get_all_aliases_grouped(config) {
         // Only add groups that are enabled, `ungrouped` is always enabled
         if match group {
             GroupId::Ungrouped => true,

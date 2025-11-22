@@ -28,7 +28,7 @@ pub enum GroupId {
 /// # Returns
 /// A HashMap where keys are GroupId (either named or ungrouped) and values
 /// are vectors of alias names belonging to those groups.
-pub fn get_all_groups(config: &Config) -> HashMap<GroupId, Vec<String>> {
+pub fn get_all_aliases_grouped(config: &Config) -> HashMap<GroupId, Vec<String>> {
     let mut groups = HashMap::<GroupId, Vec<String>>::new();
 
     // Initialize the groups with empty vectors
@@ -94,7 +94,7 @@ pub fn get_single_group(config: &Config, identifier: GroupId) -> Result<Vec<Stri
 /// A HashMap where keys are GroupId (either named or ungrouped) and values
 /// are vectors of disabled alias names belonging to those groups.
 pub fn get_disabled_aliases_grouped(config: &Config) -> HashMap<GroupId, Vec<String>> {
-    let mut groups = get_all_groups(config);
+    let mut groups = get_all_aliases_grouped(config);
     groups.retain(|group_name, group| {
         if let GroupId::Named(g) = group_name {
             // Add entire group if it's disabled
@@ -118,7 +118,7 @@ pub fn get_disabled_aliases_grouped(config: &Config) -> HashMap<GroupId, Vec<Str
 /// A HashMap where keys are GroupId (either named or ungrouped) and values
 /// are vectors of enabled alias names belonging to those groups.
 pub fn get_enabled_aliases_grouped(config: &Config) -> HashMap<GroupId, Vec<String>> {
-    let mut groups = get_all_groups(config);
+    let mut groups = get_all_aliases_grouped(config);
     groups.retain(|group_name, group| {
         // Skip entire group if it's disabled
         if let GroupId::Named(g) = group_name
@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn test_get_all_groups() {
         let config = create_test_config();
-        let groups = get_all_groups(&config);
+        let groups = get_all_aliases_grouped(&config);
 
         assert!(groups.contains_key(&GroupId::Named("group1".into())));
         assert!(groups.contains_key(&GroupId::Named("group2".into())));
@@ -325,7 +325,7 @@ mod tests {
             groups: groups_map,
         };
 
-        let groups = get_all_groups(&config);
+        let groups = get_all_aliases_grouped(&config);
         assert_eq!(groups.len(), 3); // group1, group2, ungrouped
         assert_eq!(
             groups.get(&GroupId::Named("group1".into())).unwrap().len(),
@@ -342,7 +342,7 @@ mod tests {
     fn test_get_all_groups_empty() {
         let config = Config::new();
 
-        let groups = get_all_groups(&config);
+        let groups = get_all_aliases_grouped(&config);
         assert_eq!(groups.len(), 1); // Only ungrouped should be present
         assert!(groups.contains_key(&GroupId::Ungrouped));
         assert_eq!(groups.get(&GroupId::Ungrouped).unwrap().len(), 0);
@@ -364,7 +364,7 @@ mod tests {
             groups: HashMap::new(),
             aliases,
         };
-        let groups = get_all_groups(&config);
+        let groups = get_all_aliases_grouped(&config);
         assert_eq!(groups.len(), 1); // Only ungrouped should be present
         assert!(
             groups

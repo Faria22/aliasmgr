@@ -4,7 +4,7 @@ use clap::{ArgGroup, Args};
 #[command(
     group(
         ArgGroup::new("list_scope")
-            .args(["group", "ungrouped", "all", "disabled"])
+            .args(["group", "ungrouped", "enabled", "disabled"])
             .multiple(false)
     )
 )]
@@ -17,9 +17,9 @@ pub struct ListCommand {
     #[arg(short, long)]
     pub ungrouped: bool,
 
-    /// List all aliases
+    /// List only enabled aliases
     #[arg(short, long)]
-    pub all: bool,
+    pub enabled: bool,
 
     /// Show only disabled aliases
     #[arg(short, long)]

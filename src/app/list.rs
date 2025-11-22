@@ -3,7 +3,7 @@ use owo_colors::OwoColorize;
 use crate::cli::list::ListCommand;
 use crate::config::types::Config;
 use crate::core::list::{
-    GroupId, get_all_groups, get_disabled_aliases_grouped, get_enabled_aliases_grouped,
+    GroupId, get_all_aliases_grouped, get_disabled_aliases_grouped, get_enabled_aliases_grouped,
     get_single_group,
 };
 use crate::core::{Failure, Outcome};
@@ -65,7 +65,7 @@ fn group_header(config: &Config, group: &GroupId) -> Result<String, Failure> {
 fn format_group_and_aliases(
     config: &Config,
     group_id: &GroupId,
-    aliases: &[String],
+    aliases: &Vec<String>,
 ) -> Result<String, Failure> {
     let mut content = String::new();
     content += &(group_header(config, group_id)? + "\n");
@@ -76,7 +76,7 @@ fn format_group_and_aliases(
 }
 
 /// Formats a list of aliases without a group header.
-fn format_aliases_list(config: &Config, aliases: &[String]) -> Result<String, Failure> {
+fn format_aliases_list(config: &Config, aliases: &Vec<String>) -> Result<String, Failure> {
     let mut content = String::new();
     for alias in aliases {
         content += &(format_alias_info(config, alias)? + "\n");
@@ -123,9 +123,9 @@ pub fn handle_list(config: &Config, cmd: ListCommand) -> Result<Outcome, Failure
             }
             Err(e) => unreachable!("ungrouped 'group' should always exist. Error: {:?}", e),
         }
-    } else if cmd.all {
-        // List all aliases
-        for (group_id, aliases) in get_all_groups(config) {
+    } else if cmd.enabled {
+        // List only the enabled aliases
+        for (group_id, aliases) in get_enabled_aliases_grouped(config) {
             print!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
         }
         Ok(Outcome::NoChanges)
@@ -137,7 +137,7 @@ pub fn handle_list(config: &Config, cmd: ListCommand) -> Result<Outcome, Failure
         Ok(Outcome::NoChanges)
     } else {
         // Default: list enabled aliases
-        for (group_id, aliases) in get_enabled_aliases_grouped(config) {
+        for (group_id, aliases) in get_all_aliases_grouped(config) {
             print!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
         }
         Ok(Outcome::NoChanges)
@@ -223,7 +223,7 @@ mod tests {
         let cmd = ListCommand {
             group: Some("dev".to_string()),
             ungrouped: false,
-            all: false,
+            enabled: false,
             disabled: false,
         };
         let result = handle_list(&config, cmd);
@@ -236,7 +236,7 @@ mod tests {
         let cmd = ListCommand {
             group: Some("nonexistent".to_string()),
             ungrouped: false,
-            all: false,
+            enabled: false,
             disabled: false,
         };
         let result = handle_list(&config, cmd);
@@ -249,7 +249,7 @@ mod tests {
         let cmd = ListCommand {
             group: None,
             ungrouped: false,
-            all: true,
+            enabled: false,
             disabled: false,
         };
         let result = handle_list(&config, cmd);
@@ -262,7 +262,7 @@ mod tests {
         let cmd = ListCommand {
             group: None,
             ungrouped: false,
-            all: false,
+            enabled: true,
             disabled: false,
         };
         let result = handle_list(&config, cmd);
@@ -275,7 +275,7 @@ mod tests {
         let cmd = ListCommand {
             group: None,
             ungrouped: false,
-            all: false,
+            enabled: false,
             disabled: true,
         };
         let result = handle_list(&config, cmd);
@@ -288,7 +288,7 @@ mod tests {
         let cmd = ListCommand {
             group: None,
             ungrouped: false,
-            all: true,
+            enabled: true,
             disabled: false,
         };
         let result = handle_list(&config, cmd);
@@ -301,7 +301,7 @@ mod tests {
         let cmd = ListCommand {
             group: None,
             ungrouped: true,
-            all: false,
+            enabled: false,
             disabled: false,
         };
         let result = handle_list(&config, cmd);
