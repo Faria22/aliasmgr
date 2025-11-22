@@ -16,6 +16,9 @@ pub enum RemoveTarget {
     /// Remove a group and all its aliases
     #[command(visible_alias = "g")]
     Group(GroupRemoveArgs),
+
+    /// Remove all aliases and groups
+    All,
 }
 
 #[derive(Args)]
