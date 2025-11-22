@@ -53,11 +53,7 @@ fn group_header(config: &Config, group: &GroupId) -> Result<String, Failure> {
         group_name = "Ungrouped".to_string();
     }
 
-    let header_message = format!(
-        " {} Group: {} ",
-        enabled_symbol(*group_enabled),
-        &group_name
-    );
+    let header_message = format!(" Group: {} {}", &group_name, enabled_symbol(*group_enabled));
     Ok(format!("{:=^width$}", header_message, width = 50))
 }
 
@@ -69,6 +65,15 @@ fn format_group_and_aliases(
 ) -> Result<String, Failure> {
     let mut content = String::new();
     content += &(group_header(config, group_id)? + "\n");
+    for alias in aliases {
+        content += &(format_alias_info(config, alias)? + "\n");
+    }
+    Ok(content)
+}
+
+/// Formats a list of aliases without a group header.
+fn format_aliases_list(config: &Config, aliases: &[String]) -> Result<String, Failure> {
+    let mut content = String::new();
     for alias in aliases {
         content += &(format_alias_info(config, alias)? + "\n");
     }
@@ -99,28 +104,36 @@ pub fn handle_list(config: &Config, cmd: ListCommand) -> Result<Outcome, Failure
                 Err(Failure::GroupDoesNotExist)
             }
             Ok(aliases) => {
-                let group_id = GroupId::Named(group);
-                println!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
+                print!("{}", format_aliases_list(config, &aliases)?);
                 Ok(Outcome::NoChanges)
             }
             Err(e) => unreachable!("unexpected error: {:?}", e),
         }
+    } else if cmd.ungrouped {
+        // List ungrouped aliases
+        match get_single_group(config, GroupId::Ungrouped) {
+            Ok(aliases) => {
+                print!("{}", format_aliases_list(config, &aliases)?);
+                Ok(Outcome::NoChanges)
+            }
+            Err(e) => unreachable!("ungrouped 'group' should always exist. Error: {:?}", e),
+        }
     } else if cmd.all {
         // List all aliases
         for (group_id, aliases) in get_all_groups(config) {
-            println!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
+            print!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
         }
         Ok(Outcome::NoChanges)
     } else if cmd.disabled {
         // List disabled aliases
         for (group_id, aliases) in get_disabled_aliases_grouped(config) {
-            println!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
+            print!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
         }
         Ok(Outcome::NoChanges)
     } else {
         // Default: list enabled aliases
         for (group_id, aliases) in get_enabled_aliases_grouped(config) {
-            println!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
+            print!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
         }
         Ok(Outcome::NoChanges)
     }
@@ -164,7 +177,7 @@ mod tests {
     }
 
     #[test]
-    fn test_print_alias() {
+    fn test_print_alias_valid() {
         let config = create_test_config();
 
         let result = format_alias_info(&config, "test");
@@ -176,7 +189,7 @@ mod tests {
     }
 
     #[test]
-    fn test_group_header() {
+    fn test_group_header_valid() {
         let config = create_test_config();
 
         let result = group_header(&config, &GroupId::Named("dev".to_string()));
@@ -185,7 +198,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_group_and_aliases() {
+    fn test_format_group_and_aliases_valid() {
         let config = create_test_config();
 
         let aliases = vec!["test".to_string()];
@@ -204,6 +217,7 @@ mod tests {
 
         let cmd = ListCommand {
             group: Some("dev".to_string()),
+            ungrouped: false,
             all: false,
             disabled: false,
         };
@@ -216,6 +230,7 @@ mod tests {
         let config = create_test_config();
         let cmd = ListCommand {
             group: Some("nonexistent".to_string()),
+            ungrouped: false,
             all: false,
             disabled: false,
         };
@@ -228,6 +243,7 @@ mod tests {
         let config = create_test_config();
         let cmd = ListCommand {
             group: None,
+            ungrouped: false,
             all: true,
             disabled: false,
         };
@@ -240,6 +256,7 @@ mod tests {
         let config = create_test_config();
         let cmd = ListCommand {
             group: None,
+            ungrouped: false,
             all: false,
             disabled: false,
         };
@@ -252,6 +269,7 @@ mod tests {
         let config = create_test_config();
         let cmd = ListCommand {
             group: None,
+            ungrouped: false,
             all: false,
             disabled: true,
         };
@@ -264,7 +282,21 @@ mod tests {
         let config = Config::new();
         let cmd = ListCommand {
             group: None,
+            ungrouped: false,
             all: true,
+            disabled: false,
+        };
+        let result = handle_list(&config, cmd);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_handle_list_ungrouped() {
+        let config = create_test_config();
+        let cmd = ListCommand {
+            group: None,
+            ungrouped: true,
+            all: false,
             disabled: false,
         };
         let result = handle_list(&config, cmd);
@@ -303,6 +335,14 @@ mod tests {
         let aliases = vec!["nonexistent".to_string()];
         let result =
             format_group_and_aliases(&config, &GroupId::Named("dev".to_string()), &aliases);
+        assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
+    }
+
+    #[test]
+    fn test_format_aliases_list_nonexistent_alias() {
+        let config = create_test_config();
+        let aliases = vec!["nonexistent".to_string()];
+        let result = format_aliases_list(&config, &aliases);
         assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
     }
 }
