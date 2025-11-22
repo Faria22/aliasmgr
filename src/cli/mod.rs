@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 
 pub(crate) mod add;
+pub(crate) mod convert;
 pub(crate) mod disable;
 pub(crate) mod edit;
 pub(crate) mod enable;
@@ -13,6 +14,7 @@ pub(crate) mod rename;
 pub(crate) mod interaction;
 
 use add::AddCommand;
+use convert::ConvertCommand;
 use disable::DisableCommand;
 use edit::EditCommand;
 use enable::EnableCommand;
@@ -97,6 +99,9 @@ pub enum Commands {
 
     /// Synchronize aliases with configuration file
     Sync,
+
+    /// Convert aliases from a .sh file
+    Convert(ConvertCommand),
 
     /// Initialize aliasmgr
     #[command(hide = true)]
