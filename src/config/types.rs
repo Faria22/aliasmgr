@@ -1,7 +1,7 @@
 //! Configuration types for command aliases.
 //! ! This module defines the structures used to represent command aliases and their configurations.
 
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 /// Representation of an alias in the configuration.
 #[derive(PartialEq, Eq, Debug)]
@@ -31,16 +31,16 @@ impl Alias {
 /// Overall configuration containing aliases and groups.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Config {
-    pub aliases: HashMap<String, Alias>,
-    pub groups: HashMap<String, bool>,
+    pub aliases: IndexMap<String, Alias>,
+    pub groups: IndexMap<String, bool>,
 }
 
 /// Constructor for Config.
 impl Config {
     pub fn new() -> Self {
         Config {
-            aliases: HashMap::new(),
-            groups: HashMap::new(),
+            aliases: IndexMap::new(),
+            groups: IndexMap::new(),
         }
     }
 }

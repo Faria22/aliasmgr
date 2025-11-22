@@ -11,7 +11,7 @@ use log::info;
 
 use crate::config::types::Config;
 use crate::core::Failure;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::vec::Vec;
 
 /// Identifier for a group, either named or ungrouped.
@@ -28,8 +28,8 @@ pub enum GroupId {
 /// # Returns
 /// A HashMap where keys are GroupId (either named or ungrouped) and values
 /// are vectors of alias names belonging to those groups.
-pub fn get_all_aliases_grouped(config: &Config) -> HashMap<GroupId, Vec<String>> {
-    let mut groups = HashMap::<GroupId, Vec<String>>::new();
+pub fn get_all_aliases_grouped(config: &Config) -> IndexMap<GroupId, Vec<String>> {
+    let mut groups = IndexMap::<GroupId, Vec<String>>::new();
 
     // Initialize the groups with empty vectors
     groups.insert(GroupId::Ungrouped, Vec::new());
@@ -93,7 +93,7 @@ pub fn get_single_group(config: &Config, identifier: GroupId) -> Result<Vec<Stri
 /// # Returns
 /// A HashMap where keys are GroupId (either named or ungrouped) and values
 /// are vectors of disabled alias names belonging to those groups.
-pub fn get_disabled_aliases_grouped(config: &Config) -> HashMap<GroupId, Vec<String>> {
+pub fn get_disabled_aliases_grouped(config: &Config) -> IndexMap<GroupId, Vec<String>> {
     let mut groups = get_all_aliases_grouped(config);
     groups.retain(|group_name, group| {
         if let GroupId::Named(g) = group_name {
@@ -117,7 +117,7 @@ pub fn get_disabled_aliases_grouped(config: &Config) -> HashMap<GroupId, Vec<Str
 /// # Returns
 /// A HashMap where keys are GroupId (either named or ungrouped) and values
 /// are vectors of enabled alias names belonging to those groups.
-pub fn get_enabled_aliases_grouped(config: &Config) -> HashMap<GroupId, Vec<String>> {
+pub fn get_enabled_aliases_grouped(config: &Config) -> IndexMap<GroupId, Vec<String>> {
     let mut groups = get_all_aliases_grouped(config);
     groups.retain(|group_name, group| {
         // Skip entire group if it's disabled
@@ -141,8 +141,8 @@ mod tests {
     use crate::config::types::Alias;
 
     fn create_test_config() -> Config {
-        let mut groups = HashMap::new();
-        let mut aliases = HashMap::new();
+        let mut groups = IndexMap::new();
+        let mut aliases = IndexMap::new();
 
         groups.insert("group1".into(), true);
         groups.insert("group2".into(), true);
@@ -316,12 +316,12 @@ mod tests {
 
     #[test]
     fn test_get_all_groups_no_aliases() {
-        let mut groups_map = HashMap::new();
+        let mut groups_map = IndexMap::new();
         groups_map.insert("group1".into(), true);
         groups_map.insert("group2".into(), true);
 
         let config = Config {
-            aliases: HashMap::new(),
+            aliases: IndexMap::new(),
             groups: groups_map,
         };
 
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_get_all_groups_no_groups() {
-        let mut aliases = HashMap::new();
+        let mut aliases = IndexMap::new();
         aliases.insert(
             "alias1".into(),
             Alias {
@@ -361,7 +361,7 @@ mod tests {
             },
         );
         let config = Config {
-            groups: HashMap::new(),
+            groups: IndexMap::new(),
             aliases,
         };
         let groups = get_all_aliases_grouped(&config);

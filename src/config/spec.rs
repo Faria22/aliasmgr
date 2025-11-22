@@ -3,8 +3,8 @@
 //! alias configurations, as well as functions to convert between the internal
 //! representation and the specification representation.
 
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use super::types::{Alias, Config};
 
@@ -28,7 +28,7 @@ pub struct GroupSpec {
     pub enabled: bool,
 
     #[serde(flatten)]
-    pub aliases: HashMap<String, AliasSpecTypes>,
+    pub aliases: IndexMap<String, AliasSpecTypes>,
 }
 
 /// Different types of alias specifications.
@@ -52,7 +52,7 @@ pub enum AliasSpecTypes {
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConfigSpec {
     #[serde(flatten)]
-    pub entries: HashMap<String, AliasSpecTypes>,
+    pub entries: IndexMap<String, AliasSpecTypes>,
 }
 
 /// Convert an Alias to its corresponding AliasSpecTypes representation.
@@ -85,9 +85,9 @@ fn convert_alias_to_spec(alias: &Alias) -> AliasSpecTypes {
 fn convert_group_to_spec(
     group_name: &str,
     enabled: bool,
-    aliases: &HashMap<String, Alias>,
+    aliases: &IndexMap<String, Alias>,
 ) -> AliasSpecTypes {
-    let mut alias_specs = HashMap::new();
+    let mut alias_specs = IndexMap::new();
     for (name, alias) in aliases
         .iter()
         .filter(|(_, a)| a.group.as_deref() == Some(group_name))
@@ -109,7 +109,7 @@ fn convert_group_to_spec(
 /// # Returns
 /// * A ConfigSpec representation of the given Config.
 pub fn convert_config_to_spec(config: &Config) -> ConfigSpec {
-    let mut entries = HashMap::new();
+    let mut entries = IndexMap::new();
 
     // First, add all aliases that are not part of any group.
     for (name, alias) in &config.aliases {
@@ -158,8 +158,8 @@ fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Alias {
 /// # Returns
 /// * A Config representation of the given ConfigSpec.
 pub fn convert_spec_to_config(spec: ConfigSpec) -> Config {
-    let mut aliases = HashMap::new();
-    let mut groups = HashMap::new();
+    let mut aliases = IndexMap::new();
+    let mut groups = IndexMap::new();
 
     for (name, entry) in spec.entries {
         match entry {

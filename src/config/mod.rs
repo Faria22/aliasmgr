@@ -18,7 +18,7 @@ mod tests {
     use crate::config::spec::{ConfigSpec, convert_config_to_spec, convert_spec_to_config};
     use crate::config::types::{Alias, Config};
     use assert_fs::TempDir;
-    use std::collections::HashMap;
+    use indexmap::IndexMap;
     use std::fs;
 
     fn sample_toml() -> &'static str {
@@ -36,8 +36,8 @@ mod tests {
     }
 
     fn expected_config() -> Config {
-        let mut aliases = HashMap::new();
-        let mut groups = HashMap::new();
+        let mut aliases = IndexMap::new();
+        let mut groups = IndexMap::new();
         aliases.insert("py".into(), Alias::new("python3".into(), true, None, false));
 
         aliases.insert("js".into(), Alias::new("node".into(), false, None, true));
