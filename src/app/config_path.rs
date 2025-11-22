@@ -1,6 +1,6 @@
 use crate::cli::interaction::prompt_use_non_existing_config_file;
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
 
@@ -15,13 +15,13 @@ pub fn determine_config_path() -> Result<Option<PathBuf>> {
     }
 }
 
-fn handle_config_file(path: &PathBuf, create: impl Fn(&str) -> bool) -> Result<Option<PathBuf>> {
+fn handle_config_file(path: &Path, create: impl Fn(&str) -> bool) -> Result<Option<PathBuf>> {
     if path.exists() {
-        return Ok(Some(path.clone()));
+        return Ok(Some(path.to_path_buf()));
     }
 
     if create(path.to_str().unwrap()) {
-        return Ok(Some(path.clone()));
+        return Ok(Some(path.to_path_buf()));
     }
 
     bail!(
