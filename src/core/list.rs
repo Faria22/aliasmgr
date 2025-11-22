@@ -7,6 +7,8 @@
 //! - `get_all_groups`: Returns a mapping of all groups to their aliases.
 //! - `get_single_group`: Returns aliases for a specific group.
 
+use log::info;
+
 use crate::config::types::Config;
 use crate::core::Failure;
 use std::collections::HashMap;
@@ -61,9 +63,11 @@ pub fn get_all_groups(config: &Config) -> HashMap<GroupId, Vec<String>> {
 pub fn get_single_group(config: &Config, identifier: GroupId) -> Result<Vec<String>, Failure> {
     if let GroupId::Named(name) = &identifier {
         if !config.groups.contains_key(name) {
+            info!("Group '{}' does not exist.", name);
             return Err(Failure::GroupDoesNotExist);
         }
 
+        info!("Retrieving aliases for group: {}", name);
         return Ok(config
             .aliases
             .iter()
@@ -72,6 +76,7 @@ pub fn get_single_group(config: &Config, identifier: GroupId) -> Result<Vec<Stri
             .collect());
     }
 
+    info!("Retrieving ungrouped aliases.");
     Ok(config
         .aliases
         .iter()
