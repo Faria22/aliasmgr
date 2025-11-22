@@ -35,14 +35,14 @@ fn handle_non_existing_group(
     group: &str,
     create_group: impl Fn(&str) -> bool,
 ) -> Result<Outcome, Failure> {
-    if create_group(&group) {
+    if create_group(group) {
         info!("Created new group '{}'", group);
-        add_group(config, &group, true)?;
-        move_alias(config, &alias, &Some(group.to_string()))
+        add_group(config, group, true)?;
+        move_alias(config, alias, &Some(group.to_string()))
     } else {
         debug!(
             "User aborted moving alias '{}' to non-existent group '{}'",
-            &alias, &group
+            &alias, group
         );
         Ok(Outcome::NoChanges)
     }

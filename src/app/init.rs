@@ -2,7 +2,7 @@ use super::config_path::CONFIG_FILE_ENV_VAR;
 use super::shell::{SHELL_ENV_VAR, ShellType};
 use crate::cli::init::InitCommand;
 
-const ALIASMGR_SHELL_FUNCTION: &'static str = {
+const ALIASMGR_SHELL_FUNCTION: &str = {
     r#"
 # Define the aliasmgr shell function using the helper command
 # This function captures alias deltas from file descriptor 3
