@@ -28,6 +28,7 @@ dependencies = [
  "owo-colors",
  "serde",
  "temp-env",
+ "tempfile",
  "toml",
  "toml_edit",
 ]
