@@ -151,6 +151,8 @@ pub fn save_config(config: &Config, custom_path: Option<&PathBuf>) -> Result<()>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::tests::{expected_config, sample_toml};
+    use assert_fs::TempDir;
 
     #[test]
     fn build_alias_item_simple_enabled_is_string() {
@@ -207,5 +209,27 @@ mod tests {
         let doc = build_toml_document(&config);
         let rendered = doc.to_string();
         assert!(rendered.contains("ls = \"ls -la\""));
+    }
+
+    #[test]
+    fn test_load_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_conf = temp_dir.path().join("aliases.toml");
+        fs::write(&temp_conf, sample_toml()).unwrap();
+
+        let cfg = load_config(Some(&temp_conf)).unwrap();
+        assert_eq!(cfg, expected_config());
+    }
+
+    #[test]
+    fn test_save_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_conf = temp_dir.path().join("aliases.toml");
+
+        let config = expected_config();
+        save_config(&config, Some(&temp_conf)).unwrap();
+
+        let saved_content = fs::read_to_string(&temp_conf).unwrap();
+        assert_eq!(saved_content, sample_toml().replace("        ", ""));
     }
 }

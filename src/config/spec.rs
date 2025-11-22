@@ -103,3 +103,33 @@ pub fn convert_spec_to_config(spec: ConfigSpec) -> Config {
 
     Config { aliases, groups }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::tests::{expected_config, sample_toml};
+
+    #[test]
+    fn test_convert_spec_to_config() {
+        let spec: ConfigSpec = toml::from_str(sample_toml()).unwrap();
+        let config = convert_spec_to_config(spec);
+        assert_eq!(config, expected_config());
+    }
+
+    #[test]
+    #[should_panic = "nested groups are not supported"]
+    fn test_nested_group_handling() {
+        let toml_data = r#"
+        [group1]
+        enabled = true
+        alias1 = "command1"
+
+        [group1.subgroup]
+        enabled = false
+        alias2 = "command2"
+        "#;
+
+        let spec: ConfigSpec = toml::from_str(toml_data).unwrap();
+        convert_spec_to_config(spec);
+    }
+}
