@@ -53,7 +53,11 @@ fn group_header(config: &Config, group: &GroupId) -> Result<String, Failure> {
         group_name = "Ungrouped".to_string();
     }
 
-    let header_message = format!(" Group: {} {}", &group_name, enabled_symbol(*group_enabled));
+    let header_message = format!(
+        " Group: {} {} ",
+        &group_name,
+        enabled_symbol(*group_enabled)
+    );
     Ok(format!("{:=^width$}", header_message, width = 50))
 }
 
