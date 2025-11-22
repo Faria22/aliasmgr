@@ -1,5 +1,6 @@
 use dialoguer::Confirm;
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn prompt_overwrite_existing_alias(alias: &str) -> bool {
     Confirm::new()
         .with_prompt(format!(
@@ -11,6 +12,7 @@ pub fn prompt_overwrite_existing_alias(alias: &str) -> bool {
         .unwrap()
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn prompt_create_non_existent_group(group: &str) -> bool {
     Confirm::new()
         .with_prompt(format!(
@@ -22,6 +24,7 @@ pub fn prompt_create_non_existent_group(group: &str) -> bool {
         .unwrap()
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn prompt_use_non_existing_config_file(path: &str) -> bool {
     Confirm::new()
         .with_prompt(format!(
