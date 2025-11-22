@@ -45,3 +45,59 @@ pub fn handle_init(cmd: InitCommand) -> String {
 
     content
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_handle_init_bash_no_config() {
+        let cmd = InitCommand {
+            shell: ShellType::Bash,
+            config: None,
+        };
+        let output = handle_init(cmd);
+        assert!(output.contains(&ShellType::Bash.to_string()));
+        assert!(output.contains("__aliasmgr_cmd=$(command -p aliasmgr)"));
+        assert!(output.contains("aliasmgr sync"));
+    }
+
+    #[test]
+    fn test_handle_init_zsh_no_config() {
+        let cmd = InitCommand {
+            shell: ShellType::Zsh,
+            config: None,
+        };
+        let output = handle_init(cmd);
+        assert!(output.contains(&ShellType::Zsh.to_string()));
+        assert!(output.contains("__aliasmgr_cmd=$(whence -p aliasmgr)"));
+        assert!(output.contains("aliasmgr sync"));
+    }
+
+    #[test]
+    fn test_handle_init_with_config() {
+        let path = PathBuf::from("/config/path");
+        let cmd = InitCommand {
+            shell: ShellType::Bash,
+            config: Some(path.clone()),
+        };
+        let output = handle_init(cmd);
+        assert!(output.contains(&ShellType::Bash.to_string()));
+        assert!(output.contains(path.to_str().unwrap()));
+        assert!(output.contains("aliasmgr sync"));
+    }
+
+    #[test]
+    fn test_handle_init_with_config_zsh() {
+        let path = PathBuf::from("/config/path");
+        let cmd = InitCommand {
+            shell: ShellType::Zsh,
+            config: Some(path.clone()),
+        };
+        let output = handle_init(cmd);
+        assert!(output.contains(&ShellType::Zsh.to_string()));
+        assert!(output.contains(path.to_str().unwrap()));
+        assert!(output.contains("aliasmgr sync"));
+    }
+}
