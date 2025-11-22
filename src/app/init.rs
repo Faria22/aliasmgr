@@ -1,14 +1,11 @@
 use super::config_path::CONFIG_FILE_ENV_VAR;
-use super::shell::SHELL_ENV_VAR;
+use super::shell::{SHELL_ENV_VAR, ShellType};
 use crate::cli::init::InitCommand;
 
-fn aliasmgr_shell_function() -> &'static str {
+const ALIASMGR_SHELL_FUNCTION: &'static str = {
     r#"
-# Define the aliasmgr shell function
+# Define the aliasmgr shell function using the helper command
 # This function captures alias deltas from file descriptor 3
-
-__aliasmgr_cmd="$(command -v aliasmgr)"
-
 aliasmgr() {
     # Run aliasmgr and capture deltas from FD3
     local deltas
@@ -24,7 +21,7 @@ aliasmgr() {
     fi
 }
 "#
-}
+};
 
 pub fn handle_init(cmd: InitCommand) -> String {
     let mut content = String::from("# Alias Manager Initialization Script\n");
@@ -33,10 +30,18 @@ pub fn handle_init(cmd: InitCommand) -> String {
         content += &format!("export {}={:?}\n", CONFIG_FILE_ENV_VAR, config_path);
     }
 
-    content += aliasmgr_shell_function();
+    content += "\n";
+    content += "# Alias helper shell command\n";
+    content += if cmd.shell == ShellType::Zsh {
+        "# For zsh, we use 'whence -p' to find the command path\n__aliasmgr_cmd=$(whence -p aliasmgr)\n"
+    } else {
+        "# For bash and other shells, we use 'command -p' to find the command path\n__aliasmgr_cmd=$(command -p aliasmgr)\n"
+    };
+
+    content += ALIASMGR_SHELL_FUNCTION;
 
     content += "\n# Sync aliases on shell startup\n";
-    content += "aliasmgr sync\n";
+    content += "aliasmgr sync";
 
     content
 }

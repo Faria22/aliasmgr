@@ -71,7 +71,7 @@ fn main() {
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
             debug!("Generated init script content");
-            print!("{}", content);
+            println!("{}", content);
             Ok(Outcome::NoChanges)
         }
         _ => todo!("command not implemented yet"),
