@@ -63,4 +63,18 @@ mod test {
         let result = move_alias(&mut config, "nonexistent", &Some("utilities".into()));
         assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
     }
+
+    #[test]
+    fn move_alias_to_none_group() {
+        let mut config = Config::new();
+        config
+            .aliases
+            .insert("ll".into(), Alias::new("ls -la".into(), true, None, false));
+        let result = move_alias(&mut config, "ll", &None);
+        assert!(result.is_ok());
+        assert_eq!(
+            config.aliases.get("ll"),
+            Some(&Alias::new("ls -la".into(), true, None, false))
+        );
+    }
 }
