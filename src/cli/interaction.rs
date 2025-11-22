@@ -1,6 +1,6 @@
 use dialoguer::Confirm;
 
-pub fn overwrite_existing_alias(alias: &str) -> bool {
+pub fn prompt_overwrite_existing_alias(alias: &str) -> bool {
     Confirm::new()
         .with_prompt(format!(
             "Alias {} already exists. Do you want to overwrite it?",
@@ -11,7 +11,7 @@ pub fn overwrite_existing_alias(alias: &str) -> bool {
         .unwrap()
 }
 
-pub fn create_non_existent_group(group: &str) -> bool {
+pub fn prompt_create_non_existent_group(group: &str) -> bool {
     Confirm::new()
         .with_prompt(format!(
             "Group '{}' does not exist. Do you want to create it?",
@@ -22,7 +22,7 @@ pub fn create_non_existent_group(group: &str) -> bool {
         .unwrap()
 }
 
-pub fn use_non_existing_config_file(path: &str) -> bool {
+pub fn prompt_use_non_existing_config_file(path: &str) -> bool {
     Confirm::new()
         .with_prompt(format!(
             "Configuration file '{}' does not exist. Do you want to use this path anyway?",

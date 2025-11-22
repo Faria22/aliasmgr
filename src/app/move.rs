@@ -5,7 +5,7 @@ use crate::core::r#move::move_alias;
 
 use crate::config::types::Config;
 
-use crate::cli::interaction::create_non_existent_group;
+use crate::cli::interaction::prompt_create_non_existent_group;
 use crate::cli::r#move::MoveCommand;
 
 use log::info;
@@ -18,7 +18,7 @@ pub fn handle_move(config: &mut Config, cmd: MoveCommand) -> Result<Outcome, Fai
                 let new_group = cmd
                     .new_group
                     .expect("new_group has to be `Some` for this error to arise");
-                if create_non_existent_group(&new_group) {
+                if prompt_create_non_existent_group(&new_group) {
                     info!("Created new group '{}'", new_group);
                     add_group(config, &new_group, true)?;
                     move_alias(config, &cmd.name, &Some(new_group))
