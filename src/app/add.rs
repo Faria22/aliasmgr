@@ -104,7 +104,7 @@ fn handle_add_alias(
                     enabled,
                     overwrite(name),
                     // Closure to create non-existent group if needed
-                    |group| create_group(group),
+                    create_group,
                 ),
 
                 // Group that alias will belong to does not exist
@@ -150,8 +150,8 @@ pub fn handle_add(config: &mut Config, cmd: AddCommand) -> Result<Outcome, Failu
             &args.command,
             args.group.as_deref(),
             !args.disabled,
-            |alias| prompt_overwrite_existing_alias(alias),
-            |group| prompt_create_non_existent_group(group),
+            prompt_overwrite_existing_alias,
+            prompt_create_non_existent_group,
         ),
 
         // Add group
