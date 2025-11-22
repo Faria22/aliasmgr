@@ -98,7 +98,10 @@ fn insert_aliases(
     for (alias_name, alias) in aliases {
         if let Some(group) = &alias.group {
             if !groups.contains_key(group) {
-                warn!("Alias references missing group '{}'", group);
+                warn!(
+                    "Alias '{}' references unknown group '{}'",
+                    alias_name, group
+                );
             }
             let table = ensure_group_table(doc, group);
             table[alias_name] = build_alias_item(alias);
@@ -231,5 +234,81 @@ mod tests {
 
         let saved_content = fs::read_to_string(&temp_conf).unwrap();
         assert_eq!(saved_content, sample_toml().replace("        ", ""));
+    }
+
+    #[test]
+    fn test_config_path_custom() {
+        let custom_path = PathBuf::from("/custom/path/aliases.toml");
+        let path = config_path(Some(&custom_path));
+        assert_eq!(path, custom_path);
+    }
+
+    #[test]
+    fn test_config_path_default() {
+        let path = config_path(None);
+        assert!(path.ends_with(".config/aliasmgr/aliases.toml"));
+    }
+
+    #[test]
+    fn test_load_config_nonexistent() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_conf = temp_dir.path().join("nonexistent.toml");
+        let cfg = load_config(Some(&temp_conf)).unwrap();
+        assert_eq!(cfg, Config::new());
+    }
+
+    #[test]
+    fn test_build_alias_item_disabled_detailed() {
+        let alias = Alias::new("cmd".into(), false, None, true);
+        let item = build_alias_item(&alias);
+        let inline = item
+            .as_value()
+            .and_then(|v| v.as_inline_table())
+            .expect("expected inline table");
+        assert_eq!(inline.get("command").unwrap().as_str(), Some("cmd"));
+        assert_eq!(inline.get("enabled").unwrap().as_bool(), Some(false));
+    }
+
+    #[test]
+    fn test_insert_alias_to_unknown_group() {
+        let mut doc = DocumentMut::new();
+        let mut config = Config::new();
+        config.aliases.insert(
+            "alias".into(),
+            Alias::new("foo".into(), true, Some("unknown_group".into()), false),
+        );
+
+        insert_aliases(&mut doc, &config.aliases, &config.groups);
+        let rendered = doc.to_string();
+        assert!(rendered.contains("alias = \"foo\""));
+    }
+
+    #[test]
+    fn test_save_config_creates_parent_dirs() {
+        let temp_dir = TempDir::new().unwrap();
+        let nested_path = temp_dir.path().join("nested/dir/aliases.toml");
+        let config = expected_config();
+        save_config(&config, Some(&nested_path)).unwrap();
+        assert!(nested_path.exists());
+    }
+
+    #[test]
+    fn test_save_config_creates_new_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_conf = temp_dir.path().join("new_aliases.toml");
+        let config = expected_config();
+        save_config(&config, Some(&temp_conf)).unwrap();
+        assert!(temp_conf.exists());
+    }
+
+    #[test]
+    fn test_save_config_overwrites_existing_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_conf = temp_dir.path().join("aliases.toml");
+        fs::write(&temp_conf, "old_content").unwrap();
+        let config = expected_config();
+        save_config(&config, Some(&temp_conf)).unwrap();
+        let saved_content = fs::read_to_string(&temp_conf).unwrap();
+        assert_ne!(saved_content, "old_content");
     }
 }
