@@ -9,6 +9,8 @@ use crate::config::types::Config;
 use crate::cli::add::{AddCommand, AddTarget};
 use crate::cli::interaction::{prompt_create_non_existent_group, prompt_overwrite_existing_alias};
 
+use super::list::format_alias_info;
+
 use log::info;
 
 /// Handle overwriting an existing alias
@@ -96,16 +98,18 @@ fn handle_add_alias(
         Err(e) => {
             match e {
                 // Alias already exists
-                Failure::AliasAlreadyExists => handle_overwrite_existing_alias(
-                    config,
-                    name,
-                    command,
-                    group,
-                    enabled,
-                    overwrite(name),
-                    // Closure to create non-existent group if needed
-                    create_group,
-                ),
+                Failure::AliasAlreadyExists => {
+                    let alias_info = format_alias_info(config, name).expect("alias must exist");
+                    handle_overwrite_existing_alias(
+                        config,
+                        name,
+                        command,
+                        group,
+                        enabled,
+                        overwrite(&alias_info),
+                        create_group,
+                    )
+                }
 
                 // Group that alias will belong to does not exist
                 Failure::GroupDoesNotExist => {

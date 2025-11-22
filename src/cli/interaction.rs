@@ -1,11 +1,11 @@
 use dialoguer::Confirm;
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn prompt_overwrite_existing_alias(alias: &str) -> bool {
+pub fn prompt_overwrite_existing_alias(alias_info: &str) -> bool {
     Confirm::new()
         .with_prompt(format!(
-            "Alias {} already exists. Do you want to overwrite it?",
-            alias
+            "Alias \"{}\" already exists. Do you want to overwrite it?",
+            alias_info
         ))
         .default(true)
         .interact()

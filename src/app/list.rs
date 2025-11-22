@@ -18,7 +18,7 @@ fn enabled_symbol(enabled: bool) -> String {
 }
 
 /// Formats the information of a single alias.
-fn format_alias_info(config: &Config, alias: &str) -> Result<String, Failure> {
+pub fn format_alias_info(config: &Config, alias: &str) -> Result<String, Failure> {
     if let Some(alias_info) = config.aliases.get(alias) {
         Ok(format!(
             "{} {} -> {}",
