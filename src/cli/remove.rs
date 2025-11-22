@@ -1,36 +1,37 @@
-use clap::{ArgGroup, Args, Subcommand};
+use clap::{Args, Subcommand};
 
 #[derive(Args)]
-#[command(
-    args_conflicts_with_subcommands = true,
-    subcommand_help_heading = "Group actions",
-    subcommand_value_name = "ACTION",
-    group(
-        ArgGroup::new("remove_target")
-            .args(["name", "group", "all"])
-            .required(true)
-            .multiple(false)
-    )
-)]
 pub struct RemoveCommand {
-    /// Name of the alias to remove
-    #[arg()]
-    pub name: Option<String>,
-    /// Remove all aliases and their groups
-    #[arg(short, long)]
-    pub all: bool,
-    /// Optional action: remove a group entirely
+    /// What to remove
     #[command(subcommand)]
-    pub subcommand: Option<GroupRemove>,
+    pub target: RemoveTarget,
 }
 
 #[derive(Subcommand)]
-pub enum GroupRemove {
+pub enum RemoveTarget {
+    /// Remove an alias
+    #[command(visible_alias = "a")]
+    Alias(RemoveAliasArgs),
+
     /// Remove a group and all its aliases
     #[command(visible_alias = "g")]
-    Group {
-        /// Name of the group to remove
-        #[arg()]
-        name: String,
-    },
+    Group(GroupRemoveArgs),
+}
+
+#[derive(Args)]
+pub struct RemoveAliasArgs {
+    /// Name of the alias to remove
+    #[arg()]
+    pub name: String,
+}
+
+#[derive(Args)]
+pub struct GroupRemoveArgs {
+    /// Name of the group to remove. If not provided, all the aliases without a group will be removed.
+    #[arg()]
+    pub name: Option<String>,
+
+    /// Removes the group, but moves all its aliases to `ungrouped`
+    #[arg(short, long, default_value_t = false)]
+    pub reassign: bool,
 }
