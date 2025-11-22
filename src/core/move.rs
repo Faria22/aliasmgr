@@ -23,9 +23,11 @@ pub fn move_alias(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
     use crate::config::types::Alias;
+    use assert_matches::assert_matches;
 
     #[test]
     fn move_alias_to_existing_group() {
@@ -54,14 +56,14 @@ mod test {
             .aliases
             .insert("ll".into(), Alias::new("ls -la".into(), true, None, false));
         let result = move_alias(&mut config, "ll", &Some("nonexistent".into()));
-        assert!(matches!(result, Err(Failure::GroupDoesNotExist)));
+        assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
 
     #[test]
     fn move_non_existent_alias() {
         let mut config = Config::new();
         let result = move_alias(&mut config, "nonexistent", &Some("utilities".into()));
-        assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
+        assert_matches!(result, Err(Failure::AliasDoesNotExist));
     }
 
     #[test]

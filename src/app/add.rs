@@ -163,6 +163,7 @@ pub fn handle_add(config: &mut Config, cmd: AddCommand) -> Result<Outcome, Failu
 mod tests {
     use super::*;
     use crate::config::types::Alias;
+    use assert_matches::assert_matches;
 
     #[test]
     fn test_handle_add_alias_success() {
@@ -432,7 +433,7 @@ mod tests {
             },
         );
         assert!(result.is_err());
-        assert!(matches!(result.err().unwrap(), Failure::GroupAlreadyExists));
+        assert_matches!(result.err().unwrap(), Failure::GroupAlreadyExists);
         assert!(config.groups.contains_key("utils"));
     }
 }

@@ -37,9 +37,11 @@ pub fn edit_alias(config: &mut Config, name: &str, new_command: &str) -> Result<
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::config::types::{Alias, Config};
+    use assert_matches::assert_matches;
 
     #[test]
     fn test_edit_alias_success() {
@@ -59,6 +61,6 @@ mod tests {
     fn test_edit_alias_nonexistent() {
         let mut config = Config::new();
         let result = edit_alias(&mut config, "nonexistent", "new_command");
-        assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
+        assert_matches!(result, Err(Failure::AliasDoesNotExist));
     }
 }

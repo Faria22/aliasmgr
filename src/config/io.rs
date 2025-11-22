@@ -311,4 +311,16 @@ mod tests {
         let saved_content = fs::read_to_string(&temp_conf).unwrap();
         assert_ne!(saved_content, "old_content");
     }
+
+    #[test]
+    fn test_build_alias_item_disabled_simple() {
+        let alias = Alias::new("cmd".into(), false, None, true);
+        let item = build_alias_item(&alias);
+        let inline = item
+            .as_value()
+            .and_then(|v| v.as_inline_table())
+            .expect("expected inline table");
+        assert_eq!(inline.get("command").unwrap().as_str(), Some("cmd"));
+        assert_eq!(inline.get("enabled").unwrap().as_bool(), Some(false));
+    }
 }

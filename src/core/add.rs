@@ -77,8 +77,10 @@ pub fn add_group(config: &mut Config, name: &str, enabled: bool) -> Result<Outco
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
+    use assert_matches::assert_matches;
 
     #[test]
     fn add_alias_to_empty_config() {
@@ -141,7 +143,7 @@ mod test {
         let mut config = Config::new();
         let result = add_alias(&mut config, "ll", "ls -la", Some("nonexistent"), true);
         assert!(result.is_err());
-        assert!(matches!(result, Err(Failure::GroupDoesNotExist)));
+        assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
 
     #[test]
@@ -186,7 +188,7 @@ mod test {
         config.groups.insert("dev_tools".into(), true);
         let result = add_group(&mut config, "dev_tools", true);
         assert!(result.is_err());
-        assert!(matches!(result, Err(Failure::GroupAlreadyExists)));
+        assert_matches!(result, Err(Failure::GroupAlreadyExists));
     }
 
     #[test]

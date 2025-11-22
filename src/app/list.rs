@@ -148,6 +148,7 @@ pub fn handle_list(config: &Config, cmd: ListCommand) -> Result<Outcome, Failure
 mod tests {
     use super::*;
     use crate::config::types::{Alias, Config};
+    use assert_matches::assert_matches;
 
     fn create_test_config() -> Config {
         let mut config = Config::new();
@@ -240,7 +241,7 @@ mod tests {
             disabled: false,
         };
         let result = handle_list(&config, cmd);
-        assert!(matches!(result, Err(Failure::GroupDoesNotExist)));
+        assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
 
     #[test]
@@ -312,14 +313,14 @@ mod tests {
     fn test_format_alias_info_nonexistent_alias() {
         let config = create_test_config();
         let result = format_alias_info(&config, "nonexistent");
-        assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
+        assert_matches!(result, Err(Failure::AliasDoesNotExist));
     }
 
     #[test]
     fn test_group_header_nonexistent_group() {
         let config = create_test_config();
         let result = group_header(&config, &GroupId::Named("nonexistent".to_string()));
-        assert!(matches!(result, Err(Failure::GroupDoesNotExist)));
+        assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
 
     #[test]
@@ -331,7 +332,7 @@ mod tests {
             &GroupId::Named("nonexistent".to_string()),
             &aliases,
         );
-        assert!(matches!(result, Err(Failure::GroupDoesNotExist)));
+        assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
 
     #[test]

@@ -1,3 +1,5 @@
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 mod app;
 mod cli;
 mod config;
@@ -24,6 +26,7 @@ use core::sync::generate_alias_script_content;
 
 use log::{LevelFilter, debug};
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn main() {
     let cli = Cli::parse();
 
