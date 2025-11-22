@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use log::debug;
+use log::{debug, error, warn};
 use std::fmt;
 use std::os::fd::BorrowedFd;
 
@@ -31,7 +31,7 @@ pub fn determine_shell() -> ShellType {
         Ok(val) => match ShellType::from_str(&val, true) {
             Ok(shell) => shell,
             Err(_) => {
-                eprintln!(
+                warn!(
                     "Invalid {} value: {}. Using {} as default shell.",
                     shell_env_var(),
                     val,
@@ -41,11 +41,11 @@ pub fn determine_shell() -> ShellType {
             }
         },
         Err(_) => {
-            eprintln!(
+            warn!(
                 "{} environment variable not set. Please set it using the init command.",
                 shell_env_var()
             );
-            eprintln!("Using {} as default shell.", default_shell());
+            warn!("Using {} as default shell.", default_shell());
             default_shell()
         }
     }
@@ -54,10 +54,10 @@ pub fn determine_shell() -> ShellType {
 pub fn send_alias_deltas_to_shell(deltas: &str) {
     let fd3 = unsafe { BorrowedFd::borrow_raw(3) };
     if let Err(e) = nix::unistd::write(fd3, deltas.as_bytes()) {
-        eprintln!(
-            "Failed to send alias deltas to shell. Make sure to use aliasmgr init in your shell configuration. Error: {}",
-            e
+        error!(
+            "Failed to send alias deltas to shell. Make sure to use aliasmgr init in your shell configuration."
         );
+        error!("{}", e);
         return;
     }
     debug!("Sent alias deltas to shell: {}", deltas);
