@@ -4,15 +4,18 @@ mod config;
 mod core;
 
 use clap::Parser;
+use std::path::PathBuf;
 
 use cli::{Cli, Commands};
 
 use config::io::{load_config, save_config};
 
+use config::types::Config;
 use core::Outcome;
 
 use app::add::handle_add;
 use app::config_path::determine_config_path;
+use app::init::handle_init;
 use app::list::handle_list;
 use app::r#move::handle_move;
 use app::shell::{determine_shell, send_alias_deltas_to_shell};
@@ -41,15 +44,20 @@ fn main() {
         .parse_default_env()
         .init();
 
-    let path = determine_config_path()
-        .expect("Custom config path did not exist and user chose not to use it.");
-    debug!("Using config path: {:?}", path);
+    let mut config = Config::new();
+    let mut path: Option<PathBuf> = None;
 
-    let shell = determine_shell();
-    debug!("Determined shell: {:?}", shell);
+    if !matches!(cli.command, Commands::Init(_)) {
+        let shell = determine_shell();
+        debug!("Determined shell: {}", shell);
 
-    let mut config = load_config(path.as_ref()).expect("Failed to load configuration");
-    debug!("Loaded configuration: {:?}", config);
+        path = determine_config_path()
+            .expect("Custom config path did not exist and user chose not to use it.");
+        debug!("Using config path: {:?}", path);
+
+        config = load_config(path.as_ref()).expect("Failed to load configuration");
+        debug!("Loaded configuration: {:?}", config);
+    }
 
     let result = match cli.command {
         // Add new alias or group
@@ -57,6 +65,12 @@ fn main() {
         Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(&config))),
         Commands::Move(cmd) => handle_move(&mut config, cmd),
         Commands::List(cmd) => handle_list(&config, cmd),
+        Commands::Init(cmd) => {
+            let content = handle_init(cmd);
+            debug!("Generated init script content");
+            print!("{}", content);
+            Ok(Outcome::NoChanges)
+        }
         _ => todo!("command not implemented yet"),
     };
 
