@@ -50,7 +50,7 @@ fn group_header(config: &Config, group: &GroupId) -> Result<String, Failure> {
     } else {
         // Ungrouped aliases are always considered enabled
         group_enabled = &true;
-        group_name = "Ungrouped".to_string();
+        group_name = "ungrouped".to_string();
     }
 
     let header_message = format!(
