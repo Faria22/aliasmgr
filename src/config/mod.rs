@@ -15,7 +15,7 @@ pub(crate) mod types;
 #[cfg(test)]
 mod tests {
     use crate::config::io::{load_config, save_config};
-    use crate::config::spec::{ConfigSpec, convert_config_to_spec, convert_spec_to_config};
+    use crate::config::spec::{ConfigSpec, convert_spec_to_config};
     use crate::config::types::{Alias, Config};
     use assert_fs::TempDir;
     use indexmap::IndexMap;
@@ -97,13 +97,5 @@ mod tests {
         let spec: ConfigSpec = toml::from_str(sample_toml()).unwrap();
         let config = convert_spec_to_config(spec);
         assert_eq!(config, expected_config());
-    }
-
-    #[test]
-    fn test_convert_config_roundtrip() {
-        let config = expected_config();
-        let spec = convert_config_to_spec(&config);
-        let converted = convert_spec_to_config(spec);
-        assert_eq!(converted, config);
     }
 }

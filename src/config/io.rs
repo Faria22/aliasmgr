@@ -8,9 +8,11 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use indexmap::IndexMap;
+use toml_edit::{DocumentMut, InlineTable, Item, Table};
 
-use super::spec::{ConfigSpec, convert_config_to_spec, convert_spec_to_config};
-use super::types::Config;
+use super::spec::{ConfigSpec, convert_spec_to_config};
+use super::types::{Alias, Config};
 
 /// Determine the configuration file path.
 /// If a custom path is provided, it is used; otherwise, the default XDG config path is used.
@@ -55,6 +57,64 @@ pub fn load_config(path: Option<&PathBuf>) -> Result<Config> {
     Ok(convert_spec_to_config(cfg))
 }
 
+fn ensure_group_table<'a>(doc: &'a mut DocumentMut, name: &str) -> &'a mut Table {
+    if !doc.contains_key(name) {
+        doc[name] = Item::Table(Table::new());
+    }
+
+    let table = doc[name]
+        .as_table_mut()
+        .expect("group entry should be a table");
+    table.set_implicit(false); // render as [group], not dotted
+    table
+}
+
+fn build_alias_item(alias: &Alias) -> Item {
+    if !alias.detailed && alias.enabled {
+        Item::Value(alias.command.clone().into())
+    } else {
+        let mut inline = InlineTable::new();
+        inline.insert("command", alias.command.clone().into());
+        inline.insert("enabled", alias.enabled.into());
+        inline.set_dotted(false);
+        Item::Value(inline.into())
+    }
+}
+
+fn insert_groups(doc: &mut DocumentMut, groups: &IndexMap<String, bool>) {
+    for (group_name, enabled) in groups {
+        let table = ensure_group_table(doc, group_name);
+        if !*enabled {
+            table["enabled"] = Item::Value((*enabled).into());
+        }
+    }
+}
+
+fn insert_aliases(
+    doc: &mut DocumentMut,
+    aliases: &IndexMap<String, Alias>,
+    groups: &IndexMap<String, bool>,
+) {
+    for (alias_name, alias) in aliases {
+        if let Some(group) = &alias.group {
+            if !groups.contains_key(group) {
+                warn!("Alias references missing group '{}'", group);
+            }
+            let table = ensure_group_table(doc, group);
+            table[alias_name] = build_alias_item(alias);
+        } else {
+            doc[alias_name] = build_alias_item(alias);
+        }
+    }
+}
+
+fn build_toml_document(config: &Config) -> DocumentMut {
+    let mut doc = DocumentMut::new();
+    insert_groups(&mut doc, &config.groups);
+    insert_aliases(&mut doc, &config.aliases, &config.groups);
+    doc
+}
+
 /// Save the configuration to the specified path or the default XDG config path.
 /// If the file does not exist, it will be created along with any necessary parent directories.
 ///
@@ -81,9 +141,71 @@ pub fn save_config(config: &Config, custom_path: Option<&PathBuf>) -> Result<()>
         debug!("Saving content into new config at {:?}", path);
     }
 
-    let spec = convert_config_to_spec(config);
-    let content = toml::to_string_pretty(&spec).expect("failed to serialize config");
+    let doc = build_toml_document(config);
+    let content = doc.to_string();
     fs::write(path, content)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_alias_item_simple_enabled_is_string() {
+        let alias = Alias::new("cmd".into(), true, None, false);
+        let item = build_alias_item(&alias);
+        assert!(item.as_value().unwrap().as_str().is_some());
+        assert_eq!(item.to_string(), "\"cmd\"");
+    }
+
+    #[test]
+    fn build_alias_item_detailed_is_inline_table() {
+        let alias = Alias::new("cmd".into(), true, None, true);
+        let item = build_alias_item(&alias);
+        let inline = item
+            .as_value()
+            .and_then(|v| v.as_inline_table())
+            .expect("expected inline table");
+        assert_eq!(inline.get("command").unwrap().as_str(), Some("cmd"));
+        assert_eq!(inline.get("enabled").unwrap().as_bool(), Some(true));
+    }
+
+    #[test]
+    fn ensure_group_table_is_explicit() {
+        let mut doc = DocumentMut::new();
+        let table = ensure_group_table(&mut doc, "group");
+        assert!(!table.is_implicit());
+        assert!(doc["group"].as_table().is_some());
+    }
+
+    #[test]
+    fn build_document_inlines_group_aliases() {
+        let mut config = Config::new();
+        config.groups.insert("group".into(), true);
+        config.aliases.insert(
+            "alias".into(),
+            Alias::new("foo".into(), false, Some("group".into()), true),
+        );
+
+        let doc = build_toml_document(&config);
+        let rendered = doc.to_string();
+
+        assert!(rendered.contains("[group]"));
+        assert!(rendered.contains("alias = { command = \"foo\", enabled = false }"));
+        assert!(!rendered.contains("[group.alias]"));
+    }
+
+    #[test]
+    fn build_document_writes_top_level_simple_alias() {
+        let mut config = Config::new();
+        config
+            .aliases
+            .insert("ls".into(), Alias::new("ls -la".into(), true, None, false));
+
+        let doc = build_toml_document(&config);
+        let rendered = doc.to_string();
+        assert!(rendered.contains("ls = \"ls -la\""));
+    }
 }
