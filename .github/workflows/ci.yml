@@ -22,3 +22,5 @@ jobs:
       run: cargo test --verbose
     - name: Run linter
       run: cargo clippy
+    - name: Run formatter check
+      run: cargo fmt --check
