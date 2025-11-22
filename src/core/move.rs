@@ -56,4 +56,11 @@ mod test {
         let result = move_alias(&mut config, "ll", &Some("nonexistent".into()));
         assert!(matches!(result, Err(Failure::GroupDoesNotExist)));
     }
+
+    #[test]
+    fn move_non_existent_alias() {
+        let mut config = Config::new();
+        let result = move_alias(&mut config, "nonexistent", &Some("utilities".into()));
+        assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
+    }
 }
