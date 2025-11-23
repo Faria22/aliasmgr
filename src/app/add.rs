@@ -143,6 +143,11 @@ fn handle_add_alias(
     }
 }
 
+pub fn valid_alias_name(name: &str) -> bool {
+    // Alias name must not contain white space or '='
+    !name.chars().any(|c| c.is_whitespace()) && !name.contains('=')
+}
+
 /// Handle the 'add' command
 pub fn handle_add(
     config: &mut Config,
@@ -156,6 +161,15 @@ pub fn handle_add(
                 error!("Global aliases are only supported in zsh.");
                 return Err(Failure::UnsupportedGlobalAlias);
             }
+
+            if !valid_alias_name(&args.name) {
+                error!(
+                    "Invalid alias name '{}'. Alias names must not contain whitespace or '='.",
+                    args.name
+                );
+                return Err(Failure::InvalidAliasName);
+            }
+
             let new_alias = Alias::new(args.command, args.group, !args.disabled, args.global);
             handle_add_alias(
                 config,
