@@ -13,15 +13,6 @@ CLI tool to manage shell aliases from a single, versionable TOML file, written i
 ### Cargo
 `cargo install aliasmgr`
 
-### Homebrew
-`brew install aliasmgr`
-
-### Debian/Ubuntu
-`sudo apt-get update && sudo apt-get install -y aliasmgr`
-
-### Arch/Manjaro
-`sudo pacman -S aliasmgr`
-
 ## Shell Setup
 - Initialize in your shell rc file so aliasmgr can sync on startup and know which shell you use:
   - Bash: `eval "$(aliasmgr init bash)"`
