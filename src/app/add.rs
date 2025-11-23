@@ -143,7 +143,7 @@ fn handle_add_alias(
     }
 }
 
-pub fn valid_alias_name(name: &str) -> bool {
+pub fn is_valid_alias_name(name: &str) -> bool {
     // Alias name must not contain white space or '='
     !name.chars().any(|c| c.is_whitespace()) && !name.contains('=')
 }
@@ -162,7 +162,7 @@ pub fn handle_add(
                 return Err(Failure::UnsupportedGlobalAlias);
             }
 
-            if !valid_alias_name(&args.name) {
+            if !is_valid_alias_name(&args.name) {
                 error!(
                     "Invalid alias name '{}'. Alias names must not contain whitespace or '='.",
                     args.name
@@ -417,5 +417,60 @@ mod tests {
             config.aliases.get("ll"),
             Some(&Alias::new("ls -l".into(), None, true, true))
         );
+    }
+
+    #[test]
+    fn test_valid_alias_name() {
+        assert!(is_valid_alias_name("ll"));
+        assert!(is_valid_alias_name("my_alias"));
+        assert!(is_valid_alias_name("valid-alias_123"));
+        assert!(!is_valid_alias_name("inavalid alias name"));
+        assert!(!is_valid_alias_name("invalid\nalias"));
+        assert!(!is_valid_alias_name("invalid\talias"));
+        assert!(!is_valid_alias_name("invalid alias"));
+        assert!(!is_valid_alias_name("another=invalid"));
+        assert!(!is_valid_alias_name("white space"));
+    }
+
+    #[test]
+    fn test_add_invalid_alias_name_space() {
+        let mut config = Config::new();
+        let result = handle_add(
+            &mut config,
+            AddCommand {
+                target: AddTarget::Alias(crate::cli::add::AddAliasArgs {
+                    name: "invalid alias".into(),
+                    command: "ls -l".into(),
+                    group: None,
+                    disabled: false,
+                    global: false,
+                }),
+            },
+            ShellType::Bash,
+        );
+        assert!(result.is_err());
+        assert_matches!(result.err().unwrap(), Failure::InvalidAliasName);
+        assert!(config.aliases.get("invalid alias").is_none());
+    }
+
+    #[test]
+    fn test_add_invalid_alias_name_equal_sign() {
+        let mut config = Config::new();
+        let result = handle_add(
+            &mut config,
+            AddCommand {
+                target: AddTarget::Alias(crate::cli::add::AddAliasArgs {
+                    name: "invalid=alias".into(),
+                    command: "ls -l".into(),
+                    group: None,
+                    disabled: false,
+                    global: false,
+                }),
+            },
+            ShellType::Bash,
+        );
+        assert!(result.is_err());
+        assert_matches!(result.err().unwrap(), Failure::InvalidAliasName);
+        assert!(config.aliases.get("invalid=alias").is_none());
     }
 }
