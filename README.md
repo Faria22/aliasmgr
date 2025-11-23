@@ -36,6 +36,8 @@ CLI tool to manage shell aliases from a single, versionable TOML file. It keeps 
 ## Configuration File
 - Default path: `~/.config/aliasmgr/aliases.toml` (XDG config home).
 - Format supports top-level aliases and grouped aliases. Disabled or global aliases use the detailed form.
+- Order of groups and aliases matches the config file; new items are appended to the bottom.
+- When aliasmgr rewrites the config, extra whitespace (including blank lines) is removed.
 
 ```toml
 py = "python3"                                 # enabled by default
