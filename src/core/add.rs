@@ -39,7 +39,7 @@ pub fn add_alias(config: &mut Config, name: &str, alias: &Alias) -> Result<Outco
     config.aliases.insert(name.into(), alias.clone());
 
     info!("Alias '{}' added with command '{}'.", name, alias.command);
-    Ok(Outcome::Command(format!("{}", add_alias_str(name, alias))))
+    Ok(Outcome::Command(add_alias_str(name, alias).to_string()))
 }
 
 pub fn add_alias_str(name: &str, alias: &Alias) -> String {
