@@ -65,6 +65,8 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr disable`
 - `aliasmgr convert`
 
+For more details, use the `-h` or `--help` flags.
+
 Notes:
 - Alias names cannot contain whitespace or `=`.
 - Global aliases (`--global`) only work on zsh; they are skipped on other shells.
