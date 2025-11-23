@@ -6,6 +6,7 @@ authors = ["Felipe Faria <fariafelipe22@outlook.com>"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+repository = "https://github.com/Faria22/aliasmgr"
 categories = ["command-line-utilities"]
 keywords = ["aliases", "shell", "cli", "manager"]
 
