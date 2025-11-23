@@ -6,7 +6,7 @@ pub(crate) mod remove;
 pub(crate) mod sync;
 
 /// Represents possible failure cases in core operations.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Failure {
     InvalidAliasName,
     UnsupportedGlobalAlias,
@@ -17,7 +17,7 @@ pub enum Failure {
 }
 
 /// Represents the outcome of core operations.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Outcome {
     /// Contains the command that has to be executed by the shell once everything is done
     /// It is assumed that the config also needs to be updated in this case

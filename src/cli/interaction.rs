@@ -35,3 +35,12 @@ pub fn prompt_use_non_existing_config_file(path: &str) -> bool {
         .interact()
         .unwrap()
 }
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn prompt_confirm_remove_all() -> bool {
+    Confirm::new()
+        .with_prompt("Are you sure you want to remove all aliases and groups?")
+        .default(false)
+        .interact()
+        .unwrap()
+}

@@ -20,6 +20,7 @@ use app::config_path::determine_config_path;
 use app::init::handle_init;
 use app::list::handle_list;
 use app::r#move::handle_move;
+use app::remove::handle_remove;
 use app::shell::{DEFAULT_SHELL, determine_shell, send_alias_deltas_to_shell};
 
 use core::sync::generate_alias_script_content;
@@ -69,6 +70,7 @@ fn main() {
         Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(&config))),
         Commands::Move(cmd) => handle_move(&mut config, cmd),
         Commands::List(cmd) => handle_list(&config, cmd),
+        Commands::Remove(cmd) => handle_remove(&mut config, cmd),
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
             debug!("Generated init script content");
