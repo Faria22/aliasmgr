@@ -1,6 +1,6 @@
 # aliasmgr
 
-CLI tool to manage shell aliases from a single, versionable TOML file. It keeps aliases grouped, toggled, and synchronized with your shell so you can avoid hand-editing scattered `alias` definitions.
+CLI tool to manage shell aliases from a single, versionable TOML file, written in Rust 🦀. It keeps aliases grouped, toggled, and synchronized with your shell so you can avoid hand-editing scattered `alias` definitions.
 
 ## Features
 - Store aliases in `~/.config/aliasmgr/aliases.toml` (or a custom path) with optional groups.
