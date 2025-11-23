@@ -154,7 +154,7 @@ pub fn save_config(config: &Config, custom_path: Option<&PathBuf>) -> Result<()>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tests::{expected_config, sample_toml};
+    use crate::config::tests::{SAMPLE_TOML, expected_config};
     use assert_fs::TempDir;
 
     #[test]
@@ -218,7 +218,7 @@ mod tests {
     fn test_load_config() {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("aliases.toml");
-        fs::write(&temp_conf, sample_toml()).unwrap();
+        fs::write(&temp_conf, SAMPLE_TOML).unwrap();
 
         let cfg = load_config(Some(&temp_conf)).unwrap();
         assert_eq!(cfg, expected_config());
@@ -233,7 +233,7 @@ mod tests {
         save_config(&config, Some(&temp_conf)).unwrap();
 
         let saved_content = fs::read_to_string(&temp_conf).unwrap();
-        assert_eq!(saved_content, sample_toml().replace("        ", ""));
+        assert_eq!(saved_content, SAMPLE_TOML);
     }
 
     #[test]

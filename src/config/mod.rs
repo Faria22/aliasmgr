@@ -17,20 +17,20 @@ pub(crate) mod tests {
     use crate::config::types::{Alias, Config};
     use indexmap::IndexMap;
 
-    pub fn sample_toml() -> &'static str {
+    pub const SAMPLE_TOML: &str = {
         r#"py = "python3"
-        js = { command = "node", enabled = false }
+js = { command = "node", enabled = false }
 
-        [git]
-        ga = "git add"
-        gc = { command = "git commit", enabled = true }
+[git]
+ga = "git add"
+gc = { command = "git commit", enabled = true }
 
-        [foo]
-        enabled = false
-        bar = "echo 'Hello World'"
-        ll = { command = "ls -la", enabled = true }
-        "#
-    }
+[foo]
+enabled = false
+bar = "echo 'Hello World'"
+ll = { command = "ls -la", enabled = true }
+"#
+    };
 
     pub fn expected_config() -> Config {
         let mut aliases = IndexMap::new();

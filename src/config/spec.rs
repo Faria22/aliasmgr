@@ -107,11 +107,11 @@ pub fn convert_spec_to_config(spec: ConfigSpec) -> Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tests::{expected_config, sample_toml};
+    use crate::config::tests::{SAMPLE_TOML, expected_config};
 
     #[test]
     fn test_convert_spec_to_config() {
-        let spec: ConfigSpec = toml::from_str(sample_toml()).unwrap();
+        let spec: ConfigSpec = toml::from_str(SAMPLE_TOML).unwrap();
         let config = convert_spec_to_config(spec);
         assert_eq!(config, expected_config());
     }
