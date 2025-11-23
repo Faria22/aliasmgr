@@ -19,9 +19,6 @@ CLI tool to manage shell aliases from a single, versionable TOML file. It keeps 
 ### Debian/Ubuntu
 `sudo apt-get update && sudo apt-get install -y aliasmgr`
 
-### Fedora/RHEL/CentOS
-`sudo dnf install -y aliasmgr`
-
 ### Arch/Manjaro
 `sudo pacman -S aliasmgr`
 
