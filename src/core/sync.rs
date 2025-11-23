@@ -1,6 +1,8 @@
 use super::add::add_alias_str;
 use super::list::{GroupId, get_all_aliases_grouped};
+use crate::app::shell::ShellType;
 use crate::config::types::Config;
+use log::warn;
 use std::fmt::Write;
 
 /// Generates the content of the alias script file based on the provided configuration.
@@ -10,7 +12,7 @@ use std::fmt::Write;
 ///
 /// # Returns
 /// A string representing the content of the alias script file.
-pub fn generate_alias_script_content(config: &Config) -> String {
+pub fn generate_alias_script_content(config: &Config, shell: ShellType) -> String {
     let mut content = String::new();
 
     // Reset all existing aliases
@@ -24,6 +26,13 @@ pub fn generate_alias_script_content(config: &Config) -> String {
         } {
             for alias in &aliases {
                 let alias_obj = config.aliases.get(alias).unwrap();
+                if alias_obj.global && shell != ShellType::Zsh {
+                    warn!(
+                        "Global aliases are only supported in zsh. Skipping alias '{}'.",
+                        alias
+                    );
+                    continue;
+                }
                 if alias_obj.enabled {
                     writeln!(content, "{}", add_alias_str(alias, alias_obj)).unwrap();
                 }
@@ -56,21 +65,21 @@ mod tests {
     #[test]
     fn empty_config_only_contains_reset_command() {
         let config = Config::new();
-        let file_string = generate_alias_script_content(&config);
+        let file_string = generate_alias_script_content(&config, ShellType::Bash);
         assert!(file_string.contains("unalias -a"));
     }
 
     #[test]
     fn filled_config_contains_reset_command() {
         let config = sample_config();
-        let file_string = generate_alias_script_content(&config);
+        let file_string = generate_alias_script_content(&config, ShellType::Bash);
         assert!(file_string.contains("unalias -a"));
     }
 
     #[test]
     fn file_content_contains_enabled_alias() {
         let config = sample_config();
-        let file_string = generate_alias_script_content(&config);
+        let file_string = generate_alias_script_content(&config, ShellType::Bash);
         assert!(file_string.contains(SAMPLE_ALIAS_NAME));
     }
 
@@ -83,7 +92,7 @@ mod tests {
             .aliases
             .insert("disabled_alias".to_string(), disabled_alias);
 
-        let file_string = generate_alias_script_content(&config);
+        let file_string = generate_alias_script_content(&config, ShellType::Bash);
         assert!(!file_string.contains("disabled_alias"));
         assert!(file_string.contains(SAMPLE_ALIAS_NAME));
     }
@@ -101,7 +110,7 @@ mod tests {
             ),
         );
         config.groups.insert("my_group".to_string(), true);
-        let file_string = generate_alias_script_content(&config);
+        let file_string = generate_alias_script_content(&config, ShellType::Bash);
         assert!(file_string.contains("grouped_alias"));
     }
 
@@ -118,7 +127,29 @@ mod tests {
             ),
         );
         config.groups.insert("my_group".to_string(), false);
-        let file_string = generate_alias_script_content(&config);
+        let file_string = generate_alias_script_content(&config, ShellType::Bash);
         assert!(!file_string.contains("grouped_alias"));
+    }
+
+    #[test]
+    fn file_content_excludes_global_alias_in_non_zsh_shell() {
+        let mut config = Config::new();
+        config.aliases.insert(
+            "global_alias".to_string(),
+            Alias::new("echo Global".to_string(), None, true, true),
+        );
+        let file_string = generate_alias_script_content(&config, ShellType::Bash);
+        assert!(!file_string.contains("global_alias"));
+    }
+
+    #[test]
+    fn file_content_includes_global_alias_in_zsh_shell() {
+        let mut config = Config::new();
+        config.aliases.insert(
+            "global_alias".to_string(),
+            Alias::new("echo Global".to_string(), None, true, true),
+        );
+        let file_string = generate_alias_script_content(&config, ShellType::Zsh);
+        assert!(file_string.contains("global_alias"));
     }
 }
