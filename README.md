@@ -70,8 +70,8 @@ Notes:
 - Alias names cannot contain whitespace or `=`.
 - Global aliases (`--global`) only work on zsh; they are skipped on other shells.
 
-## Sync Behavior (important)
-- `aliasmgr sync` (and the `init` snippet that runs it) starts by executing `unalias -a`, which clears **all** aliases in the current shell.
+## Sync Behavior
+> **Warning:** `aliasmgr sync` (and the `init` snippet that runs it) starts by executing `unalias -a`, which clears **all** aliases in the current shell.
 - If you maintain aliases outside aliasmgr, define them **after** running `eval "$(aliasmgr init {shell})"` in your rc file. Re-running `sync` after sourcing your rc file will remove any aliases not managed by aliasmgr.
 - Run `aliasmgr sync` again after manually editing the config file without using aliasmgr commands, and after changes made in one terminal when you have multiple shells open.
 - Recommended:
