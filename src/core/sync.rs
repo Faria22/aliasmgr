@@ -1,5 +1,6 @@
 use super::add::add_alias_str;
 use super::list::{GroupId, get_all_aliases_grouped};
+use crate::app::add::is_valid_alias_name;
 use crate::app::shell::ShellType;
 use crate::config::types::Config;
 use log::warn;
@@ -29,6 +30,13 @@ pub fn generate_alias_script_content(config: &Config, shell: ShellType) -> Strin
                 if alias_obj.global && shell != ShellType::Zsh {
                     warn!(
                         "Global aliases are only supported in zsh. Skipping alias '{}'.",
+                        alias
+                    );
+                    continue;
+                }
+                if !is_valid_alias_name(alias) {
+                    warn!(
+                        "Alias name '{}' contains invalid characters. Skipping.",
                         alias
                     );
                     continue;
@@ -151,5 +159,16 @@ mod tests {
         );
         let file_string = generate_alias_script_content(&config, ShellType::Zsh);
         assert!(file_string.contains("global_alias"));
+    }
+
+    #[test]
+    fn file_content_excludes_invalid_alias_names() {
+        let mut config = Config::new();
+        config.aliases.insert(
+            "invalid alias".to_string(),
+            Alias::new("echo Invalid".to_string(), None, true, false),
+        );
+        let file_string = generate_alias_script_content(&config, ShellType::Bash);
+        assert!(!file_string.contains("invalid alias"));
     }
 }
