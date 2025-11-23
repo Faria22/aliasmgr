@@ -37,7 +37,7 @@ pub struct AddAliasArgs {
     pub disabled: bool,
 
     /// Add alias as a global alias
-    #[arg(short, long, default_value_t = false)]
+    #[arg(long, default_value_t = false)]
     pub global: bool,
 }
 

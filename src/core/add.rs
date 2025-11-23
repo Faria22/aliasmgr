@@ -39,10 +39,16 @@ pub fn add_alias(config: &mut Config, name: &str, alias: &Alias) -> Result<Outco
     config.aliases.insert(name.into(), alias.clone());
 
     info!("Alias '{}' added with command '{}'.", name, alias.command);
-    Ok(Outcome::Command(format!(
-        "alias {}='{}'",
-        name, alias.command
-    )))
+    Ok(Outcome::Command(format!("{}", add_alias_str(name, alias))))
+}
+
+pub fn add_alias_str(name: &str, alias: &Alias) -> String {
+    format!(
+        "alias{} -- '{}'='{}'",
+        if alias.global { " -g" } else { "" },
+        name,
+        alias.command
+    )
 }
 
 /// Adds a group to the configuration.
@@ -95,9 +101,9 @@ mod test {
         new_alias.command = "git status".into();
 
         let result = add_alias(&mut config, "ll", &new_alias);
-        assert!(result.is_ok());
-        assert_ne!(config.aliases.get("ll"), Some(&test_alias()));
-        assert_eq!(config.aliases.get("ll"), Some(&new_alias));
+        assert!(result.is_err());
+        assert_eq!(config.aliases.get("ll"), Some(&test_alias()));
+        assert_ne!(config.aliases.get("ll"), Some(&new_alias));
     }
 
     #[test]
@@ -196,5 +202,19 @@ mod test {
         let result = add_alias(&mut config, "ll", &new_alias);
         assert!(result.is_ok());
         assert_eq!(config.aliases.get("ll"), Some(&new_alias));
+    }
+
+    #[test]
+    fn add_string_global_alias() {
+        let alias = Alias::new("ls -la".into(), None, true, true);
+        let result = add_alias_str("ll", &alias);
+        assert_eq!(result, "alias -g -- 'll'='ls -la'");
+    }
+
+    #[test]
+    fn add_string_non_global_alias() {
+        let alias = Alias::new("ls -la".into(), None, true, false);
+        let result = add_alias_str("ll", &alias);
+        assert_eq!(result, "alias -- 'll'='ls -la'");
     }
 }

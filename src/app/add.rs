@@ -11,7 +11,9 @@ use crate::cli::interaction::{prompt_create_non_existent_group, prompt_overwrite
 
 use super::list::format_alias_info;
 
-use log::info;
+use super::shell::ShellType;
+
+use log::{error, info};
 
 /// Handle overwriting an existing alias
 fn handle_overwrite_existing_alias(
@@ -142,10 +144,18 @@ fn handle_add_alias(
 }
 
 /// Handle the 'add' command
-pub fn handle_add(config: &mut Config, cmd: AddCommand) -> Result<Outcome, Failure> {
+pub fn handle_add(
+    config: &mut Config,
+    cmd: AddCommand,
+    shell: ShellType,
+) -> Result<Outcome, Failure> {
     match cmd.target {
         // Add alias
         AddTarget::Alias(args) => {
+            if args.global && shell != ShellType::Zsh {
+                error!("Global aliases are only supported in zsh.");
+                return Err(Failure::UnsupportedGlobalAlias);
+            }
             let new_alias = Alias::new(args.command, args.group, !args.disabled, args.global);
             handle_add_alias(
                 config,
@@ -292,7 +302,9 @@ mod tests {
         let mut old_alias = sample_alias();
         old_alias.group = Some("old_group".into());
 
-        config.aliases.insert(SAMPLE_ALIAS_NAME.into(), old_alias);
+        config
+            .aliases
+            .insert(SAMPLE_ALIAS_NAME.into(), old_alias.clone());
         config.groups.insert("old_group".into(), true);
 
         let mut new_alias = sample_alias();
@@ -309,7 +321,7 @@ mod tests {
         );
 
         assert!(result.is_err());
-        assert_eq!(config.aliases.get(SAMPLE_ALIAS_NAME), Some(&new_alias));
+        assert_eq!(config.aliases.get(SAMPLE_ALIAS_NAME), Some(&old_alias));
         assert!(!config.groups.contains_key("new_group"));
     }
 
@@ -324,6 +336,7 @@ mod tests {
                     disabled: false,
                 }),
             },
+            ShellType::Bash,
         );
         assert!(result.is_ok());
         assert!(config.groups.contains_key("dev"));
@@ -341,9 +354,54 @@ mod tests {
                     disabled: false,
                 }),
             },
+            ShellType::Bash,
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::GroupAlreadyExists);
         assert!(config.groups.contains_key("utils"));
+    }
+
+    #[test]
+    fn test_handle_add_alias_unsupported_global_in_bash() {
+        let mut config = Config::new();
+        let result = handle_add(
+            &mut config,
+            AddCommand {
+                target: AddTarget::Alias(crate::cli::add::AddAliasArgs {
+                    name: "ll".into(),
+                    command: "ls -l".into(),
+                    group: None,
+                    disabled: false,
+                    global: true,
+                }),
+            },
+            ShellType::Bash,
+        );
+        assert!(result.is_err());
+        assert_matches!(result.err().unwrap(), Failure::UnsupportedGlobalAlias);
+        assert!(config.aliases.get("ll").is_none());
+    }
+
+    #[test]
+    fn test_handle_add_alias_supported_global_in_zsh() {
+        let mut config = Config::new();
+        let result = handle_add(
+            &mut config,
+            AddCommand {
+                target: AddTarget::Alias(crate::cli::add::AddAliasArgs {
+                    name: "ll".into(),
+                    command: "ls -l".into(),
+                    group: None,
+                    disabled: false,
+                    global: true,
+                }),
+            },
+            ShellType::Zsh,
+        );
+        assert!(result.is_ok());
+        assert_eq!(
+            config.aliases.get("ll"),
+            Some(&Alias::new("ls -l".into(), None, true, true))
+        );
     }
 }

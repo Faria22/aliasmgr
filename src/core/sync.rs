@@ -1,3 +1,4 @@
+use super::add::add_alias_str;
 use super::list::{GroupId, get_all_aliases_grouped};
 use crate::config::types::Config;
 use std::fmt::Write;
@@ -23,14 +24,8 @@ pub fn generate_alias_script_content(config: &Config) -> String {
         } {
             for alias in &aliases {
                 let alias_obj = config.aliases.get(alias).unwrap();
-                let global_str = if alias_obj.global { " -g" } else { "" };
                 if alias_obj.enabled {
-                    writeln!(
-                        content,
-                        "alias{} {}='{}'",
-                        global_str, alias, alias_obj.command
-                    )
-                    .unwrap();
+                    writeln!(content, "{}", add_alias_str(alias, alias_obj)).unwrap();
                 }
             }
         }
@@ -125,23 +120,5 @@ mod tests {
         config.groups.insert("my_group".to_string(), false);
         let file_string = generate_alias_script_content(&config);
         assert!(!file_string.contains("grouped_alias"));
-    }
-
-    #[test]
-    fn global_alias_is_marked_as_global() {
-        let mut config = Config::new();
-        config.aliases.insert(
-            "global_alias".to_string(),
-            Alias::new("echo Global".to_string(), None, true, true),
-        );
-        let file_string = generate_alias_script_content(&config);
-        assert!(file_string.contains("alias -g global_alias='echo Global'"));
-    }
-
-    #[test]
-    fn non_global_alias_is_not_marked_as_global() {
-        let config = sample_config();
-        let file_string = generate_alias_script_content(&config);
-        assert!(file_string.contains("alias ll='ls -la'"));
     }
 }

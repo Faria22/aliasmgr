@@ -20,7 +20,7 @@ use app::config_path::determine_config_path;
 use app::init::handle_init;
 use app::list::handle_list;
 use app::r#move::handle_move;
-use app::shell::{determine_shell, send_alias_deltas_to_shell};
+use app::shell::{DEFAULT_SHELL, determine_shell, send_alias_deltas_to_shell};
 
 use core::sync::generate_alias_script_content;
 
@@ -49,9 +49,10 @@ fn main() {
 
     let mut config = Config::new();
     let mut path: Option<PathBuf> = None;
+    let mut shell = DEFAULT_SHELL;
 
     if !matches!(cli.command, Commands::Init(_)) {
-        let shell = determine_shell();
+        shell = determine_shell();
         debug!("Determined shell: {}", shell);
 
         path = determine_config_path()
@@ -64,7 +65,7 @@ fn main() {
 
     let result = match cli.command {
         // Add new alias or group
-        Commands::Add(cmd) => handle_add(&mut config, cmd),
+        Commands::Add(cmd) => handle_add(&mut config, cmd, shell),
         Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(&config))),
         Commands::Move(cmd) => handle_move(&mut config, cmd),
         Commands::List(cmd) => handle_list(&config, cmd),

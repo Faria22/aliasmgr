@@ -9,6 +9,7 @@ pub(crate) mod sync;
 #[derive(Debug)]
 pub enum Failure {
     InvalidAliasName,
+    UnsupportedGlobalAlias,
     AliasDoesNotExist,
     GroupDoesNotExist,
     AliasAlreadyExists,

@@ -221,7 +221,7 @@ mod tests {
         assert!(ungrouped.is_ok());
         let ungrouped = ungrouped.unwrap();
 
-        assert_eq!(ungrouped.len(), 2);
+        assert_eq!(ungrouped.len(), 3);
 
         assert!(ungrouped.contains(&"alias4".to_string()));
         assert!(ungrouped.contains(&"alias4_disabled".to_string()));

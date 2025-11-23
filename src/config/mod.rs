@@ -19,45 +19,44 @@ pub(crate) mod tests {
 
     pub const SAMPLE_TOML: &str = {
         r#"py = "python3"
-js = { command = "node", enabled = false }
+js = { command = "node", enabled = false, global = false }
+x = { command = "xargs", enabled = true, global = true }
 
 [git]
 ga = "git add"
-gc = { command = "git commit", enabled = true }
+gc = { command = "git commit", enabled = true, global = false }
 
 [foo]
 enabled = false
 bar = "echo 'Hello World'"
-ll = { command = "ls -la", enabled = true }
+ll = { command = "ls -la", enabled = true, global = false }
 "#
     };
 
     pub fn expected_config() -> Config {
         let mut aliases = IndexMap::new();
         let mut groups = IndexMap::new();
-        aliases.insert("py".into(), Alias::new("python3".into(), true, None, false));
-
-        aliases.insert("js".into(), Alias::new("node".into(), false, None, true));
+        aliases.insert("py".into(), Alias::new("python3".into(), None, true, false));
+        aliases.insert("js".into(), Alias::new("node".into(), None, false, false));
+        aliases.insert("x".into(), Alias::new("xargs".into(), None, true, true));
 
         aliases.insert(
             "ga".into(),
-            Alias::new("git add".into(), true, Some("git".into()), false),
+            Alias::new("git add".into(), Some("git".into()), true, false),
         );
 
-        aliases.insert(
-            "gc".into(),
-            Alias::new("git commit".into(), true, Some("git".into()), true),
-        );
+        let mut alias = Alias::new("git commit".into(), Some("git".into()), true, false);
+        alias.detailed = true;
+        aliases.insert("gc".into(), alias);
 
         aliases.insert(
             "bar".into(),
-            Alias::new("echo 'Hello World'".into(), true, Some("foo".into()), false),
+            Alias::new("echo 'Hello World'".into(), Some("foo".into()), true, false),
         );
 
-        aliases.insert(
-            "ll".into(),
-            Alias::new("ls -la".into(), true, Some("foo".into()), true),
-        );
+        let mut alias = Alias::new("ls -la".into(), Some("foo".into()), true, false);
+        alias.detailed = true;
+        aliases.insert("ll".into(), alias);
 
         groups.insert("git".into(), true);
         groups.insert("foo".into(), false);

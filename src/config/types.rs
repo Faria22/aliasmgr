@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn global_alias_must_be_detailed() {
-        let alias = Alias::new("cmd".into(), None, false, true);
+        let alias = Alias::new("cmd".into(), None, true, true);
         assert_eq!(
             alias,
             Alias {

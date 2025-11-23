@@ -58,7 +58,7 @@ mod tests {
         let mut config = Config::new();
         config.aliases.insert(
             alias_name.into(),
-            Alias::new(command.into(), true, None, false),
+            Alias::new(command.into(), None, true, false),
         );
         config
     }
@@ -100,8 +100,8 @@ mod tests {
             config.aliases.get("ll"),
             Some(&Alias::new(
                 "ls -la".into(),
-                true,
                 Some("utilities".into()),
+                true,
                 false
             ))
         );

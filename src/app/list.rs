@@ -17,12 +17,22 @@ fn enabled_symbol(enabled: bool) -> String {
     }
 }
 
+fn globe_symbol(global: bool) -> String {
+    if global {
+        // " 🌐 ".to_string()
+        " ⦾".blue().bold().to_string()
+    } else {
+        String::new()
+    }
+}
+
 /// Formats the information of a single alias.
 pub fn format_alias_info(config: &Config, alias: &str) -> Result<String, Failure> {
     if let Some(alias_info) = config.aliases.get(alias) {
         Ok(format!(
-            "{} {} -> {}",
+            "{}{} {} -> {}",
             enabled_symbol(alias_info.enabled),
+            globe_symbol(alias_info.global),
             alias,
             alias_info.command
         ))
@@ -155,22 +165,17 @@ mod tests {
         // Ungrouped alias
         config.aliases.insert(
             "test".to_string(),
-            Alias {
-                command: "echo test".to_string(),
-                enabled: true,
-                group: None,
-                detailed: false,
-            },
+            Alias::new("echo test".to_string(), None, true, false),
         );
         // Grouped alias
         config.aliases.insert(
             "build".to_string(),
-            Alias {
-                command: "cargo build".to_string(),
-                enabled: true,
-                group: Some("dev".to_string()),
-                detailed: false,
-            },
+            Alias::new(
+                "cargo build".to_string(),
+                Some("dev".to_string()),
+                true,
+                false,
+            ),
         );
         config.groups.insert("dev".to_string(), true);
         config
@@ -226,6 +231,7 @@ mod tests {
             ungrouped: false,
             enabled: false,
             disabled: false,
+            global: false,
         };
         let result = handle_list(&config, cmd);
         assert!(result.is_ok());
@@ -239,6 +245,7 @@ mod tests {
             ungrouped: false,
             enabled: false,
             disabled: false,
+            global: false,
         };
         let result = handle_list(&config, cmd);
         assert_matches!(result, Err(Failure::GroupDoesNotExist));
@@ -252,6 +259,7 @@ mod tests {
             ungrouped: false,
             enabled: false,
             disabled: false,
+            global: false,
         };
         let result = handle_list(&config, cmd);
         assert!(result.is_ok());
@@ -265,6 +273,7 @@ mod tests {
             ungrouped: false,
             enabled: true,
             disabled: false,
+            global: false,
         };
         let result = handle_list(&config, cmd);
         assert!(result.is_ok());
@@ -278,6 +287,7 @@ mod tests {
             ungrouped: false,
             enabled: false,
             disabled: true,
+            global: false,
         };
         let result = handle_list(&config, cmd);
         assert!(result.is_ok());
@@ -291,6 +301,7 @@ mod tests {
             ungrouped: false,
             enabled: true,
             disabled: false,
+            global: false,
         };
         let result = handle_list(&config, cmd);
         assert!(result.is_ok());
@@ -304,6 +315,21 @@ mod tests {
             ungrouped: true,
             enabled: false,
             disabled: false,
+            global: false,
+        };
+        let result = handle_list(&config, cmd);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_handle_list_global() {
+        let config = create_test_config();
+        let cmd = ListCommand {
+            group: None,
+            ungrouped: false,
+            enabled: false,
+            disabled: false,
+            global: true,
         };
         let result = handle_list(&config, cmd);
         assert!(result.is_ok());
