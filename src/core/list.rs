@@ -148,75 +148,44 @@ mod tests {
         groups.insert("group2".into(), true);
         groups.insert("group3".into(), false);
 
-        // Named group with enabled and disabled aliases
+        // Named group with enabled and disabled aliases, and a global alias
         aliases.insert(
             "alias1".into(),
-            Alias {
-                command: "cmd1".into(),
-                group: Some("group1".into()),
-                detailed: false,
-                enabled: true,
-            },
+            Alias::new("cmd1".into(), Some("group1".into()), true, false),
         );
         aliases.insert(
             "alias1_disabled".into(),
-            Alias {
-                command: "cmd1".into(),
-                group: Some("group1".into()),
-                detailed: true,
-                enabled: false,
-            },
+            Alias::new("cmd1".into(), Some("group1".into()), false, false),
+        );
+        aliases.insert(
+            "global_alias".into(),
+            Alias::new("global_cmd".into(), None, true, true),
         );
 
         // Another named group with only enabled aliases
         aliases.insert(
             "alias2".into(),
-            Alias {
-                command: "cmd2".into(),
-                group: Some("group2".into()),
-                detailed: false,
-                enabled: true,
-            },
+            Alias::new("cmd2".into(), Some("group2".into()), true, false),
         );
         //
         // Named group that is disabled with enabled and disabled aliases
         aliases.insert(
             "alias3".into(),
-            Alias {
-                command: "cmd3".into(),
-                group: Some("group3".into()),
-                detailed: false,
-                enabled: true,
-            },
+            Alias::new("cmd3".into(), Some("group3".into()), true, false),
         );
         aliases.insert(
             "alias3_disabled".into(),
-            Alias {
-                command: "cmd3".into(),
-                group: Some("group3".into()),
-                detailed: true,
-                enabled: false,
-            },
+            Alias::new("cmd3".into(), Some("group3".into()), true, false),
         );
 
         // Ungrouped aliases
         aliases.insert(
             "alias4".into(),
-            Alias {
-                command: "cmd4".into(),
-                group: None,
-                detailed: false,
-                enabled: true,
-            },
+            Alias::new("cmd4".into(), None, true, false),
         );
         aliases.insert(
             "alias4_disabled".into(),
-            Alias {
-                command: "cmd4".into(),
-                group: None,
-                detailed: false,
-                enabled: false,
-            },
+            Alias::new("cmd4".into(), None, false, false),
         );
 
         Config { groups, aliases }
@@ -353,12 +322,7 @@ mod tests {
         let mut aliases = IndexMap::new();
         aliases.insert(
             "alias1".into(),
-            Alias {
-                command: "cmd1".into(),
-                group: None,
-                detailed: false,
-                enabled: true,
-            },
+            Alias::new("cmd1".into(), None, true, false),
         );
         let config = Config {
             groups: IndexMap::new(),

@@ -24,4 +24,8 @@ pub struct ListCommand {
     /// Show only disabled aliases
     #[arg(short, long)]
     pub disabled: bool,
+
+    /// Show only global aliases
+    #[arg(long)]
+    pub global: bool,
 }

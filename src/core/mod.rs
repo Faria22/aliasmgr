@@ -8,6 +8,7 @@ pub(crate) mod sync;
 /// Represents possible failure cases in core operations.
 #[derive(Debug)]
 pub enum Failure {
+    InvalidAliasName,
     AliasDoesNotExist,
     GroupDoesNotExist,
     AliasAlreadyExists,

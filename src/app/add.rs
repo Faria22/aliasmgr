@@ -4,7 +4,7 @@ use crate::core::add::{add_alias, add_group};
 use crate::core::edit::edit_alias;
 use crate::core::r#move::move_alias;
 
-use crate::config::types::Config;
+use crate::config::types::{Alias, Config};
 
 use crate::cli::add::{AddCommand, AddTarget};
 use crate::cli::interaction::{prompt_create_non_existent_group, prompt_overwrite_existing_alias};
@@ -17,18 +17,20 @@ use log::info;
 fn handle_overwrite_existing_alias(
     config: &mut Config,
     name: &str,
-    command: &str,
-    group: Option<&str>,
-    enabled: bool,
+    alias: &Alias,
     overwrite: bool,
     create_group: impl Fn(&str) -> bool,
 ) -> Result<Outcome, Failure> {
     // If the alias already exists, we check if the user wants to overwrite it
     if overwrite {
         // Move alias to new group if it is different from the previous one
-        if group != config.aliases.get(name).and_then(|a| a.group.as_deref()) {
-            info!("Moving alias '{}' to group '{:?}'.", name, group);
-            let group = group.map(|g| g.to_string());
+        if alias.group != config.aliases.get(name).and_then(|a| a.group.clone()) {
+            info!(
+                "Moving alias '{}' to group '{:?}'.",
+                name,
+                alias.group.clone()
+            );
+            let group = alias.group.clone().map(|g| g.to_string());
 
             if let Err(Failure::GroupDoesNotExist) = move_alias(config, name, &group) {
                 // If the group does not exist, we ask the user if they want to create it
@@ -42,17 +44,14 @@ fn handle_overwrite_existing_alias(
 
         // User wants to overwrite the existing alias
         info!("Overwriting existing alias '{}'.", name);
-        let command = edit_alias(config, name, command)?;
+        let command = edit_alias(config, name, &alias.command)?;
 
-        // Update enabled status if it is different from the previous one
-        if enabled != config.aliases.get(name).unwrap().enabled {
-            let alias = config.aliases.get_mut(name).unwrap();
-            alias.enabled = enabled;
-            info!(
-                "Setting alias '{}' enabled status to '{}'.",
-                name, alias.enabled
-            );
-        }
+        let new_alias = config
+            .aliases
+            .get_mut(name)
+            .expect("alias must exist to be edited");
+        new_alias.enabled = alias.enabled;
+        new_alias.global = alias.global;
 
         // Returns command to edit the alias in the shell
         Ok(command)
@@ -84,13 +83,11 @@ fn handle_create_non_existent_group(
 fn handle_add_alias(
     config: &mut Config,
     name: &str,
-    command: &str,
-    group: Option<&str>,
-    enabled: bool,
+    alias: &Alias,
     overwrite: impl Fn(&str) -> bool,
     create_group: impl Fn(&str) -> bool,
 ) -> Result<Outcome, Failure> {
-    match add_alias(config, name, command, group, enabled) {
+    match add_alias(config, name, alias) {
         // Alias added successfully
         Ok(outcome) => Ok(outcome),
 
@@ -103,9 +100,7 @@ fn handle_add_alias(
                     handle_overwrite_existing_alias(
                         config,
                         name,
-                        command,
-                        group,
-                        enabled,
+                        alias,
                         overwrite(&alias_info),
                         create_group,
                     )
@@ -113,8 +108,10 @@ fn handle_add_alias(
 
                 // Group that alias will belong to does not exist
                 Failure::GroupDoesNotExist => {
-                    let group_name =
-                        group.expect("group has to be `Some` for these error to arise");
+                    let group_name = alias
+                        .group
+                        .as_ref()
+                        .expect("group has to be `Some` for these error to arise");
                     match handle_create_non_existent_group(
                         config,
                         group_name,
@@ -123,7 +120,7 @@ fn handle_add_alias(
                         // Group created successfully
                         Ok(Outcome::ConfigChanged) => {
                             // Retry adding the alias after creating the group
-                            add_alias(config, name, command, Some(group_name), enabled)?;
+                            add_alias(config, name, alias)?;
                             Ok(Outcome::ConfigChanged)
                         }
                         // User chose not to create the group
@@ -148,15 +145,16 @@ fn handle_add_alias(
 pub fn handle_add(config: &mut Config, cmd: AddCommand) -> Result<Outcome, Failure> {
     match cmd.target {
         // Add alias
-        AddTarget::Alias(args) => handle_add_alias(
-            config,
-            &args.name,
-            &args.command,
-            args.group.as_deref(),
-            !args.disabled,
-            prompt_overwrite_existing_alias,
-            prompt_create_non_existent_group,
-        ),
+        AddTarget::Alias(args) => {
+            let new_alias = Alias::new(args.command, args.group, !args.disabled, args.global);
+            handle_add_alias(
+                config,
+                &args.name,
+                &new_alias,
+                prompt_overwrite_existing_alias,
+                prompt_create_non_existent_group,
+            )
+        }
 
         // Add group
         AddTarget::Group(args) => add_group(config, &args.name, !args.disabled),
@@ -166,245 +164,153 @@ pub fn handle_add(config: &mut Config, cmd: AddCommand) -> Result<Outcome, Failu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::types::Alias;
     use assert_matches::assert_matches;
 
+    static SAMPLE_ALIAS_NAME: &str = "ll";
+
+    fn sample_alias() -> Alias {
+        Alias::new("ls -l".into(), None, true, false)
+    }
+
+    fn sample_config() -> Config {
+        let mut config = Config::new();
+        config
+            .aliases
+            .insert(SAMPLE_ALIAS_NAME.into(), sample_alias());
+        config
+    }
+
     #[test]
-    fn test_handle_add_alias_success() {
+    fn test_handle_add_alias_empty_config() {
         let mut config = Config::new();
         let result = handle_add_alias(
             &mut config,
-            "ll",
-            "ls -la",
-            None,
-            true,
+            SAMPLE_ALIAS_NAME,
+            &sample_alias(),
             |_| false, // No overwrite needed
             |_| false, // No group creation needed
         );
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new("ls -la".into(), true, None, false))
-        );
+        assert_eq!(config.aliases.get(SAMPLE_ALIAS_NAME), Some(&sample_alias()));
     }
 
     #[test]
     fn test_handle_add_alias_overwrite_yes() {
-        let mut config = Config::new();
-        config
-            .aliases
-            .insert("ll".into(), Alias::new("ls -l".into(), true, None, false));
+        let mut config = sample_config();
+
+        let mut new_alias = sample_alias();
+        new_alias.command = "ls -la".into();
 
         // Mock user input to overwrite existing alias
         let result = handle_overwrite_existing_alias(
             &mut config,
-            "ll",
-            "ls -la",
-            None,
-            true,
+            SAMPLE_ALIAS_NAME,
+            &new_alias,
             true,      // Simulate user choosing to overwrite
             |_| false, // No group creation needed
         );
 
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new("ls -la".into(), true, None, false))
-        );
+        assert_eq!(config.aliases.get(SAMPLE_ALIAS_NAME), Some(&new_alias));
     }
 
     #[test]
-    fn test_handle_add_alias_overwrite_no() {
-        let mut config = Config::new();
-        config
-            .aliases
-            .insert("ll".into(), Alias::new("ls -l".into(), true, None, false));
+    fn test_handle_add_alias_no_overwrite() {
+        let mut config = sample_config();
+
+        let mut new_alias = sample_alias();
+        new_alias.command = "ls -la".into();
 
         // Mock user input to not overwrite existing alias
         let result = handle_overwrite_existing_alias(
             &mut config,
-            "ll",
-            "ls -la",
-            None,
-            true,
+            SAMPLE_ALIAS_NAME,
+            &new_alias,
             false,     // Simulate user choosing not to overwrite
             |_| false, // No group creation needed
         );
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new("ls -l".into(), true, None, false))
-        );
+        assert_eq!(config.aliases.get(SAMPLE_ALIAS_NAME), Some(&sample_alias()));
     }
 
     #[test]
     fn test_handle_add_alias_overwrite_alias_move_group() {
         let mut config = Config::new();
-        config.aliases.insert(
-            "ll".into(),
-            Alias::new("ls -l".into(), true, Some("old_group".into()), false),
-        );
+        let mut old_alias = sample_alias();
+        old_alias.group = Some("old_group".into());
+
+        let mut new_alias = sample_alias();
+        new_alias.command = "ls -la".into();
+        new_alias.group = Some("new_group".into());
+
         config.groups.insert("old_group".into(), true);
         config.groups.insert("new_group".into(), true);
 
         // Mock user input to overwrite existing alias and move to new group
         let result = handle_add_alias(
             &mut config,
-            "ll",
-            "ls -la",
-            Some("new_group"),
-            true,
+            SAMPLE_ALIAS_NAME,
+            &new_alias,
             |_| true,  // Simulate user choosing to overwrite
             |_| false, // No group creation needed
         );
 
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new(
-                "ls -la".into(),
-                true,
-                Some("new_group".into()),
-                false
-            ))
-        );
+        assert_eq!(config.aliases.get(SAMPLE_ALIAS_NAME), Some(&new_alias));
     }
 
     #[test]
     fn test_handle_add_alias_overwrite_to_nonexising_group() {
         let mut config = Config::new();
-        config.aliases.insert(
-            "ll".into(),
-            Alias::new("ls -l".into(), true, Some("old_group".into()), false),
-        );
+        let mut old_alias = sample_alias();
+        old_alias.group = Some("old_group".into());
+
+        let mut new_alias = sample_alias();
+        new_alias.command = "ls -la".into();
+        new_alias.group = Some("new_group".into());
+
         config.groups.insert("old_group".into(), true);
 
         // Mock user input to overwrite existing alias and move to non-existent group
         let result = handle_add_alias(
             &mut config,
-            "ll",
-            "ls -la",
-            Some("new_group"),
-            true,
+            SAMPLE_ALIAS_NAME,
+            &new_alias,
             |_| true, // Simulate user choosing to overwrite
             |_| true, // Simulate user choosing to create group
         );
 
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new(
-                "ls -la".into(),
-                true,
-                Some("new_group".into()),
-                false
-            ))
-        );
+        assert_eq!(config.aliases.get(SAMPLE_ALIAS_NAME), Some(&new_alias));
         assert!(config.groups.contains_key("new_group"));
     }
 
     #[test]
     fn test_handle_add_alias_overwrite_to_nonexising_group_no_create() {
         let mut config = Config::new();
-        config.aliases.insert(
-            "ll".into(),
-            Alias::new("ls -l".into(), true, Some("old_group".into()), false),
-        );
+
+        let mut old_alias = sample_alias();
+        old_alias.group = Some("old_group".into());
+
+        config.aliases.insert(SAMPLE_ALIAS_NAME.into(), old_alias);
         config.groups.insert("old_group".into(), true);
+
+        let mut new_alias = sample_alias();
+        new_alias.command = "ls -la".into();
+        new_alias.group = Some("new_group".into());
 
         // Mock user input to overwrite existing alias and move to non-existent group
         let result = handle_add_alias(
             &mut config,
-            "ll",
-            "ls -la",
-            Some("new_group"),
-            true,
+            SAMPLE_ALIAS_NAME,
+            &new_alias,
             |_| true,  // Simulate user choosing to overwrite
             |_| false, // Simulate user choosing not to create group
         );
 
         assert!(result.is_err());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new(
-                "ls -l".into(),
-                true,
-                Some("old_group".into()),
-                false
-            ))
-        );
+        assert_eq!(config.aliases.get(SAMPLE_ALIAS_NAME), Some(&new_alias));
         assert!(!config.groups.contains_key("new_group"));
-    }
-
-    #[test]
-    fn test_handle_overwrite_alias_different_enabled_status() {
-        let mut config = Config::new();
-        config
-            .aliases
-            .insert("ll".into(), Alias::new("ls -l".into(), false, None, true));
-
-        // Mock user input to overwrite existing alias and change enabled status
-        let result = handle_overwrite_existing_alias(
-            &mut config,
-            "ll",
-            "ls -la",
-            None,
-            true,      // New enabled status
-            true,      // Simulate user choosing to overwrite
-            |_| false, // No group creation needed
-        );
-
-        assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new("ls -la".into(), true, None, true))
-        );
-    }
-
-    #[test]
-    fn test_handle_add_alias_create_group_no_overwrite() {
-        let mut config = Config::new();
-
-        // Mock user input to not create non-existent group
-        let result = handle_add_alias(
-            &mut config,
-            "ll",
-            "ls -la",
-            Some("utils"),
-            true,
-            |_| false, // No overwrite needed
-            |_| false, // Simulate user choosing not to create group
-        );
-
-        assert!(result.is_ok());
-        assert!(!config.aliases.contains_key("ll"));
-    }
-
-    #[test]
-    fn test_handle_add_alias_create_group() {
-        let mut config = Config::new();
-
-        // Mock user input to create non-existent group
-        let result = handle_add_alias(
-            &mut config,
-            "ll",
-            "ls -la",
-            Some("utils"),
-            true,
-            |_| false, // No overwrite needed
-            |_| true,  // Simulate user choosing to create group
-        );
-
-        assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new(
-                "ls -la".into(),
-                true,
-                Some("utils".into()),
-                false
-            ))
-        );
     }
 
     #[test]

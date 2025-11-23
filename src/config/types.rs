@@ -4,26 +4,25 @@
 use indexmap::IndexMap;
 
 /// Representation of an alias in the configuration.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Alias {
     pub command: String,
-    pub enabled: bool,
     pub group: Option<String>,
+    pub enabled: bool,
+    // Keeps track of whether the alias uses detailed representation.
     pub detailed: bool,
+    pub global: bool,
 }
 
 /// Constructor for Alias with validation.
 impl Alias {
-    pub fn new(command: String, enabled: bool, group: Option<String>, detailed: bool) -> Self {
-        if !enabled && !detailed {
-            panic!("disabled aliases must use detailed representation");
-        }
-
+    pub fn new(command: String, group: Option<String>, enabled: bool, global: bool) -> Self {
         Alias {
             command,
             enabled,
             group,
-            detailed,
+            detailed: !enabled || global,
+            global,
         }
     }
 }
@@ -50,14 +49,8 @@ mod tests {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "disabled aliases must use detailed representation")]
-    fn disabled_alias_must_be_detailed() {
-        Alias::new("cmd".into(), false, None, false);
-    }
-
-    #[test]
-    fn enabled_alias_may_be_simple() {
-        let alias = Alias::new("cmd".into(), true, None, false);
+    fn enabled_non_global_alias_must_not_be_detailed() {
+        let alias = Alias::new("cmd".into(), None, true, false);
         assert_eq!(
             alias,
             Alias {
@@ -65,13 +58,29 @@ mod tests {
                 enabled: true,
                 group: None,
                 detailed: false,
+                global: false,
             }
         );
     }
 
     #[test]
-    fn enabled_alias_may_be_detailed() {
-        let alias = Alias::new("cmd".into(), true, None, true);
+    fn disabled_alias_must_be_detailed() {
+        let alias = Alias::new("cmd".into(), None, false, false);
+        assert_eq!(
+            alias,
+            Alias {
+                command: "cmd".into(),
+                enabled: false,
+                group: None,
+                detailed: true,
+                global: false,
+            }
+        );
+    }
+
+    #[test]
+    fn global_alias_must_be_detailed() {
+        let alias = Alias::new("cmd".into(), None, false, true);
         assert_eq!(
             alias,
             Alias {
@@ -79,7 +88,23 @@ mod tests {
                 enabled: true,
                 group: None,
                 detailed: true,
+                global: true,
             }
         );
+    }
+
+    #[test]
+    fn disabled_global_alias_must_be_detailed() {
+        let alias = Alias::new("cmd".into(), None, false, true);
+        assert_eq!(
+            alias,
+            Alias {
+                command: "cmd".into(),
+                enabled: false,
+                group: None,
+                detailed: true,
+                global: true,
+            }
+        )
     }
 }

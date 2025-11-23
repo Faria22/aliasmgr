@@ -22,36 +22,27 @@ use log::info;
 /// # Returns
 /// - `Outcome`: Result of the alias addition attempt.
 /// - `Failure`: Error encountered during the process.
-pub fn add_alias(
-    config: &mut Config,
-    name: &str,
-    command: &str,
-    group: Option<&str>,
-    enabled: bool,
-) -> Result<Outcome, Failure> {
+pub fn add_alias(config: &mut Config, name: &str, alias: &Alias) -> Result<Outcome, Failure> {
     // Check if alias already exists
     if config.aliases.contains_key(name) {
         info!("Alias '{}' already exists.", name);
         return Err(Failure::AliasAlreadyExists);
     }
 
-    if group.is_some_and(|g| !config.groups.contains_key(g)) {
-        info!("Group '{:?}' does not exist.", group);
+    if let Some(group_name) = &alias.group
+        && !config.groups.contains_key(group_name)
+    {
+        info!("Group '{:?}' does not exist.", alias.group);
         return Err(Failure::GroupDoesNotExist);
     }
 
-    config.aliases.insert(
-        name.into(),
-        Alias::new(
-            command.into(),
-            enabled,
-            group.map(|g| g.to_string()),
-            !enabled, // detailed output needs to be true if alias is disabled, and can be false otherwise
-        ),
-    );
+    config.aliases.insert(name.into(), alias.clone());
 
-    info!("Alias '{}' added with command '{}'.", name, command);
-    Ok(Outcome::Command(format!("alias {}='{}'", name, command)))
+    info!("Alias '{}' added with command '{}'.", name, alias.command);
+    Ok(Outcome::Command(format!(
+        "alias {}='{}'",
+        name, alias.command
+    )))
 }
 
 /// Adds a group to the configuration.
@@ -82,66 +73,60 @@ mod test {
     use super::*;
     use assert_matches::assert_matches;
 
+    fn test_alias() -> Alias {
+        // No group, enabled, not detailed, not global
+        Alias::new("ls -la".into(), None, true, false)
+    }
+
     #[test]
     fn add_alias_to_empty_config() {
         let mut config = Config::new();
-        let result = add_alias(&mut config, "ll", "ls -la", None, true);
+        let result = add_alias(&mut config, "ll", &test_alias());
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new("ls -la".into(), true, None, false))
-        );
+        assert_eq!(config.aliases.get("ll"), Some(&test_alias()));
     }
 
     #[test]
     fn add_alias_to_existing_config() {
         let mut config = Config::new();
-        config.aliases.insert(
-            "gs".into(),
-            Alias::new("git status".into(), true, Some("git".into()), false),
-        );
-        let result = add_alias(&mut config, "ll", "ls -la", None, true);
+        config.aliases.insert("ll".into(), test_alias());
+
+        let mut new_alias = test_alias();
+        new_alias.command = "git status".into();
+
+        let result = add_alias(&mut config, "ll", &new_alias);
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("gs"),
-            Some(&Alias::new(
-                "git status".into(),
-                true,
-                Some("git".into()),
-                false
-            ))
-        );
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new("ls -la".into(), true, None, false))
-        );
+        assert_ne!(config.aliases.get("ll"), Some(&test_alias()));
+        assert_eq!(config.aliases.get("ll"), Some(&new_alias));
     }
 
     #[test]
     fn add_disabled_alias() {
         let mut config = Config::new();
-        let result = add_alias(&mut config, "ll", "ls -la", None, false);
+        let mut new_alias = test_alias();
+        new_alias.enabled = false;
+
+        let result = add_alias(&mut config, "ll", &new_alias);
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new("ls -la".into(), false, None, true))
-        );
+        assert_eq!(config.aliases.get("ll"), Some(&new_alias));
+        assert_ne!(config.aliases.get("ll"), Some(&test_alias()));
     }
 
     #[test]
     fn add_existing_alias() {
         let mut config = Config::new();
-        config
-            .aliases
-            .insert("ll".into(), Alias::new("ls -l".into(), true, None, false));
-        let result = add_alias(&mut config, "ll", "ls -la", None, true);
+        config.aliases.insert("ll".into(), test_alias());
+        let result = add_alias(&mut config, "ll", &test_alias());
         assert!(result.is_err());
     }
 
     #[test]
     fn add_alias_to_nonexistent_group() {
         let mut config = Config::new();
-        let result = add_alias(&mut config, "ll", "ls -la", Some("nonexistent"), true);
+        let mut new_alias = test_alias();
+        new_alias.group = Some("nonexistent_group".into());
+
+        let result = add_alias(&mut config, "ll", &new_alias);
         assert!(result.is_err());
         assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
@@ -150,18 +135,13 @@ mod test {
     fn add_alias_to_existing_group() {
         let mut config = Config::new();
         config.groups.insert("file_ops".into(), true);
-        let result = add_alias(&mut config, "ll", "ls -la", Some("file_ops"), true);
+        let mut new_alias = test_alias();
+        new_alias.group = Some("file_ops".into());
+
+        let result = add_alias(&mut config, "ll", &new_alias);
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new(
-                "ls -la".into(),
-                true,
-                Some("file_ops".into()),
-                false
-            ))
-        );
-        assert!(config.groups.contains_key("file_ops"))
+        assert_eq!(config.aliases.get("ll"), Some(&new_alias));
+        assert!(config.groups.contains_key("file_ops"));
     }
 
     #[test]
@@ -197,5 +177,24 @@ mod test {
         let result = add_group(&mut config, "dev_tools", false);
         assert!(result.is_ok());
         assert_eq!(config.groups.get("dev_tools"), Some(&false));
+    }
+
+    #[test]
+    fn add_enabled_group() {
+        let mut config = Config::new();
+        let result = add_group(&mut config, "dev_tools", true);
+        assert!(result.is_ok());
+        assert_eq!(config.groups.get("dev_tools"), Some(&true));
+    }
+
+    #[test]
+    fn add_global_alias() {
+        let mut config = Config::new();
+        let mut new_alias = test_alias();
+        new_alias.global = true;
+
+        let result = add_alias(&mut config, "ll", &new_alias);
+        assert!(result.is_ok());
+        assert_eq!(config.aliases.get("ll"), Some(&new_alias));
     }
 }

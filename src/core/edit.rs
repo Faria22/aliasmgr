@@ -48,7 +48,7 @@ mod tests {
         let mut config = Config::new();
         config.aliases.insert(
             "test".into(),
-            Alias::new("old_command".into(), true, None, false),
+            Alias::new("old_command".into(), None, true, false),
         );
 
         let result = edit_alias(&mut config, "test", "new_command");

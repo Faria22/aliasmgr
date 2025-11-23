@@ -19,6 +19,9 @@ pub struct AliasSpec {
 
     #[serde(default = "default_enabled")]
     pub enabled: bool,
+
+    #[serde(default)]
+    pub global: bool,
 }
 
 /// Specification for a group of aliases.
@@ -65,10 +68,14 @@ pub struct ConfigSpec {
 /// * An Alias representation of the given AliasSpecTypes.
 fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Alias {
     match spec {
-        AliasSpecTypes::Simple(command) => Alias::new(command, true, group, false),
-        AliasSpecTypes::Detailed(alias_spec) => {
-            Alias::new(alias_spec.command, alias_spec.enabled, group, true)
-        }
+        AliasSpecTypes::Simple(command) => Alias::new(command, group, true, false),
+        AliasSpecTypes::Detailed(alias_spec) => Alias {
+            command: alias_spec.command,
+            group,
+            enabled: alias_spec.enabled,
+            detailed: true,
+            global: alias_spec.global,
+        },
         AliasSpecTypes::Group(_) => panic!("nested groups are not supported"),
     }
 }

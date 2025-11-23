@@ -23,8 +23,14 @@ pub fn generate_alias_script_content(config: &Config) -> String {
         } {
             for alias in &aliases {
                 let alias_obj = config.aliases.get(alias).unwrap();
+                let global_str = if alias_obj.global { " -g" } else { "" };
                 if alias_obj.enabled {
-                    writeln!(content, "alias {}='{}'", alias, alias_obj.command).unwrap();
+                    writeln!(
+                        content,
+                        "alias{} {}='{}'",
+                        global_str, alias, alias_obj.command
+                    )
+                    .unwrap();
                 }
             }
         }
@@ -38,6 +44,20 @@ mod tests {
     use super::*;
     use crate::config::types::Alias;
 
+    static SAMPLE_ALIAS_NAME: &str = "ll";
+
+    fn sample_alias() -> Alias {
+        Alias::new("ls -la".to_string(), None, true, false)
+    }
+
+    fn sample_config() -> Config {
+        let mut config = Config::new();
+        config
+            .aliases
+            .insert(SAMPLE_ALIAS_NAME.to_string(), sample_alias());
+        config
+    }
+
     #[test]
     fn empty_config_only_contains_reset_command() {
         let config = Config::new();
@@ -47,35 +67,30 @@ mod tests {
 
     #[test]
     fn filled_config_contains_reset_command() {
-        let mut config = Config::new();
-        config.aliases.insert(
-            "my_alias".to_string(),
-            Alias::new("echo Hello".to_string(), true, None, false),
-        );
+        let config = sample_config();
         let file_string = generate_alias_script_content(&config);
         assert!(file_string.contains("unalias -a"));
     }
 
     #[test]
     fn file_content_contains_enabled_alias() {
-        let mut config = Config::new();
-        config.aliases.insert(
-            "my_alias".to_string(),
-            Alias::new("echo Hello".to_string(), true, None, false),
-        );
+        let config = sample_config();
         let file_string = generate_alias_script_content(&config);
-        assert!(file_string.contains("my_alias"));
+        assert!(file_string.contains(SAMPLE_ALIAS_NAME));
     }
 
     #[test]
     fn file_content_excludes_disabled_alias() {
-        let mut config = Config::new();
-        config.aliases.insert(
-            "my_alias".to_string(),
-            Alias::new("echo Hello".to_string(), false, None, true),
-        );
+        let mut config = sample_config();
+        let mut disabled_alias = sample_alias();
+        disabled_alias.enabled = false;
+        config
+            .aliases
+            .insert("disabled_alias".to_string(), disabled_alias);
+
         let file_string = generate_alias_script_content(&config);
-        assert!(!file_string.contains("my_alias"));
+        assert!(!file_string.contains("disabled_alias"));
+        assert!(file_string.contains(SAMPLE_ALIAS_NAME));
     }
 
     #[test]
@@ -85,8 +100,8 @@ mod tests {
             "grouped_alias".to_string(),
             Alias::new(
                 "echo Grouped".to_string(),
-                true,
                 Some("my_group".to_string()),
+                true,
                 false,
             ),
         );
@@ -102,13 +117,31 @@ mod tests {
             "grouped_alias".to_string(),
             Alias::new(
                 "echo Grouped".to_string(),
-                true,
                 Some("my_group".to_string()),
+                true,
                 false,
             ),
         );
         config.groups.insert("my_group".to_string(), false);
         let file_string = generate_alias_script_content(&config);
         assert!(!file_string.contains("grouped_alias"));
+    }
+
+    #[test]
+    fn global_alias_is_marked_as_global() {
+        let mut config = Config::new();
+        config.aliases.insert(
+            "global_alias".to_string(),
+            Alias::new("echo Global".to_string(), None, true, true),
+        );
+        let file_string = generate_alias_script_content(&config);
+        assert!(file_string.contains("alias -g global_alias='echo Global'"));
+    }
+
+    #[test]
+    fn non_global_alias_is_not_marked_as_global() {
+        let config = sample_config();
+        let file_string = generate_alias_script_content(&config);
+        assert!(file_string.contains("alias ll='ls -la'"));
     }
 }

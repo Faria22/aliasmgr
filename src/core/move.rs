@@ -29,33 +29,37 @@ mod test {
     use crate::config::types::Alias;
     use assert_matches::assert_matches;
 
-    #[test]
-    fn move_alias_to_existing_group() {
+    fn sample_alias() -> Alias {
+        Alias::new("ls -la".into(), None, true, false)
+    }
+
+    static SAMPLE_ALIAS_NAME: &str = "ll";
+
+    fn sample_config() -> Config {
         let mut config = Config::new();
         config
             .aliases
-            .insert("ll".into(), Alias::new("ls -la".into(), true, None, false));
+            .insert(SAMPLE_ALIAS_NAME.into(), sample_alias());
+        config
+    }
+
+    #[test]
+    fn move_alias_to_existing_group() {
+        let mut config = sample_config();
         config.groups.insert("utilities".into(), true);
-        let result = move_alias(&mut config, "ll", &Some("utilities".into()));
+        let result = move_alias(&mut config, SAMPLE_ALIAS_NAME, &Some("utilities".into()));
+
+        let mut new_alias = sample_alias();
+        new_alias.group = Some("utilities".into());
+
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new(
-                "ls -la".into(),
-                true,
-                Some("utilities".into()),
-                false
-            ))
-        );
+        assert_eq!(config.aliases.get("ll"), Some(&new_alias));
     }
 
     #[test]
     fn move_alias_to_non_existent_group() {
-        let mut config = Config::new();
-        config
-            .aliases
-            .insert("ll".into(), Alias::new("ls -la".into(), true, None, false));
-        let result = move_alias(&mut config, "ll", &Some("nonexistent".into()));
+        let mut config = sample_config();
+        let result = move_alias(&mut config, SAMPLE_ALIAS_NAME, &Some("nonexistent".into()));
         assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
 
@@ -69,14 +73,13 @@ mod test {
     #[test]
     fn move_alias_to_none_group() {
         let mut config = Config::new();
-        config
-            .aliases
-            .insert("ll".into(), Alias::new("ls -la".into(), true, None, false));
-        let result = move_alias(&mut config, "ll", &None);
+        let mut alias = sample_alias();
+        alias.group = Some("utilities".into());
+        config.aliases.insert(SAMPLE_ALIAS_NAME.into(), alias);
+
+        let result = move_alias(&mut config, SAMPLE_ALIAS_NAME, &None);
+
         assert!(result.is_ok());
-        assert_eq!(
-            config.aliases.get("ll"),
-            Some(&Alias::new("ls -la".into(), true, None, false))
-        );
+        assert_eq!(config.aliases.get(SAMPLE_ALIAS_NAME), Some(&sample_alias()));
     }
 }
