@@ -377,4 +377,10 @@ mod tests {
         let result = format_aliases_list(&config, &aliases);
         assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
     }
+
+    #[test]
+    fn test_global_symbol() {
+        assert_eq!(globe_symbol(true), " ⦾".blue().bold().to_string());
+        assert_eq!(globe_symbol(false), "".to_string());
+    }
 }
