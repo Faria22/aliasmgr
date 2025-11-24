@@ -102,7 +102,7 @@ pub enum Commands {
     /// Synchronize aliases with configuration file
     Sync,
 
-    /// Convert aliases from a .sh file
+    /// Convert aliases from a .sh file to a toml configuration file
     Convert(ConvertCommand),
 
     /// Sort aliases or groups by name
