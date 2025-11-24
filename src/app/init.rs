@@ -59,7 +59,7 @@ mod tests {
         };
         let output = handle_init(cmd);
         assert!(output.contains(&ShellType::Bash.to_string()));
-        assert!(output.contains("__aliasmgr_cmd=$(command -p aliasmgr)"));
+        assert!(output.contains("__aliasmgr_cmd=$(command -v aliasmgr)"));
         assert!(output.contains("aliasmgr sync"));
     }
 
