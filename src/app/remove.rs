@@ -27,7 +27,7 @@ pub fn handle_remove(config: &mut Config, cmd: RemoveCommand) -> Result<Outcome,
             if let Some(name) = &args.name {
                 // Remove named group
                 let group_id = GroupId::Named(name.clone());
-                let aliases = get_single_group(config, group_id)?;
+                let aliases = get_single_group(config, &group_id)?;
                 remove_group(config, name)?;
                 if args.reassign {
                     for alias in aliases {
@@ -39,7 +39,7 @@ pub fn handle_remove(config: &mut Config, cmd: RemoveCommand) -> Result<Outcome,
                 }
             } else {
                 // Remove ungrouped aliases
-                let aliases = get_single_group(config, GroupId::Ungrouped)?;
+                let aliases = get_single_group(config, &GroupId::Ungrouped)?;
                 remove_aliases(config, &aliases)
             }
         }
