@@ -10,6 +10,7 @@ pub(crate) mod list;
 pub(crate) mod r#move;
 pub(crate) mod remove;
 pub(crate) mod rename;
+pub(crate) mod sort;
 
 pub(crate) mod interaction;
 
@@ -23,6 +24,7 @@ use list::ListCommand;
 use r#move::MoveCommand;
 use remove::RemoveCommand;
 use rename::RenameCommand;
+use sort::SortCommand;
 
 #[derive(Parser)]
 #[command(
@@ -102,6 +104,9 @@ pub enum Commands {
 
     /// Convert aliases from a .sh file
     Convert(ConvertCommand),
+
+    /// Sort aliases or groups by name
+    Sort(SortCommand),
 
     /// Initialize aliasmgr
     #[command(hide = true)]
