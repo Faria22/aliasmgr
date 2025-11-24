@@ -35,6 +35,6 @@ pub struct GroupRemoveArgs {
     pub name: Option<String>,
 
     /// Removes the group, but moves all its aliases to `ungrouped`
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short, long, default_value_t = false, requires("name"))]
     pub reassign: bool,
 }
