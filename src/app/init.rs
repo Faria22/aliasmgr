@@ -35,7 +35,7 @@ pub fn handle_init(cmd: InitCommand) -> String {
     content += if cmd.shell == ShellType::Zsh {
         "# For zsh, we use 'whence -p' to find the command path\n__aliasmgr_cmd=$(whence -p aliasmgr)\n"
     } else {
-        "# For bash and other shells, we use 'command -p' to find the command path\n__aliasmgr_cmd=$(command -p aliasmgr)\n"
+        "# For bash and other shells, we use 'command -p' to find the command path\n__aliasmgr_cmd=$(command -v aliasmgr)\n"
     };
 
     content += ALIASMGR_SHELL_FUNCTION;
