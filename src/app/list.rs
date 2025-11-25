@@ -1,5 +1,6 @@
 use owo_colors::OwoColorize;
 
+use super::shell::ShellType;
 use crate::cli::list::ListCommand;
 use crate::config::types::Config;
 use crate::core::list::{GroupId, get_all_aliases_grouped, get_single_group};
@@ -136,7 +137,11 @@ fn retain_aliases(config: &Config, aliases: &mut Vec<String>, cmd: &ListCommand)
 /// - `Outcome::NoChanges` if the operation is successful.
 /// - `Failure::GroupDoesNotExist` if the specified group does not exist.
 /// - Other failures as defined in the `Failure` enum.
-pub fn handle_list(config: &Config, cmd: ListCommand) -> Result<Outcome, Failure> {
+pub fn handle_list(
+    config: &Config,
+    cmd: ListCommand,
+    shell: &ShellType,
+) -> Result<Outcome, Failure> {
     // List aliases in a specific group
     if let Some(group) = &cmd.group {
         // User provided a group name
@@ -148,7 +153,7 @@ pub fn handle_list(config: &Config, cmd: ListCommand) -> Result<Outcome, Failure
             group_id = GroupId::Ungrouped;
         };
 
-        let mut aliases = get_single_group(config, &group_id)?;
+        let mut aliases = get_single_group(config, &group_id, shell)?;
         retain_aliases(config, &mut aliases, &cmd);
         print!(
             "{}",
@@ -157,8 +162,7 @@ pub fn handle_list(config: &Config, cmd: ListCommand) -> Result<Outcome, Failure
         Ok(Outcome::NoChanges)
     } else {
         // Default: list enabled aliases
-        get_all_aliases_grouped(config);
-        for (group_id, mut aliases) in get_all_aliases_grouped(config) {
+        for (group_id, mut aliases) in get_all_aliases_grouped(config, shell) {
             retain_aliases(config, &mut aliases, &cmd);
             print!("{}", format_group_and_aliases(config, &group_id, &aliases)?);
         }
@@ -245,7 +249,7 @@ mod tests {
             disabled: false,
             global: false,
         };
-        let result = handle_list(&config, cmd);
+        let result = handle_list(&config, cmd, &ShellType::Bash);
         assert!(result.is_ok());
     }
 
@@ -259,7 +263,7 @@ mod tests {
             disabled: false,
             global: false,
         };
-        let result = handle_list(&config, cmd);
+        let result = handle_list(&config, cmd, &ShellType::Bash);
         assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
 
@@ -273,7 +277,7 @@ mod tests {
             disabled: false,
             global: false,
         };
-        let result = handle_list(&config, cmd);
+        let result = handle_list(&config, cmd, &ShellType::Bash);
         assert!(result.is_ok());
     }
 
@@ -287,7 +291,7 @@ mod tests {
             disabled: false,
             global: false,
         };
-        let result = handle_list(&config, cmd);
+        let result = handle_list(&config, cmd, &ShellType::Bash);
         assert!(result.is_ok());
     }
 
@@ -301,7 +305,7 @@ mod tests {
             disabled: true,
             global: false,
         };
-        let result = handle_list(&config, cmd);
+        let result = handle_list(&config, cmd, &ShellType::Bash);
         assert!(result.is_ok());
     }
 
@@ -315,7 +319,7 @@ mod tests {
             disabled: false,
             global: false,
         };
-        let result = handle_list(&config, cmd);
+        let result = handle_list(&config, cmd, &ShellType::Bash);
         assert!(result.is_ok());
     }
 
@@ -329,7 +333,7 @@ mod tests {
             disabled: false,
             global: false,
         };
-        let result = handle_list(&config, cmd);
+        let result = handle_list(&config, cmd, &ShellType::Bash);
         assert!(result.is_ok());
     }
 
@@ -343,7 +347,7 @@ mod tests {
             disabled: false,
             global: true,
         };
-        let result = handle_list(&config, cmd);
+        let result = handle_list(&config, cmd, &ShellType::Bash);
         assert!(result.is_ok());
     }
 

@@ -66,13 +66,13 @@ fn main() {
 
     let result = match cli.command {
         // Add new alias or group
-        Commands::Add(cmd) => handle_add(&mut config, cmd, shell),
+        Commands::Add(cmd) => handle_add(&mut config, cmd, &shell),
         Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(
             &config, shell,
         ))),
         Commands::Move(cmd) => handle_move(&mut config, cmd),
-        Commands::List(cmd) => handle_list(&config, cmd),
-        Commands::Remove(cmd) => handle_remove(&mut config, cmd),
+        Commands::List(cmd) => handle_list(&config, cmd, &shell),
+        Commands::Remove(cmd) => handle_remove(&mut config, cmd, &shell),
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
             debug!("Generated init script content");

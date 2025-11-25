@@ -5,6 +5,8 @@ use crate::core::r#move::move_alias;
 use crate::core::remove::{remove_alias, remove_aliases, remove_all, remove_group};
 use crate::core::{Failure, Outcome};
 
+use super::shell::ShellType;
+
 use crate::cli::interaction::prompt_confirm_remove_all;
 
 use crate::cli::remove::{RemoveCommand, RemoveTarget};
@@ -20,14 +22,18 @@ pub fn handle_remove_all(
     }
 }
 
-pub fn handle_remove(config: &mut Config, cmd: RemoveCommand) -> Result<Outcome, Failure> {
+pub fn handle_remove(
+    config: &mut Config,
+    cmd: RemoveCommand,
+    shell: &ShellType,
+) -> Result<Outcome, Failure> {
     match cmd.target {
         RemoveTarget::Alias(args) => remove_alias(config, &args.name),
         RemoveTarget::Group(args) => {
             if let Some(name) = &args.name {
                 // Remove named group
                 let group_id = GroupId::Named(name.clone());
-                let aliases = get_single_group(config, &group_id)?;
+                let aliases = get_single_group(config, &group_id, shell)?;
                 remove_group(config, name)?;
                 if args.reassign {
                     for alias in aliases {
@@ -39,7 +45,7 @@ pub fn handle_remove(config: &mut Config, cmd: RemoveCommand) -> Result<Outcome,
                 }
             } else {
                 // Remove ungrouped aliases
-                let aliases = get_single_group(config, &GroupId::Ungrouped)?;
+                let aliases = get_single_group(config, &GroupId::Ungrouped, shell)?;
                 remove_aliases(config, &aliases)
             }
         }
@@ -77,6 +83,7 @@ mod tests {
                     name: "ls".to_string(),
                 }),
             },
+            &ShellType::Bash,
         );
         assert!(result.is_ok());
         assert!(!config.aliases.contains_key("ls"));
@@ -94,6 +101,7 @@ mod tests {
                     name: "nonexistent".to_string(),
                 }),
             },
+            &ShellType::Bash,
         );
         assert_matches!(result.err(), Some(Failure::AliasDoesNotExist));
     }
@@ -109,6 +117,7 @@ mod tests {
                     reassign: false,
                 }),
             },
+            &ShellType::Bash,
         );
         assert_eq!(
             result.unwrap(),
@@ -128,6 +137,7 @@ mod tests {
                     reassign: false,
                 }),
             },
+            &ShellType::Bash,
         );
         assert_matches!(result.err(), Some(Failure::GroupDoesNotExist));
     }
@@ -143,6 +153,7 @@ mod tests {
                     reassign: false,
                 }),
             },
+            &ShellType::Bash,
         );
         assert!(result.is_ok());
         assert!(!config.aliases.contains_key("rm"));
@@ -160,6 +171,7 @@ mod tests {
                     reassign: true,
                 }),
             },
+            &ShellType::Bash,
         );
         assert!(result.is_ok());
         assert!(!config.groups.contains_key("files"));

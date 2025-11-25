@@ -19,7 +19,7 @@ pub fn generate_alias_script_content(config: &Config, shell: ShellType) -> Strin
     // Reset all existing aliases
     writeln!(content, "unalias -a").unwrap();
 
-    for (group, aliases) in get_all_aliases_grouped(config) {
+    for (group, aliases) in get_all_aliases_grouped(config, &shell) {
         // Only add groups that are enabled, `ungrouped` is always enabled
         if match group {
             GroupId::Ungrouped => true,

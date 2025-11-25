@@ -152,12 +152,12 @@ pub fn is_valid_alias_name(name: &str) -> bool {
 pub fn handle_add(
     config: &mut Config,
     cmd: AddCommand,
-    shell: ShellType,
+    shell: &ShellType,
 ) -> Result<Outcome, Failure> {
     match cmd.target {
         // Add alias
         AddTarget::Alias(args) => {
-            if args.global && shell != ShellType::Zsh {
+            if args.global && *shell != ShellType::Zsh {
                 error!("Global aliases are only supported in zsh.");
                 return Err(Failure::UnsupportedGlobalAlias);
             }
@@ -350,7 +350,7 @@ mod tests {
                     disabled: false,
                 }),
             },
-            ShellType::Bash,
+            &ShellType::Bash,
         );
         assert!(result.is_ok());
         assert!(config.groups.contains_key("dev"));
@@ -368,7 +368,7 @@ mod tests {
                     disabled: false,
                 }),
             },
-            ShellType::Bash,
+            &ShellType::Bash,
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::GroupAlreadyExists);
@@ -389,7 +389,7 @@ mod tests {
                     global: true,
                 }),
             },
-            ShellType::Bash,
+            &ShellType::Bash,
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::UnsupportedGlobalAlias);
@@ -410,7 +410,7 @@ mod tests {
                     global: true,
                 }),
             },
-            ShellType::Zsh,
+            &ShellType::Zsh,
         );
         assert!(result.is_ok());
         assert_eq!(
@@ -446,7 +446,7 @@ mod tests {
                     global: false,
                 }),
             },
-            ShellType::Bash,
+            &ShellType::Bash,
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::InvalidAliasName);
@@ -467,7 +467,7 @@ mod tests {
                     global: false,
                 }),
             },
-            ShellType::Bash,
+            &ShellType::Bash,
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::InvalidAliasName);
