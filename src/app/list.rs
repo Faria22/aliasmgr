@@ -3,7 +3,7 @@ use owo_colors::OwoColorize;
 use super::shell::ShellType;
 use crate::cli::list::ListCommand;
 use crate::config::types::Config;
-use crate::core::list::{GroupId, get_all_aliases_grouped, get_single_group};
+use crate::core::list::{get_all_aliases_grouped, get_single_group};
 use crate::core::{Failure, Outcome};
 
 use globset::Glob;
@@ -43,10 +43,10 @@ pub fn format_alias_info(config: &Config, alias: &str) -> Result<String, Failure
 }
 
 /// Generates a header string for a group of aliases.
-fn group_header(config: &Config, group: &GroupId) -> Result<String, Failure> {
+fn group_header(config: &Config, group: &Option<String>) -> Result<String, Failure> {
     let group_enabled;
     let group_name;
-    if let GroupId::Named(g) = group {
+    if let Some(g) = group {
         match config.groups.get(g) {
             Some(enabled) => {
                 group_enabled = enabled;
@@ -74,7 +74,7 @@ fn group_header(config: &Config, group: &GroupId) -> Result<String, Failure> {
 /// Formats a group header along with its aliases.
 fn format_group_and_aliases(
     config: &Config,
-    group_id: &GroupId,
+    group_id: &Option<String>,
     aliases: &Vec<String>,
 ) -> Result<String, Failure> {
     let mut content = String::new();
@@ -95,11 +95,11 @@ fn format_aliases_list(config: &Config, aliases: &Vec<String>) -> Result<String,
 /// If ungrouped, will remove the group header
 fn format_group_and_aliases_single_group(
     config: &Config,
-    group_id: &GroupId,
+    group_id: &Option<String>,
     aliases: &Vec<String>,
 ) -> Result<String, Failure> {
     let mut content = String::new();
-    if group_id != &GroupId::Ungrouped {
+    if group_id != &None {
         content += &(group_header(config, group_id)? + "\n");
     }
     content += &format_aliases_list(config, aliases)?;
@@ -147,10 +147,10 @@ pub fn handle_list(
         // User provided a group name
         let group_id;
         if let Some(group_name) = group {
-            group_id = GroupId::Named(group_name.clone())
+            group_id = Some(group_name.clone())
         } else {
             // User wants ungrouped aliases
-            group_id = GroupId::Ungrouped;
+            group_id = None;
         };
 
         let mut aliases = get_single_group(config, &group_id, shell)?;
@@ -219,7 +219,7 @@ mod tests {
     fn test_group_header_valid() {
         let config = create_test_config();
 
-        let result = group_header(&config, &GroupId::Named("dev".to_string()));
+        let result = group_header(&config, &Some("dev".to_string()));
         assert!(result.is_ok());
         assert!(result.unwrap().contains("Group: dev"));
     }
@@ -229,8 +229,7 @@ mod tests {
         let config = create_test_config();
 
         let aliases = vec!["test".to_string()];
-        let result =
-            format_group_and_aliases(&config, &GroupId::Named("dev".to_string()), &aliases);
+        let result = format_group_and_aliases(&config, &Some("dev".to_string()), &aliases);
 
         assert!(result.is_ok());
         let output = result.unwrap();
@@ -361,7 +360,7 @@ mod tests {
     #[test]
     fn test_group_header_nonexistent_group() {
         let config = create_test_config();
-        let result = group_header(&config, &GroupId::Named("nonexistent".to_string()));
+        let result = group_header(&config, &Some("nonexistent".to_string()));
         assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
 
@@ -369,11 +368,7 @@ mod tests {
     fn test_format_group_and_aliases_nonexistent_group() {
         let config = create_test_config();
         let aliases = vec!["test".to_string()];
-        let result = format_group_and_aliases(
-            &config,
-            &GroupId::Named("nonexistent".to_string()),
-            &aliases,
-        );
+        let result = format_group_and_aliases(&config, &Some("nonexistent".to_string()), &aliases);
         assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
 
@@ -381,8 +376,7 @@ mod tests {
     fn test_format_group_and_aliases_nonexistent_alias() {
         let config = create_test_config();
         let aliases = vec!["nonexistent".to_string()];
-        let result =
-            format_group_and_aliases(&config, &GroupId::Named("dev".to_string()), &aliases);
+        let result = format_group_and_aliases(&config, &Some("dev".to_string()), &aliases);
         assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
     }
 
@@ -404,7 +398,7 @@ mod tests {
     fn test_format_group_and_aliases_single_group_ungrouped() {
         let config = create_test_config();
         let aliases = vec!["test".to_string()];
-        let result = format_group_and_aliases_single_group(&config, &GroupId::Ungrouped, &aliases);
+        let result = format_group_and_aliases_single_group(&config, &None, &aliases);
         assert!(result.is_ok());
         let output = result.unwrap();
         assert!(!output.contains("Group:"));
@@ -415,11 +409,8 @@ mod tests {
     fn test_format_group_and_aliases_single_group_named() {
         let config = create_test_config();
         let aliases = vec!["build".to_string()];
-        let result = format_group_and_aliases_single_group(
-            &config,
-            &GroupId::Named("dev".to_string()),
-            &aliases,
-        );
+        let result =
+            format_group_and_aliases_single_group(&config, &Some("dev".to_string()), &aliases);
         assert!(result.is_ok());
         let output = result.unwrap();
         assert!(output.contains("Group: dev"));

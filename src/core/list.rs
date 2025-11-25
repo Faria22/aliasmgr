@@ -16,13 +16,6 @@ use crate::core::Failure;
 use indexmap::IndexMap;
 use std::vec::Vec;
 
-/// Identifier for a group, either named or ungrouped.
-#[derive(Eq, Hash, PartialEq)]
-pub enum GroupId {
-    Ungrouped,
-    Named(String),
-}
-
 /// Retrieves all alias groups and their associated aliases from the configuration.
 /// # Arguments
 /// * `config` - A reference to the configuration containing groups and aliases.
@@ -33,13 +26,13 @@ pub enum GroupId {
 pub fn get_all_aliases_grouped(
     config: &Config,
     shell: &ShellType,
-) -> IndexMap<GroupId, Vec<String>> {
-    let mut groups = IndexMap::<GroupId, Vec<String>>::new();
+) -> IndexMap<Option<String>, Vec<String>> {
+    let mut groups = IndexMap::<Option<String>, Vec<String>>::new();
 
     // Initialize the groups with empty vectors
-    groups.insert(GroupId::Ungrouped, Vec::new());
+    groups.insert(None, Vec::new());
     for group_name in config.groups.keys() {
-        groups.insert(GroupId::Named(group_name.clone()), Vec::new());
+        groups.insert(Some(group_name.clone()), Vec::new());
     }
 
     // Populate the groups with alias names
@@ -47,13 +40,8 @@ pub fn get_all_aliases_grouped(
         if alias.global && *shell != ShellType::Zsh {
             continue;
         }
-        let key = alias
-            .group
-            .clone()
-            .map(GroupId::Named)
-            .unwrap_or(GroupId::Ungrouped);
         groups
-            .get_mut(&key)
+            .get_mut(&alias.group)
             .expect("group is in aliases, but not in the group vector")
             .push(alias_name.clone());
     }
@@ -70,25 +58,21 @@ pub fn get_all_aliases_grouped(
 /// A vector of alias names belonging to the specified group.
 pub fn get_single_group(
     config: &Config,
-    identifier: &GroupId,
+    group: &Option<String>,
     shell: &ShellType,
 ) -> Result<Vec<String>, Failure> {
-    let group_name: Option<String>;
-    if let GroupId::Named(name) = &identifier {
-        if !config.groups.contains_key(name) {
-            info!("Group '{}' does not exist.", name);
-            return Err(Failure::GroupDoesNotExist);
-        }
-        group_name = Some(name.clone());
-    } else {
-        group_name = None;
+    if let Some(name) = group
+        && !config.groups.contains_key(name)
+    {
+        info!("Group '{}' does not exist.", name);
+        return Err(Failure::GroupDoesNotExist);
     }
 
     info!("Retrieving aliases.");
     Ok(config
         .aliases
         .iter()
-        .filter(|(_, alias)| alias.group == group_name)
+        .filter(|(_, alias)| alias.group == *group)
         .filter(|(_, alias)| !(alias.global && *shell != ShellType::Zsh))
         .map(|(alias_name, _)| alias_name.clone())
         .collect())
@@ -154,7 +138,7 @@ mod tests {
     fn test_get_single_group() {
         let config = create_test_config();
 
-        let group = get_single_group(&config, &GroupId::Named("group1".into()), &ShellType::Bash);
+        let group = get_single_group(&config, &Some("group1".into()), &ShellType::Bash);
 
         assert!(group.is_ok());
         let group = group.unwrap();
@@ -175,7 +159,7 @@ mod tests {
     fn test_get_ungrouped_aliases() {
         let config = create_test_config();
 
-        let ungrouped = get_single_group(&config, &GroupId::Ungrouped, &ShellType::Bash);
+        let ungrouped = get_single_group(&config, &None, &ShellType::Bash);
 
         assert!(ungrouped.is_ok());
         let ungrouped = ungrouped.unwrap();
@@ -195,11 +179,7 @@ mod tests {
     #[test]
     fn test_get_nonexistent_group() {
         let config = Config::new();
-        let group = get_single_group(
-            &config,
-            &GroupId::Named("nonexistent".into()),
-            &ShellType::Bash,
-        );
+        let group = get_single_group(&config, &Some("nonexistent".into()), &ShellType::Bash);
         assert!(group.is_err());
     }
 
@@ -208,42 +188,37 @@ mod tests {
         let config = create_test_config();
         let groups = get_all_aliases_grouped(&config, &ShellType::Bash);
 
-        assert!(groups.contains_key(&GroupId::Named("group1".into())));
-        assert!(groups.contains_key(&GroupId::Named("group2".into())));
-        assert!(groups.contains_key(&GroupId::Named("group3".into())));
-        assert!(groups.contains_key(&GroupId::Ungrouped));
+        assert!(groups.contains_key(&Some("group1".into())));
+        assert!(groups.contains_key(&Some("group2".into())));
+        assert!(groups.contains_key(&Some("group3".into())));
+        assert!(groups.contains_key(&None));
 
         assert!(
             groups
-                .get(&GroupId::Named("group1".into()))
+                .get(&Some("group1".into()))
                 .unwrap()
                 .contains(&"alias1".to_string())
         );
         assert!(
             groups
-                .get(&GroupId::Named("group1".into()))
+                .get(&Some("group1".into()))
                 .unwrap()
                 .contains(&"alias1_disabled".to_string())
         );
 
         assert!(
             groups
-                .get(&GroupId::Named("group2".into()))
+                .get(&Some("group2".into()))
                 .unwrap()
                 .contains(&"alias2".to_string())
         );
         assert!(
             groups
-                .get(&GroupId::Named("group3".into()))
+                .get(&Some("group3".into()))
                 .unwrap()
                 .contains(&"alias3".to_string())
         );
-        assert!(
-            groups
-                .get(&GroupId::Ungrouped)
-                .unwrap()
-                .contains(&"alias4".to_string())
-        );
+        assert!(groups.get(&None).unwrap().contains(&"alias4".to_string()));
     }
 
     #[test]
@@ -259,15 +234,9 @@ mod tests {
 
         let groups = get_all_aliases_grouped(&config, &ShellType::Bash);
         assert_eq!(groups.len(), 3); // group1, group2, ungrouped
-        assert_eq!(
-            groups.get(&GroupId::Named("group1".into())).unwrap().len(),
-            0
-        );
-        assert_eq!(
-            groups.get(&GroupId::Named("group2".into())).unwrap().len(),
-            0
-        );
-        assert_eq!(groups.get(&GroupId::Ungrouped).unwrap().len(), 0);
+        assert_eq!(groups.get(&Some("group1".into())).unwrap().len(), 0);
+        assert_eq!(groups.get(&Some("group2".into())).unwrap().len(), 0);
+        assert_eq!(groups.get(&None).unwrap().len(), 0);
     }
 
     #[test]
@@ -276,8 +245,8 @@ mod tests {
 
         let groups = get_all_aliases_grouped(&config, &ShellType::Bash);
         assert_eq!(groups.len(), 1); // Only ungrouped should be present
-        assert!(groups.contains_key(&GroupId::Ungrouped));
-        assert_eq!(groups.get(&GroupId::Ungrouped).unwrap().len(), 0);
+        assert!(groups.contains_key(&None));
+        assert_eq!(groups.get(&None).unwrap().len(), 0);
     }
 
     #[test]
@@ -293,12 +262,7 @@ mod tests {
         };
         let groups = get_all_aliases_grouped(&config, &ShellType::Bash);
         assert_eq!(groups.len(), 1); // Only ungrouped should be present
-        assert!(
-            groups
-                .get(&GroupId::Ungrouped)
-                .unwrap()
-                .contains(&"alias1".to_string())
-        );
+        assert!(groups.get(&None).unwrap().contains(&"alias1".to_string()));
     }
 
     #[test]
@@ -311,7 +275,7 @@ mod tests {
             groups: groups_map,
         };
 
-        let group = get_single_group(&config, &GroupId::Named("group1".into()), &ShellType::Bash);
+        let group = get_single_group(&config, &Some("group1".into()), &ShellType::Bash);
         assert!(group.is_ok());
         let group = group.unwrap();
         assert_eq!(group.len(), 0);
@@ -320,7 +284,7 @@ mod tests {
     #[test]
     fn test_get_single_group_bash_skips_global() {
         let config = create_test_config();
-        let ungrouped = get_single_group(&config, &GroupId::Ungrouped, &ShellType::Bash);
+        let ungrouped = get_single_group(&config, &None, &ShellType::Bash);
         assert!(ungrouped.is_ok());
         let ungrouped = ungrouped.unwrap();
         assert!(!ungrouped.contains(&"global_alias".to_string()));
@@ -330,14 +294,14 @@ mod tests {
     fn test_get_all_groups_bash_skips_global() {
         let config = create_test_config();
         let groups = get_all_aliases_grouped(&config, &ShellType::Bash);
-        let ungrouped = groups.get(&GroupId::Ungrouped).unwrap();
+        let ungrouped = groups.get(&None).unwrap();
         assert!(!ungrouped.contains(&"global_alias".to_string()));
     }
 
     #[test]
     fn test_get_single_group_zsh_includes_global() {
         let config = create_test_config();
-        let ungrouped = get_single_group(&config, &GroupId::Ungrouped, &ShellType::Zsh);
+        let ungrouped = get_single_group(&config, &None, &ShellType::Zsh);
         assert!(ungrouped.is_ok());
         let ungrouped = ungrouped.unwrap();
         assert!(ungrouped.contains(&"global_alias".to_string()));
@@ -347,7 +311,7 @@ mod tests {
     fn test_get_all_group_zsh_includes_global() {
         let config = create_test_config();
         let groups = get_all_aliases_grouped(&config, &ShellType::Zsh);
-        let ungrouped = groups.get(&GroupId::Ungrouped).unwrap();
+        let ungrouped = groups.get(&None).unwrap();
         assert!(ungrouped.contains(&"global_alias".to_string()));
     }
 }

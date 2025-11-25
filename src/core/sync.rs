@@ -1,5 +1,5 @@
 use super::add::add_alias_str;
-use super::list::{GroupId, get_all_aliases_grouped};
+use super::list::get_all_aliases_grouped;
 use crate::app::add::is_valid_alias_name;
 use crate::app::shell::ShellType;
 use crate::config::types::Config;
@@ -22,8 +22,8 @@ pub fn generate_alias_script_content(config: &Config, shell: ShellType) -> Strin
     for (group, aliases) in get_all_aliases_grouped(config, &shell) {
         // Only add groups that are enabled, `ungrouped` is always enabled
         if match group {
-            GroupId::Ungrouped => true,
-            GroupId::Named(g) => *config.groups.get(&g).unwrap(),
+            None => true,
+            Some(g) => *config.groups.get(&g).unwrap(),
         } {
             for alias in &aliases {
                 let alias_obj = config.aliases.get(alias).unwrap();
