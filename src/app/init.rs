@@ -23,6 +23,13 @@ aliasmgr() {
 "#
 };
 
+fn helper_shell_command(shell: &ShellType) -> &'static str {
+    match shell {
+        ShellType::Zsh => "whence -p aliasmgr",
+        ShellType::Bash => "type -P aliasmgr",
+    }
+}
+
 pub fn handle_init(cmd: InitCommand) -> String {
     let mut content = String::from("# Alias Manager Initialization Script\n");
     content += &format!("export {}={}\n", SHELL_ENV_VAR, cmd.shell);
@@ -32,11 +39,7 @@ pub fn handle_init(cmd: InitCommand) -> String {
 
     content += "\n";
     content += "# Alias helper shell command\n";
-    content += if cmd.shell == ShellType::Zsh {
-        "# For zsh, we use 'whence -p' to find the command path\n__aliasmgr_cmd=$(whence -p aliasmgr)\n"
-    } else {
-        "# For bash and other shells, we use 'command -p' to find the command path\n__aliasmgr_cmd=$(command -v aliasmgr)\n"
-    };
+    content += &format!("__aliasmgr_cmd=$({})", helper_shell_command(&cmd.shell));
 
     content += ALIASMGR_SHELL_FUNCTION;
 
@@ -59,7 +62,7 @@ mod tests {
         };
         let output = handle_init(cmd);
         assert!(output.contains(&ShellType::Bash.to_string()));
-        assert!(output.contains("__aliasmgr_cmd=$(command -v aliasmgr)"));
+        assert!(output.contains("__aliasmgr_cmd=$(type -P aliasmgr)"));
         assert!(output.contains("aliasmgr sync"));
     }
 
@@ -99,5 +102,11 @@ mod tests {
         assert!(output.contains(&ShellType::Zsh.to_string()));
         assert!(output.contains(path.to_str().unwrap()));
         assert!(output.contains("aliasmgr sync"));
+    }
+
+    #[test]
+    fn test_helper_shell_command() {
+        assert_eq!(helper_shell_command(&ShellType::Bash), "type -P aliasmgr");
+        assert_eq!(helper_shell_command(&ShellType::Zsh), "whence -p aliasmgr");
     }
 }
