@@ -99,7 +99,7 @@ fn format_group_and_aliases_single_group(
     aliases: &Vec<String>,
 ) -> Result<String, Failure> {
     let mut content = String::new();
-    if group_id != &None {
+    if group_id.is_some() {
         content += &(group_header(config, group_id)? + "\n");
     }
     content += &format_aliases_list(config, aliases)?;
