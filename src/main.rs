@@ -21,6 +21,7 @@ use app::init::handle_init;
 use app::list::handle_list;
 use app::r#move::handle_move;
 use app::remove::handle_remove;
+use app::rename::handle_rename;
 use app::shell::{DEFAULT_SHELL, determine_shell, send_alias_deltas_to_shell};
 
 use core::sync::generate_alias_script_content;
@@ -73,6 +74,7 @@ fn main() {
         Commands::Move(cmd) => handle_move(&mut config, cmd),
         Commands::List(cmd) => handle_list(&config, cmd, &shell),
         Commands::Remove(cmd) => handle_remove(&mut config, cmd, &shell),
+        Commands::Rename(cmd) => handle_rename(&mut config, cmd),
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
             debug!("Generated init script content");

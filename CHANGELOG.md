@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 - 2025-11-2025
+- Added `rename` command functionality.
+- Stopped using `GroupId` in favor of `Option<String>`.
+
 ## 0.2.1 - 2025-11-25
 - Updated bash init script to use `type -P` instead of `command -v` to bet the binary path.
 

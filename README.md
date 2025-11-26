@@ -52,9 +52,10 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr remove alias <name>`
 - `aliasmgr remove group <name> [--reassign]`
 - `aliasmgr remove all`
+- `aliasmgr rename alias <old_name> <new_name>`
+- `aliasmgr rename group <old_name> <new_name>`
 - `aliasmgr sync`
 ### Still not implemented
-- `aliasmgr rename`
 - `aliasmgr edit`
 - `aliasmgr enable`
 - `aliasmgr disable`
