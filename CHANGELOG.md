@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 - 2025-11-2025
+- Fixes `rename alias` command.
+- Added `UnexpectedBehaviour` variant to the `Failure` enum to better handle errors in the future.
+
 ## 0.3.0 - 2025-11-2025
 - Added `rename` command functionality.
 - Stopped using `GroupId` in favor of `Option<String>`.
