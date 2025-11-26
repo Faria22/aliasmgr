@@ -5,8 +5,9 @@
 //! # Functions
 //! - `edit_alias`: Edits an alias in the configuration.
 
+use super::add::add_alias_str;
 use super::{Failure, Outcome};
-use crate::config::types::Config;
+use crate::config::types::{Alias, Config};
 use log::info;
 
 /// Edits an alias in the given configuration.
@@ -19,15 +20,12 @@ use log::info;
 /// # Returns
 /// - `Ok(())` if the alias was edited successfully.
 /// - `Err(EditError)` if an error occurred.
-pub fn edit_alias(config: &mut Config, name: &str, new_command: &str) -> Result<Outcome, Failure> {
+pub fn edit_alias(config: &mut Config, name: &str, new_alias: &Alias) -> Result<Outcome, Failure> {
     match config.aliases.get_mut(name) {
         Some(alias) => {
-            alias.command = new_command.into();
-            info!("Alias '{}' command updated to '{}'.", name, new_command);
-            Ok(Outcome::Command(format!(
-                "alias {}='{}'",
-                name, new_command
-            )))
+            info!("Editing alias '{}'.", name);
+            *alias = new_alias.clone();
+            Ok(Outcome::Command(add_alias_str(name, new_alias).to_string()))
         }
         None => {
             info!("Alias '{}' does not exist.", name);
@@ -43,6 +41,10 @@ mod tests {
     use crate::config::types::{Alias, Config};
     use assert_matches::assert_matches;
 
+    fn test_alias() -> Alias {
+        Alias::new("test_command".into(), None, true, false)
+    }
+
     #[test]
     fn test_edit_alias_success() {
         let mut config = Config::new();
@@ -51,16 +53,19 @@ mod tests {
             Alias::new("old_command".into(), None, true, false),
         );
 
-        let result = edit_alias(&mut config, "test", "new_command");
+        let new_alias = test_alias();
+
+        let result = edit_alias(&mut config, "test", &new_alias);
 
         assert!(result.is_ok());
-        assert_eq!(config.aliases.get("test").unwrap().command, "new_command");
+        assert_eq!(config.aliases.get("test").unwrap(), &new_alias);
     }
 
     #[test]
     fn test_edit_alias_nonexistent() {
         let mut config = Config::new();
-        let result = edit_alias(&mut config, "nonexistent", "new_command");
+        let new_alias = test_alias();
+        let result = edit_alias(&mut config, "nonexistent", &new_alias);
         assert_matches!(result, Err(Failure::AliasDoesNotExist));
     }
 }

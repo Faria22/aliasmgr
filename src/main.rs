@@ -17,6 +17,7 @@ use core::Outcome;
 
 use app::add::handle_add;
 use app::config_path::determine_config_path;
+use app::edit::handle_edit;
 use app::init::handle_init;
 use app::list::handle_list;
 use app::r#move::handle_move;
@@ -75,6 +76,7 @@ fn main() {
         Commands::List(cmd) => handle_list(&config, cmd, &shell),
         Commands::Remove(cmd) => handle_remove(&mut config, cmd, &shell),
         Commands::Rename(cmd) => handle_rename(&mut config, cmd),
+        Commands::Edit(cmd) => handle_edit(&mut config, cmd),
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
             debug!("Generated init script content");

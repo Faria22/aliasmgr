@@ -46,17 +46,7 @@ fn handle_overwrite_existing_alias(
 
         // User wants to overwrite the existing alias
         info!("Overwriting existing alias '{}'.", name);
-        let command = edit_alias(config, name, &alias.command)?;
-
-        let new_alias = config
-            .aliases
-            .get_mut(name)
-            .expect("alias must exist to be edited");
-        new_alias.enabled = alias.enabled;
-        new_alias.global = alias.global;
-
-        // Returns command to edit the alias in the shell
-        Ok(command)
+        edit_alias(config, name, &alias)
     } else {
         // User does not want to overwrite the existing alias
         info!("Not overwriting existing alias '{}'.", name);
