@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4 - 2025-11-26
+## 0.4.0 - 2025-11-26
 ### Added
 - `edit` command to edit aliases.
 
