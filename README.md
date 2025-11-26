@@ -13,6 +13,9 @@ CLI tool to manage shell aliases from a single, versionable TOML file, written i
 ### Cargo
 `cargo install aliasmgr`
 
+### Homebrew
+`brew install faria22/homebrew-tap/aliasmgr`
+
 ## Shell Setup
 - Initialize in your shell rc file so aliasmgr can sync on startup and know which shell you use:
   - Bash: `eval "$(aliasmgr init bash)"`
