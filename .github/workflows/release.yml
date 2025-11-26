@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if release already exists
+        id: guard
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract release notes from CHANGELOG
+        if: steps.guard.outputs.skip != 'true'
+        id: notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          NOTES=$(python - "$VERSION" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          version = sys.argv[1]
+          text = Path("CHANGELOG.md").read_text()
+          pattern = rf"^##\s+{re.escape(version)}\s+-"
+          lines = text.splitlines()
+
+          start = None
+          for idx, line in enumerate(lines):
+              if re.match(pattern, line):
+                  start = idx + 1
+                  break
+
+          if start is None:
+              sys.exit(f"No changelog entry for version {version}")
+
+          end = len(lines)
+          for idx in range(start, len(lines)):
+              if lines[idx].startswith("## "):
+                  end = idx
+                  break
+
+          body = "\n".join(lines[start:end]).strip()
+          if not body:
+              sys.exit(f"Changelog entry for version {version} is empty")
+
+          print(body)
+          PY
+          )
+          DELIM="EOF_NOTES_$$"
+          {
+            echo "notes<<$DELIM"
+            echo "$NOTES"
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Determine previous version from CHANGELOG
+        if: steps.guard.outputs.skip != 'true'
+        id: prev_version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          PREV=$(python - "$VERSION" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          current = sys.argv[1]
+          text = Path("CHANGELOG.md").read_text()
+          headings = []
+          for line in text.splitlines():
+              m = re.match(r"^##\s+([0-9]+\.[0-9]+\.[0-9]+)\s+-", line)
+              if m:
+                  headings.append(m.group(1))
+
+          if current not in headings:
+              sys.exit(f"No changelog entry for version {current}")
+
+          idx = headings.index(current)
+          if idx + 1 >= len(headings):
+              sys.exit(f"No previous changelog entry found for version {current}")
+
+          print(headings[idx + 1])
+          PY
+          )
+
+          echo "version=$PREV" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          TAG: ${{ github.ref_name }}
+          NOTES: ${{ steps.notes.outputs.notes }}
+          PREV: v${{ steps.prev_version.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          NOTES_FILE=$(mktemp)
+          printf "%s\n\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n" "$NOTES" "$REPO" "$PREV" "$TAG" > "$NOTES_FILE"
+          gh release create "$TAG" --title "$TAG" --notes-file "$NOTES_FILE"

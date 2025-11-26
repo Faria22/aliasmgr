@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3 - 2025-11-2025
+- Test
+
+### Test Section
+- Test
+
 ## 0.3.1 - 2025-11-2025
 - Fixes `rename alias` command.
 - Added `UnexpectedBehaviour` variant to the `Failure` enum to better handle errors in the future.
