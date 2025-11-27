@@ -56,12 +56,12 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr rename group <old_name> <new_name>`
 - `aliasmgr edit <name> <new_command> [--group [<group>]] [--toggle_enabled] [--toggle_global]`
 - `aliasmgr sync`
+- `aliasmgr sort aliases [--group <group>]`
+- `aliasmgr sort groups`
 ### Still not implemented
 - `aliasmgr enable`
 - `aliasmgr disable`
 - `aliasmgr convert`
-- `aliasmgr sort aliases [--group <group>]`
-- `aliasmgr sort groups`
 
 For more details, use the `-h` or `--help` flags.
 

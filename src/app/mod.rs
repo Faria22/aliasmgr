@@ -7,3 +7,4 @@ pub(crate) mod r#move;
 pub(crate) mod remove;
 pub(crate) mod rename;
 pub(crate) mod shell;
+pub(crate) mod sort;

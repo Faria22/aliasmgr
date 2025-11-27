@@ -24,5 +24,5 @@ pub struct SortAliasesArgs {
     /// If not specified, sorts all aliases.
     /// If specified, but left empty, sorts ungrouped aliases.
     #[arg(short, long, value_name = "GROUP")]
-    pub group: Option<String>,
+    pub group: Option<Option<String>>,
 }

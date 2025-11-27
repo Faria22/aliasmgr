@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0 - 2025-11-26
+### Added
+- `sort` command for sorting aliases and groups.
+
 ## 0.5.0 - 2025-11-26
 ### Added
 - `edit` command now has flags to change the alias group, toggle enable/disable status, and global status.
