@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- Added `enable` command
+
+### Changed
+- Using `Option<&T>` instead of `&Option<T>`
+
 ## 0.6.0 - 2025-11-26
 ### Added
 - `sort` command for sorting aliases and groups.

@@ -38,7 +38,7 @@ mod tests {
     use super::*;
     use crate::app::shell::ShellType;
     use crate::config::types::Alias;
-    use crate::core::list::get_single_group;
+    use crate::core::list::get_aliases_from_single_group;
 
     #[test]
     fn test_sort_aliases_all_aliases() {
@@ -63,11 +63,11 @@ mod tests {
         let result = sort_all_aliases(&mut config).unwrap();
         assert_eq!(result, Outcome::ConfigChanged);
         assert_eq!(
-            get_single_group(&config, &None, &ShellType::Bash).unwrap(),
+            get_aliases_from_single_group(&config, None, &ShellType::Bash).unwrap(),
             vec!["alias3".to_string(), "alias4".to_string()]
         );
         assert_eq!(
-            get_single_group(&config, &Some("group".to_string()), &ShellType::Bash).unwrap(),
+            get_aliases_from_single_group(&config, Some("group"), &ShellType::Bash).unwrap(),
             vec!["alias1".to_string(), "alias2".to_string()]
         );
     }
@@ -107,11 +107,11 @@ mod tests {
         let result = sort_aliases_in_group(&mut config, Some("group")).unwrap();
         assert_eq!(result, Outcome::ConfigChanged);
         assert_eq!(
-            get_single_group(&config, &Some("group".to_string()), &ShellType::Bash).unwrap(),
+            get_aliases_from_single_group(&config, Some("group"), &ShellType::Bash).unwrap(),
             vec!["alias1".to_string(), "alias3".to_string()],
         );
         assert_eq!(
-            get_single_group(&config, &None, &ShellType::Bash).unwrap(),
+            get_aliases_from_single_group(&config, None, &ShellType::Bash).unwrap(),
             vec!["alias4".to_string(), "alias2".to_string()],
         );
     }
@@ -140,11 +140,11 @@ mod tests {
         let result = sort_aliases_in_group(&mut config, None).unwrap();
         assert_eq!(result, Outcome::ConfigChanged);
         assert_eq!(
-            get_single_group(&config, &Some("group".to_string()), &ShellType::Bash).unwrap(),
+            get_aliases_from_single_group(&config, Some("group"), &ShellType::Bash).unwrap(),
             vec!["alias3".to_string(), "alias1".to_string()],
         );
         assert_eq!(
-            get_single_group(&config, &None, &ShellType::Bash).unwrap(),
+            get_aliases_from_single_group(&config, None, &ShellType::Bash).unwrap(),
             vec!["alias2".to_string(), "alias4".to_string()],
         );
     }

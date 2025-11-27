@@ -1,6 +1,6 @@
 use crate::config::types::Config;
 
-use crate::core::list::get_single_group;
+use crate::core::list::get_aliases_from_single_group;
 use crate::core::r#move::move_alias;
 use crate::core::remove::{remove_alias, remove_aliases, remove_all, remove_group};
 use crate::core::{Failure, Outcome};
@@ -33,7 +33,7 @@ pub fn handle_remove(
             if let Some(name) = &args.name {
                 // Remove named group
                 let group_id = Some(name.clone());
-                let aliases = get_single_group(config, &group_id, shell)?;
+                let aliases = get_aliases_from_single_group(config, group_id.as_deref(), shell)?;
                 remove_group(config, name)?;
                 if args.reassign {
                     for alias in aliases {
@@ -45,7 +45,7 @@ pub fn handle_remove(
                 }
             } else {
                 // Remove ungrouped aliases
-                let aliases = get_single_group(config, &None, shell)?;
+                let aliases = get_aliases_from_single_group(config, None, shell)?;
                 remove_aliases(config, &aliases)
             }
         }

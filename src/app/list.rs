@@ -3,7 +3,7 @@ use owo_colors::OwoColorize;
 use super::shell::ShellType;
 use crate::cli::list::ListCommand;
 use crate::config::types::Config;
-use crate::core::list::{get_all_aliases_grouped, get_single_group};
+use crate::core::list::{get_aliases_from_single_group, get_all_aliases_grouped};
 use crate::core::{Failure, Outcome};
 
 use globset::Glob;
@@ -153,7 +153,7 @@ pub fn handle_list(
             group_id = None;
         };
 
-        let mut aliases = get_single_group(config, &group_id, shell)?;
+        let mut aliases = get_aliases_from_single_group(config, group_id.as_deref(), shell)?;
         retain_aliases(config, &mut aliases, &cmd);
         print!(
             "{}",

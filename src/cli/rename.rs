@@ -1,11 +1,6 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args)]
-#[command(
-    args_conflicts_with_subcommands = true,
-    subcommand_help_heading = "Additional actions",
-    subcommand_value_name = "ACTION"
-)]
 pub struct RenameCommand {
     /// What to rename
     #[command(subcommand)]
