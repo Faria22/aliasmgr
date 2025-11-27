@@ -15,7 +15,6 @@ pub enum Failure {
     GroupDoesNotExist,
     AliasAlreadyExists,
     GroupAlreadyExists,
-    UnexpectedBehavior,
 }
 
 /// Represents the outcome of core operations.

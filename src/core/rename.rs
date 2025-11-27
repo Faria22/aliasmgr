@@ -27,17 +27,13 @@ pub fn rename_alias(
         command.push_str(&cmd);
         command.push('\n');
     } else {
-        // This should never happen
-        error!("Unexpected behavior when removing alias {}", old_alias);
-        return Err(Failure::UnexpectedBehavior);
+        unreachable!("Unexpected behavior when removing alias {}", old_alias);
     }
 
     if let Outcome::Command(cmd) = add_alias(config, new_alias, &alias)? {
         command.push_str(&cmd);
     } else {
-        // This should never happen
-        error!("Unexpected behavior when adding alias {}", new_alias);
-        return Err(Failure::UnexpectedBehavior);
+        unreachable!("Unexpected behavior when adding alias {}", new_alias);
     }
 
     Ok(Outcome::Command(command))
