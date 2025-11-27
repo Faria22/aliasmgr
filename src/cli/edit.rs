@@ -3,9 +3,20 @@ use clap::Args;
 #[derive(Args)]
 pub struct EditCommand {
     /// Name of the alias to edit
-    #[arg()]
     pub name: String,
+
     /// Replacement command
-    #[arg()]
     pub new_command: String,
+
+    /// Toggle enable/disable status
+    #[arg(long, short = 'e')]
+    pub toggle_enable: bool,
+
+    /// Toggle global status
+    #[arg(long, short = 'b')]
+    pub toggle_global: bool,
+
+    /// Change alias group. If left empty, removes the alias from any group.
+    #[arg(long, short)]
+    pub group: Option<Option<String>>,
 }

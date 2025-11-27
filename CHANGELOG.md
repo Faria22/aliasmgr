@@ -1,6 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## 0.5.0 - 2025-11-26
+### Added
+- `edit` command now has flags to change the alias group, toggle enable/disable status, and global status.
+
 ### Removed
 - `Failure::UnexpectedBehaviour` in favor of `unreachable`.
 

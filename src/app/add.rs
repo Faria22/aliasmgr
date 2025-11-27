@@ -46,7 +46,7 @@ fn handle_overwrite_existing_alias(
 
         // User wants to overwrite the existing alias
         info!("Overwriting existing alias '{}'.", name);
-        edit_alias(config, name, &alias)
+        edit_alias(config, name, alias)
     } else {
         // User does not want to overwrite the existing alias
         info!("Not overwriting existing alias '{}'.", name);

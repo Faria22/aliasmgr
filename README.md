@@ -48,13 +48,13 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr add alias <name> <command> [--group <group>] [--disabled] [--global]`
 - `aliasmgr add group <name> [--disabled]`
 - `aliasmgr move <name> [<new_group>]`
-- `aliasmgr list [<pattern>] [--group [<group>] | --enabled | --disabled | --global]`
+- `aliasmgr list [<pattern>] [--group [<group>] [--enabled] [--disabled] [--global]`
 - `aliasmgr remove alias <name>`
 - `aliasmgr remove group <name> [--reassign]`
 - `aliasmgr remove all`
 - `aliasmgr rename alias <old_name> <new_name>`
 - `aliasmgr rename group <old_name> <new_name>`
-- `aliasmgr edit <name> <new_command>`
+- `aliasmgr edit <name> <new_command> [--group [<group>]] [--toggle_enabled] [--toggle_global]`
 - `aliasmgr sync`
 ### Still not implemented
 - `aliasmgr enable`
