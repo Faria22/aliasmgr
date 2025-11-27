@@ -1,6 +1,6 @@
 [package]
 name = "aliasmgr"
-version = "0.5.0"
+version = "0.6.0"
 description = "A clean and simple CLI alias manager"
 authors = ["Felipe Faria <fariafelipe22@outlook.com>"]
 edition = "2024"
