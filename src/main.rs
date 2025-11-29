@@ -72,24 +72,23 @@ fn main() {
     let result = match cli.command {
         // Add new alias or group
         Commands::Add(cmd) => handle_add(&mut config, cmd, &shell),
-        Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(
-            &config, shell,
-        ))),
+        Commands::Remove(cmd) => handle_remove(&mut config, cmd, &shell),
         Commands::Move(cmd) => handle_move(&mut config, cmd),
         Commands::List(cmd) => handle_list(&config, cmd, &shell),
-        Commands::Remove(cmd) => handle_remove(&mut config, cmd, &shell),
         Commands::Rename(cmd) => handle_rename(&mut config, cmd),
         Commands::Edit(cmd) => handle_edit(&mut config, cmd),
         Commands::Sort(cmd) => handle_sort(&mut config, cmd),
         Commands::Enable(cmd) => handle_enable(&mut config, cmd, &shell),
         Commands::Disable(cmd) => handle_disable(&mut config, cmd, &shell),
+        Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(
+            &config, shell,
+        ))),
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
             debug!("Generated init script content");
             println!("{}", content);
             Ok(Outcome::NoChanges)
         }
-        _ => todo!("command not implemented yet"),
     };
 
     match result {
