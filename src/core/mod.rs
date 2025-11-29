@@ -1,5 +1,5 @@
 pub(crate) mod add;
-// pub(crate) mod disable;
+pub(crate) mod disable;
 pub(crate) mod edit;
 pub(crate) mod enable;
 pub(crate) mod list;

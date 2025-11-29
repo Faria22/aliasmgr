@@ -1,8 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## 1.0.0 - 2025-11-29
 ### Added
 - Added `enable` command
+- Added `disable` command
 
 ### Changed
 - Using `Option<&T>` instead of `&Option<T>`

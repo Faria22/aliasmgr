@@ -84,7 +84,7 @@ pub enum Commands {
     Enable(EnableCommand),
 
     /// Disable an alias or alias group
-    #[command(visible_alias = "dis")]
+    #[command(visible_alias = "ds")]
     Disable(DisableCommand),
 
     /// Rename an existing alias or alias group

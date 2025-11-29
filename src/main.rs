@@ -17,6 +17,7 @@ use core::Outcome;
 
 use app::add::handle_add;
 use app::config_path::determine_config_path;
+use app::disable::handle_disable;
 use app::edit::handle_edit;
 use app::enable::handle_enable;
 use app::init::handle_init;
@@ -81,6 +82,7 @@ fn main() {
         Commands::Edit(cmd) => handle_edit(&mut config, cmd),
         Commands::Sort(cmd) => handle_sort(&mut config, cmd),
         Commands::Enable(cmd) => handle_enable(&mut config, cmd, &shell),
+        Commands::Disable(cmd) => handle_disable(&mut config, cmd, &shell),
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
             debug!("Generated init script content");
