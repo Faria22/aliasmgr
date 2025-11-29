@@ -47,21 +47,21 @@ ll = { command = "ls -la", enabled = true }
 ## Commands
 - `aliasmgr add alias <name> <command> [--group <group>] [--disabled] [--global]`
 - `aliasmgr add group <name> [--disabled]`
-- `aliasmgr move <name> [<new_group>]`
-- `aliasmgr list [<pattern>] [--group [<group>] [--enabled] [--disabled] [--global]`
+- `aliasmgr move <name> [group]`
+- `aliasmgr list [<pattern>] [--group [group] [--enabled] [--disabled] [--global]`
 - `aliasmgr remove alias <name>`
 - `aliasmgr remove group <name> [--reassign]`
 - `aliasmgr remove all`
 - `aliasmgr rename alias <old_name> <new_name>`
 - `aliasmgr rename group <old_name> <new_name>`
-- `aliasmgr edit <name> <new_command> [--group [<group>]] [--toggle_enabled] [--toggle_global]`
+- `aliasmgr edit <name> <new_command> [--group [group]] [--toggle_enabled] [--toggle_global]`
 - `aliasmgr sync`
-- `aliasmgr sort aliases [--group <group>]`
+- `aliasmgr sort aliases [--group [group]]`
 - `aliasmgr sort groups`
-### Still not implemented
-- `aliasmgr enable`
-- `aliasmgr disable`
-- `aliasmgr convert`
+- `aliasmgr enable alias <name>`
+- `aliasmgr enable group <name>`
+- `aliasmgr disable alias <name>`
+- `aliasmgr disable group <name>`
 
 For more details, use the `-h` or `--help` flags.
 
