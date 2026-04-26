@@ -109,6 +109,19 @@ mod tests {
     }
 
     #[test]
+    fn missing_last_synced_catalog_adds_current_aliases_without_removals() {
+        let catalog = sample_catalog();
+        let (_temp_dir, last_synced_path) = missing_last_synced_path();
+
+        let file_string =
+            generate_alias_script_content(&catalog, &ShellType::Bash, &last_synced_path);
+
+        assert!(!last_synced_path.exists());
+        assert!(!file_string.contains("unalias"));
+        assert_eq!(file_string, "alias -- 'll'='ls -la'\n");
+    }
+
+    #[test]
     fn file_content_removes_aliases_from_last_synced_catalog() {
         let temp_dir = TempDir::new().unwrap();
         let last_synced_path = temp_dir.path().join("last_synced_catalog.toml");
