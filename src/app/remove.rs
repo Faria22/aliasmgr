@@ -13,10 +13,11 @@ use crate::cli::remove::{RemoveCommand, RemoveTarget};
 
 pub fn handle_remove_all(
     catalog: &mut AliasCatalog,
+    shell: &ShellType,
     confirmation: impl Fn() -> bool,
 ) -> Result<Outcome, Failure> {
     if confirmation() {
-        remove_all(catalog)
+        remove_all(catalog, shell)
     } else {
         Ok(Outcome::NoChanges)
     }
@@ -49,7 +50,7 @@ pub fn handle_remove(
                 remove_aliases(catalog, &aliases)
             }
         }
-        RemoveTarget::All => handle_remove_all(catalog, prompt_confirm_remove_all),
+        RemoveTarget::All => handle_remove_all(catalog, shell, prompt_confirm_remove_all),
     }
 }
 
@@ -182,7 +183,7 @@ mod tests {
     #[test]
     fn test_remove_all_with_confirmation() {
         let mut catalog = sample_catalog();
-        let result = handle_remove_all(&mut catalog, || true);
+        let result = handle_remove_all(&mut catalog, &ShellType::Bash, || true);
         assert!(result.is_ok());
         assert!(catalog.aliases.is_empty());
         assert!(catalog.groups.is_empty());
@@ -191,7 +192,7 @@ mod tests {
     #[test]
     fn test_remove_all_without_confirmation() {
         let mut catalog = sample_catalog();
-        let result = handle_remove_all(&mut catalog, || false);
+        let result = handle_remove_all(&mut catalog, &ShellType::Bash, || false);
         assert!(result.is_ok());
         assert!(!catalog.aliases.is_empty());
         assert!(!catalog.groups.is_empty());

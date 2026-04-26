@@ -63,8 +63,7 @@ pub fn last_synced_catalog_path(path: Option<&PathBuf>) -> PathBuf {
 ///
 /// # Returns
 /// A `Result` containing the loaded `AliasCatalog` or an error.
-pub fn load_catalog(path: Option<&PathBuf>) -> Result<AliasCatalog> {
-    let path = catalog_path(path);
+pub fn load_catalog(path: &PathBuf) -> Result<AliasCatalog> {
     info!("Loading catalog from {:?}", path);
 
     if !path.exists() {
@@ -259,7 +258,7 @@ mod tests {
         let temp_conf = temp_dir.path().join("aliases.toml");
         fs::write(&temp_conf, SAMPLE_TOML).unwrap();
 
-        let cfg = load_catalog(Some(&temp_conf)).unwrap();
+        let cfg = load_catalog(&temp_conf).unwrap();
         assert_eq!(cfg, expected_catalog());
     }
 
@@ -326,7 +325,7 @@ mod tests {
     fn test_load_catalog_nonexistent() {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("nonexistent.toml");
-        let cfg = load_catalog(Some(&temp_conf)).unwrap();
+        let cfg = load_catalog(&temp_conf).unwrap();
         assert_eq!(cfg, AliasCatalog::new());
     }
 

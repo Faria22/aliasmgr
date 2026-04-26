@@ -1,10 +1,14 @@
+use super::Outcome;
 use super::add::add_alias_str;
 use super::list::get_all_aliases_grouped;
 use crate::app::add::is_valid_alias_name;
 use crate::app::shell::ShellType;
+use crate::catalog::io::load_catalog;
 use crate::catalog::types::AliasCatalog;
-use log::warn;
+use crate::core::remove::remove_all_aliases;
+use log::{info, warn};
 use std::fmt::Write;
+use std::path::PathBuf;
 
 /// Generates the content of the alias script file based on the provided catalog.
 ///
@@ -13,12 +17,37 @@ use std::fmt::Write;
 ///
 /// # Returns
 /// A string representing the content of the alias script file.
-pub fn generate_alias_script_content(catalog: &AliasCatalog, shell: ShellType) -> String {
+pub fn generate_alias_script_content(
+    catalog: &AliasCatalog,
+    shell: &ShellType,
+    last_synced_catalog_path: &PathBuf,
+) -> String {
     let mut content = String::new();
 
-    // Reset all existing aliases
-    writeln!(content, "unalias -a").unwrap();
+    let mut last_synced_catalog = match load_catalog(last_synced_catalog_path) {
+        Ok(c) => c,
+        Err(e) => {
+            info!(
+                "Failed to load last synced catalog from '{}': {}. Proceeding with empty catalog.",
+                last_synced_catalog_path.display(),
+                e
+            );
+            AliasCatalog::new()
+        }
+    };
 
+    info!("Removing old aliases from the shell...");
+    match remove_all_aliases(&mut last_synced_catalog, shell) {
+        Err(_) => warn!(
+            "Failed to generate remove commands for old aliases. Proceeding without removing old aliases.",
+        ),
+        Ok(Outcome::Command(cmds)) if !cmds.is_empty() => {
+            writeln!(content, "{}", cmds).unwrap();
+        }
+        Ok(_) => {}
+    };
+
+    info!("Adding new aliases to the shell...");
     for (group, aliases) in get_all_aliases_grouped(catalog, &shell) {
         // Only add groups that are enabled, `ungrouped` is always enabled
         if match group {
@@ -27,13 +56,6 @@ pub fn generate_alias_script_content(catalog: &AliasCatalog, shell: ShellType) -
         } {
             for alias in &aliases {
                 let alias_obj = catalog.aliases.get(alias).unwrap();
-                if alias_obj.global && shell != ShellType::Zsh {
-                    warn!(
-                        "Global aliases are only supported in zsh. Skipping alias '{}'.",
-                        alias
-                    );
-                    continue;
-                }
                 if !is_valid_alias_name(alias) {
                     warn!(
                         "Alias name '{}' contains invalid characters. Skipping.",
@@ -55,6 +77,7 @@ pub fn generate_alias_script_content(catalog: &AliasCatalog, shell: ShellType) -
 mod tests {
     use super::*;
     use crate::catalog::types::Alias;
+    use assert_fs::TempDir;
 
     static SAMPLE_ALIAS_NAME: &str = "ll";
 
@@ -70,24 +93,42 @@ mod tests {
         catalog
     }
 
-    #[test]
-    fn empty_catalog_only_contains_reset_command() {
-        let catalog = AliasCatalog::new();
-        let file_string = generate_alias_script_content(&catalog, ShellType::Bash);
-        assert!(file_string.contains("unalias -a"));
+    fn missing_last_synced_path() -> (TempDir, PathBuf) {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("last_synced_catalog.toml");
+        (temp_dir, path)
     }
 
     #[test]
-    fn filled_catalog_contains_reset_command() {
+    fn empty_catalog_without_last_synced_catalog_is_empty() {
+        let catalog = AliasCatalog::new();
+        let (_temp_dir, last_synced_path) = missing_last_synced_path();
+        let file_string =
+            generate_alias_script_content(&catalog, &ShellType::Bash, &last_synced_path);
+        assert!(file_string.is_empty());
+    }
+
+    #[test]
+    fn file_content_removes_aliases_from_last_synced_catalog() {
+        let temp_dir = TempDir::new().unwrap();
+        let last_synced_path = temp_dir.path().join("last_synced_catalog.toml");
+        std::fs::write(&last_synced_path, "old_alias = \"echo old\"\n").unwrap();
+
         let catalog = sample_catalog();
-        let file_string = generate_alias_script_content(&catalog, ShellType::Bash);
-        assert!(file_string.contains("unalias -a"));
+        let file_string =
+            generate_alias_script_content(&catalog, &ShellType::Bash, &last_synced_path);
+
+        assert!(file_string.contains("unalias 'old_alias'"));
+        assert!(file_string.contains("unalias 'old_alias'\nalias -- 'll'='ls -la'"));
+        assert!(file_string.contains(SAMPLE_ALIAS_NAME));
     }
 
     #[test]
     fn file_content_contains_enabled_alias() {
         let catalog = sample_catalog();
-        let file_string = generate_alias_script_content(&catalog, ShellType::Bash);
+        let (_temp_dir, last_synced_path) = missing_last_synced_path();
+        let file_string =
+            generate_alias_script_content(&catalog, &ShellType::Bash, &last_synced_path);
         assert!(file_string.contains(SAMPLE_ALIAS_NAME));
     }
 
@@ -100,7 +141,9 @@ mod tests {
             .aliases
             .insert("disabled_alias".to_string(), disabled_alias);
 
-        let file_string = generate_alias_script_content(&catalog, ShellType::Bash);
+        let (_temp_dir, last_synced_path) = missing_last_synced_path();
+        let file_string =
+            generate_alias_script_content(&catalog, &ShellType::Bash, &last_synced_path);
         assert!(!file_string.contains("disabled_alias"));
         assert!(file_string.contains(SAMPLE_ALIAS_NAME));
     }
@@ -118,7 +161,9 @@ mod tests {
             ),
         );
         catalog.groups.insert("my_group".to_string(), true);
-        let file_string = generate_alias_script_content(&catalog, ShellType::Bash);
+        let (_temp_dir, last_synced_path) = missing_last_synced_path();
+        let file_string =
+            generate_alias_script_content(&catalog, &ShellType::Bash, &last_synced_path);
         assert!(file_string.contains("grouped_alias"));
     }
 
@@ -135,7 +180,9 @@ mod tests {
             ),
         );
         catalog.groups.insert("my_group".to_string(), false);
-        let file_string = generate_alias_script_content(&catalog, ShellType::Bash);
+        let (_temp_dir, last_synced_path) = missing_last_synced_path();
+        let file_string =
+            generate_alias_script_content(&catalog, &ShellType::Bash, &last_synced_path);
         assert!(!file_string.contains("grouped_alias"));
     }
 
@@ -146,7 +193,9 @@ mod tests {
             "global_alias".to_string(),
             Alias::new("echo Global".to_string(), None, true, true),
         );
-        let file_string = generate_alias_script_content(&catalog, ShellType::Bash);
+        let (_temp_dir, last_synced_path) = missing_last_synced_path();
+        let file_string =
+            generate_alias_script_content(&catalog, &ShellType::Bash, &last_synced_path);
         assert!(!file_string.contains("global_alias"));
     }
 
@@ -157,7 +206,9 @@ mod tests {
             "global_alias".to_string(),
             Alias::new("echo Global".to_string(), None, true, true),
         );
-        let file_string = generate_alias_script_content(&catalog, ShellType::Zsh);
+        let (_temp_dir, last_synced_path) = missing_last_synced_path();
+        let file_string =
+            generate_alias_script_content(&catalog, &ShellType::Zsh, &last_synced_path);
         assert!(file_string.contains("global_alias"));
     }
 
@@ -168,7 +219,9 @@ mod tests {
             "invalid alias".to_string(),
             Alias::new("echo Invalid".to_string(), None, true, false),
         );
-        let file_string = generate_alias_script_content(&catalog, ShellType::Bash);
+        let (_temp_dir, last_synced_path) = missing_last_synced_path();
+        let file_string =
+            generate_alias_script_content(&catalog, &ShellType::Bash, &last_synced_path);
         assert!(!file_string.contains("invalid alias"));
     }
 }

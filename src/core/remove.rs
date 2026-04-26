@@ -1,6 +1,9 @@
+use super::list::get_all_aliases_grouped;
 use super::{Failure, Outcome};
+use crate::app::shell::ShellType;
 use crate::catalog::types::AliasCatalog;
 use log::error;
+use std::fmt::Write;
 
 pub fn remove_alias(catalog: &mut AliasCatalog, name: &str) -> Result<Outcome, Failure> {
     match catalog.aliases.shift_remove(name) {
@@ -12,9 +15,27 @@ pub fn remove_alias(catalog: &mut AliasCatalog, name: &str) -> Result<Outcome, F
     }
 }
 
-pub fn remove_all_aliases(catalog: &mut AliasCatalog) -> Result<Outcome, Failure> {
+pub fn remove_all_aliases(
+    catalog: &mut AliasCatalog,
+    shell: &ShellType,
+) -> Result<Outcome, Failure> {
+    let mut content = String::new();
+    for (group, aliases) in get_all_aliases_grouped(catalog, &shell) {
+        // Only remove groups that were enabled , `ungrouped` is always enabled
+        if match group {
+            None => true,
+            Some(g) => *catalog.groups.get(&g).unwrap(),
+        } {
+            for alias in &aliases {
+                let alias_obj = catalog.aliases.get(alias).unwrap();
+                if alias_obj.enabled {
+                    writeln!(content, "unalias '{}'", alias).unwrap();
+                }
+            }
+        }
+    }
     catalog.aliases.clear();
-    Ok(Outcome::Command("unalias -a".to_string()))
+    Ok(Outcome::Command(content.trim().to_string()))
 }
 
 pub fn remove_all_groups(catalog: &mut AliasCatalog) -> Result<Outcome, Failure> {
@@ -22,9 +43,10 @@ pub fn remove_all_groups(catalog: &mut AliasCatalog) -> Result<Outcome, Failure>
     Ok(Outcome::CatalogChanged)
 }
 
-pub fn remove_all(catalog: &mut AliasCatalog) -> Result<Outcome, Failure> {
+pub fn remove_all(catalog: &mut AliasCatalog, shell: &ShellType) -> Result<Outcome, Failure> {
+    let outcome = remove_all_aliases(catalog, shell)?;
     remove_all_groups(catalog)?;
-    remove_all_aliases(catalog)
+    Ok(outcome)
 }
 
 pub fn remove_aliases(catalog: &mut AliasCatalog, names: &[String]) -> Result<Outcome, Failure> {
@@ -110,9 +132,12 @@ mod tests {
     #[test]
     fn test_remove_all() {
         let mut catalog = sample_catalog();
-        let result = remove_all(&mut catalog);
+        let result = remove_all(&mut catalog, &ShellType::Bash);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Outcome::Command("unalias -a".to_string()));
+        assert_eq!(
+            result.unwrap(),
+            Outcome::Command("unalias 'foo'\nunalias 'baz'".to_string())
+        );
         assert!(catalog.aliases.is_empty());
         assert!(catalog.groups.is_empty());
     }

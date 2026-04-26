@@ -10,7 +10,10 @@ use std::path::PathBuf;
 
 use cli::{Cli, Commands};
 
-use catalog::io::{load_catalog, save_catalogs};
+use catalog::io::{
+    catalog_path as resolve_catalog_path,
+    last_synced_catalog_path as resolve_last_synced_catalog_path, load_catalog, save_catalogs,
+};
 
 use catalog::types::AliasCatalog;
 use core::Outcome;
@@ -67,15 +70,16 @@ fn main() {
             .expect("Custom catalog path did not exist and user chose not to use it.");
         debug!("Using catalog path: {:?}", catalog_path);
 
+        catalog = load_catalog(&resolve_catalog_path(catalog_path.as_ref()))
+            .expect("Failed to load catalog");
+        debug!("Loaded catalog: {:?}", catalog);
+
         last_synced_catalog_path = determine_last_synced_catalog_path()
             .expect("Custom last synced catalog path did not exist and user chose not to use it.");
         debug!(
             "Using last synced catalog path: {:?}",
             last_synced_catalog_path
         );
-
-        catalog = load_catalog(catalog_path.as_ref()).expect("Failed to load catalog");
-        debug!("Loaded catalog: {:?}", catalog);
     }
 
     let result = match cli.command {
@@ -90,7 +94,9 @@ fn main() {
         Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell),
         Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell),
         Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(
-            &catalog, shell,
+            &catalog,
+            &shell,
+            &resolve_last_synced_catalog_path(last_synced_catalog_path.as_ref()),
         ))),
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
