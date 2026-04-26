@@ -1,8 +1,8 @@
 pub(crate) mod add;
-pub(crate) mod config_path;
 pub(crate) mod disable;
 pub(crate) mod edit;
 pub(crate) mod enable;
+pub(crate) mod file_path;
 pub(crate) mod init;
 pub(crate) mod list;
 pub(crate) mod r#move;

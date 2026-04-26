@@ -25,10 +25,22 @@ pub fn prompt_create_non_existent_group(group: &str) -> bool {
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn prompt_use_non_existing_config_file(path: &str) -> bool {
+pub fn prompt_use_non_existing_catalog_file(path: &str) -> bool {
     Confirm::new()
         .with_prompt(format!(
-            "Configuration file '{}' does not exist. Do you want to use this path anyway?",
+            "Catalog file '{}' does not exist. Do you want to use this path anyway?",
+            path
+        ))
+        .default(true)
+        .interact()
+        .unwrap()
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn prompt_use_non_existing_last_synced_catalog_file(path: &str) -> bool {
+    Confirm::new()
+        .with_prompt(format!(
+            "Last synced catalog file '{}' does not exist. Do you want to use this path anyway?",
             path
         ))
         .default(true)

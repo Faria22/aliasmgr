@@ -1,6 +1,6 @@
-//! This module provides functions to load and save the configuration for the alias manager.
-//! ! It supports loading from and saving to a specified path or the default XDG configuration path.
-//! ! The configuration is serialized and deserialized using the TOML format.
+//! This module provides functions to load and save the catalog for the alias manager.
+//! ! It supports loading from and saving to a specified path or the default XDG catalog path.
+//! ! The catalog is serialized and deserialized using the TOML format.
 //! ! It also handles the creation of necessary directories if they do not exist.
 
 use log::{debug, info, warn};
@@ -11,20 +11,20 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use toml_edit::{DocumentMut, InlineTable, Item, Table};
 
-use super::spec::{ConfigSpec, convert_spec_to_config};
-use super::types::{Alias, Config};
+use super::spec::{AliasCatalogSpec, convert_spec_to_catalog};
+use super::types::{Alias, AliasCatalog};
 
-/// Determine the configuration file path.
-/// If a custom path is provided, it is used; otherwise, the default XDG config path is used.
+/// Determine the catalog file path.
+/// If a custom path is provided, it is used; otherwise, the default XDG catalog path is used.
 ///
 /// # Arguments
-/// `path` - An optional custom path to the configuration file.
+/// `path` - An optional custom path to the catalog file.
 ///
 /// # Returns
-/// A `PathBuf` representing the configuration file path.
-pub fn config_path(path: Option<&PathBuf>) -> PathBuf {
+/// A `PathBuf` representing the catalog file path.
+pub fn catalog_path(path: Option<&PathBuf>) -> PathBuf {
     if let Some(p) = path {
-        info!("Using custom config path: {:?}", p);
+        info!("Using custom catalog path: {:?}", p);
         return p.clone();
     }
 
@@ -35,26 +35,48 @@ pub fn config_path(path: Option<&PathBuf>) -> PathBuf {
         .join("aliases.toml")
 }
 
-/// Load the configuration from the specified path or the default XDG config path.
-/// If the file does not exist, an empty configuration is returned.
+/// Determine the last synced catalog file path.
+/// If a custom path is provided, it is used; otherwise, the default XDG last synced catalog path is used.
 ///
 /// # Arguments
-/// `path` - An optional custom path to the configuration file.
+/// `path` - An optional custom path to the last synced catalog file.
 ///
 /// # Returns
-/// A `Result` containing the loaded `Config` or an error.
-pub fn load_config(path: Option<&PathBuf>) -> Result<Config> {
-    let path = config_path(path);
-    info!("Loading config from {:?}", path);
+/// A `PathBuf` representing the last synced catalog file path.
+pub fn last_synced_catalog_path(path: Option<&PathBuf>) -> PathBuf {
+    if let Some(p) = path {
+        return p.clone();
+    }
+
+    cross_xdg::BaseDirs::new()
+        .expect("could not determine XDG base directories")
+        .state_home()
+        .join("aliasmgr")
+        .join("last_synced_catalog.toml")
+}
+
+/// Load the catalog from the specified path or the default XDG catalog path.
+/// If the file does not exist, an empty catalog is returned.
+///
+/// # Arguments
+/// `path` - An optional custom path to the catalog file.
+///
+/// # Returns
+/// A `Result` containing the loaded `AliasCatalog` or an error.
+pub fn load_catalog(path: &PathBuf) -> Result<AliasCatalog> {
+    info!("Loading catalog from {:?}", path);
 
     if !path.exists() {
-        info!("Config file {:?} does not exist, using empty config", path);
-        return Ok(Config::new());
+        info!(
+            "alias catalog file {:?} does not exist, using empty catalog",
+            path
+        );
+        return Ok(AliasCatalog::new());
     }
 
     let content = fs::read_to_string(path)?;
-    let cfg: ConfigSpec = toml::from_str(&content)?;
-    Ok(convert_spec_to_config(cfg))
+    let cfg: AliasCatalogSpec = toml::from_str(&content)?;
+    Ok(convert_spec_to_catalog(cfg))
 }
 
 fn ensure_group_table<'a>(doc: &'a mut DocumentMut, name: &str) -> &'a mut Table {
@@ -100,7 +122,7 @@ fn insert_aliases(
         if let Some(group) = &alias.group {
             if !groups.contains_key(group) {
                 warn!(
-                    "Alias '{}' references unknown group '{}'",
+                    "Alias '{}' references unknown '{}' group",
                     alias_name, group
                 );
             }
@@ -112,27 +134,25 @@ fn insert_aliases(
     }
 }
 
-fn build_toml_document(config: &Config) -> DocumentMut {
+fn build_toml_document(catalog: &AliasCatalog) -> DocumentMut {
     let mut doc = DocumentMut::new();
-    insert_groups(&mut doc, &config.groups);
-    insert_aliases(&mut doc, &config.aliases, &config.groups);
+    insert_groups(&mut doc, &catalog.groups);
+    insert_aliases(&mut doc, &catalog.aliases, &catalog.groups);
     doc
 }
 
-/// Save the configuration to the specified path or the default XDG config path.
+/// Save the catalog to the specified path.
 /// If the file does not exist, it will be created along with any necessary parent directories.
 ///
 /// # Arguments
-/// `path` - An optional custom path to the configuration file.
-/// `config` - A reference to the `Config` to be saved.
+/// `path` - The path to the catalog file.
+/// `catalog` - A reference to the `AliasCatalog` to be saved.
 ///
 /// # Returns
 /// A `Result` indicating success or failure.
-pub fn save_config(config: &Config, custom_path: Option<&PathBuf>) -> Result<()> {
-    let path = config_path(custom_path);
-
+fn save_catalog(catalog: &AliasCatalog, path: &PathBuf) -> Result<()> {
     if !path.exists() {
-        warn!("Config file {:?} does not exist, creating it", path);
+        warn!("alias catalog file {:?} does not exist, creating it", path);
     }
 
     if let Some(parent) = path.parent() {
@@ -140,22 +160,35 @@ pub fn save_config(config: &Config, custom_path: Option<&PathBuf>) -> Result<()>
     }
 
     if path.exists() {
-        debug!("Overwriting existing config at {:?}", path);
+        debug!("Overwriting existing catalog at {:?}", path);
     } else {
-        debug!("Saving content into new config at {:?}", path);
+        debug!("Saving content into new catalog at {:?}", path);
     }
 
-    let doc = build_toml_document(config);
+    let doc = build_toml_document(catalog);
     let content = doc.to_string();
     fs::write(path, content)?;
 
     Ok(())
 }
 
+pub fn save_catalogs(
+    catalog: &AliasCatalog,
+    custom_catalog_path: Option<&PathBuf>,
+    custom_last_synced_path: Option<&PathBuf>,
+) -> Result<()> {
+    let catalog_path = catalog_path(custom_catalog_path);
+    save_catalog(catalog, &catalog_path)?;
+
+    let last_synced_path = last_synced_catalog_path(custom_last_synced_path);
+    save_catalog(catalog, &last_synced_path)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tests::{SAMPLE_TOML, expected_config};
+    use crate::catalog::tests::{SAMPLE_TOML, expected_catalog};
     use assert_fs::TempDir;
 
     #[test]
@@ -190,14 +223,14 @@ mod tests {
 
     #[test]
     fn build_document_inlines_group_aliases() {
-        let mut config = Config::new();
-        config.groups.insert("group".into(), true);
-        config.aliases.insert(
+        let mut catalog = AliasCatalog::new();
+        catalog.groups.insert("group".into(), true);
+        catalog.aliases.insert(
             "alias".into(),
             Alias::new("foo".into(), Some("group".into()), false, false),
         );
 
-        let doc = build_toml_document(&config);
+        let doc = build_toml_document(&catalog);
         let rendered = doc.to_string();
 
         assert!(rendered.contains("[group]"));
@@ -209,57 +242,91 @@ mod tests {
 
     #[test]
     fn build_document_writes_top_level_simple_alias() {
-        let mut config = Config::new();
-        config
+        let mut catalog = AliasCatalog::new();
+        catalog
             .aliases
             .insert("ls".into(), Alias::new("ls -la".into(), None, true, false));
 
-        let doc = build_toml_document(&config);
+        let doc = build_toml_document(&catalog);
         let rendered = doc.to_string();
         assert!(rendered.contains("ls = \"ls -la\""));
     }
 
     #[test]
-    fn test_load_config() {
+    fn test_load_catalog() {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("aliases.toml");
         fs::write(&temp_conf, SAMPLE_TOML).unwrap();
 
-        let cfg = load_config(Some(&temp_conf)).unwrap();
-        assert_eq!(cfg, expected_config());
+        let cfg = load_catalog(&temp_conf).unwrap();
+        assert_eq!(cfg, expected_catalog());
     }
 
     #[test]
-    fn test_save_config() {
+    fn test_save_catalog() {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("aliases.toml");
 
-        let config = expected_config();
-        save_config(&config, Some(&temp_conf)).unwrap();
+        let catalog = expected_catalog();
+        save_catalog(&catalog, &temp_conf).unwrap();
 
         let saved_content = fs::read_to_string(&temp_conf).unwrap();
         assert_eq!(saved_content, SAMPLE_TOML);
     }
 
     #[test]
-    fn test_config_path_custom() {
+    fn test_save_catalogs_writes_catalog_and_last_synced_catalog() {
+        let temp_dir = TempDir::new().unwrap();
+        let catalog_path = temp_dir.path().join("aliases.toml");
+        let last_synced_catalog_path = temp_dir.path().join("last_synced_catalog.toml");
+
+        let catalog = expected_catalog();
+        save_catalogs(
+            &catalog,
+            Some(&catalog_path),
+            Some(&last_synced_catalog_path),
+        )
+        .unwrap();
+
+        assert_eq!(fs::read_to_string(&catalog_path).unwrap(), SAMPLE_TOML);
+        assert_eq!(
+            fs::read_to_string(&last_synced_catalog_path).unwrap(),
+            SAMPLE_TOML
+        );
+    }
+
+    #[test]
+    fn test_catalog_path_custom() {
         let custom_path = PathBuf::from("/custom/path/aliases.toml");
-        let path = config_path(Some(&custom_path));
+        let path = catalog_path(Some(&custom_path));
         assert_eq!(path, custom_path);
     }
 
     #[test]
-    fn test_config_path_default() {
-        let path = config_path(None);
+    fn test_catalog_path_default() {
+        let path = catalog_path(None);
         assert!(path.ends_with(".config/aliasmgr/aliases.toml"));
     }
 
     #[test]
-    fn test_load_config_nonexistent() {
+    fn test_last_synced_catalog_path_custom() {
+        let custom_path = PathBuf::from("/custom/path/last_synced_catalog.toml");
+        let path = last_synced_catalog_path(Some(&custom_path));
+        assert_eq!(path, custom_path);
+    }
+
+    #[test]
+    fn test_last_synced_catalog_path_default() {
+        let path = last_synced_catalog_path(None);
+        assert!(path.ends_with(".local/state/aliasmgr/last_synced_catalog.toml"));
+    }
+
+    #[test]
+    fn test_load_catalog_nonexistent() {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("nonexistent.toml");
-        let cfg = load_config(Some(&temp_conf)).unwrap();
-        assert_eq!(cfg, Config::new());
+        let cfg = load_catalog(&temp_conf).unwrap();
+        assert_eq!(cfg, AliasCatalog::new());
     }
 
     // #[test]
@@ -277,42 +344,42 @@ mod tests {
     #[test]
     fn test_insert_alias_to_unknown_group() {
         let mut doc = DocumentMut::new();
-        let mut config = Config::new();
-        config.aliases.insert(
+        let mut catalog = AliasCatalog::new();
+        catalog.aliases.insert(
             "alias".into(),
             Alias::new("foo".into(), Some("unknown_group".into()), true, false),
         );
 
-        insert_aliases(&mut doc, &config.aliases, &config.groups);
+        insert_aliases(&mut doc, &catalog.aliases, &catalog.groups);
         let rendered = doc.to_string();
         assert!(rendered.contains("alias = \"foo\""));
     }
 
     #[test]
-    fn test_save_config_creates_parent_dirs() {
+    fn test_save_catalog_creates_parent_dirs() {
         let temp_dir = TempDir::new().unwrap();
         let nested_path = temp_dir.path().join("nested/dir/aliases.toml");
-        let config = expected_config();
-        save_config(&config, Some(&nested_path)).unwrap();
+        let catalog = expected_catalog();
+        save_catalog(&catalog, &nested_path).unwrap();
         assert!(nested_path.exists());
     }
 
     #[test]
-    fn test_save_config_creates_new_file() {
+    fn test_save_catalog_creates_new_file() {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("new_aliases.toml");
-        let config = expected_config();
-        save_config(&config, Some(&temp_conf)).unwrap();
+        let catalog = expected_catalog();
+        save_catalog(&catalog, &temp_conf).unwrap();
         assert!(temp_conf.exists());
     }
 
     #[test]
-    fn test_save_config_overwrites_existing_file() {
+    fn test_save_catalog_overwrites_existing_file() {
         let temp_dir = TempDir::new().unwrap();
         let temp_conf = temp_dir.path().join("aliases.toml");
         fs::write(&temp_conf, "old_content").unwrap();
-        let config = expected_config();
-        save_config(&config, Some(&temp_conf)).unwrap();
+        let catalog = expected_catalog();
+        save_catalog(&catalog, &temp_conf).unwrap();
         let saved_content = fs::read_to_string(&temp_conf).unwrap();
         assert_ne!(saved_content, "old_content");
     }

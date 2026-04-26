@@ -1,12 +1,12 @@
-//! Configuration module for managing command aliases and groups.
+//! Catalog module for managing command aliases and groups.
 //! This module provides functionality to load, save, and manipulate
-//! alias configurations, including serialization and deserialization
+//! alias catalogs, including serialization and deserialization
 //! using the TOML format.
 //!
 //! # Modules
-//! - `io`: Functions for loading and saving configuration files.
-//! - `spec`: Specification structures and conversion functions for alias configuration.
-//! - `types`: Core data structures representing aliases and configurations.
+//! - `io`: Functions for loading and saving catalog files.
+//! - `spec`: Specification structures and conversion functions for alias catalog.
+//! - `types`: Core data structures representing aliases and catalogs.
 
 pub(crate) mod io;
 pub(crate) mod spec;
@@ -14,7 +14,7 @@ pub(crate) mod types;
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use crate::config::types::{Alias, Config};
+    use crate::catalog::types::{Alias, AliasCatalog};
     use indexmap::IndexMap;
 
     pub const SAMPLE_TOML: &str = {
@@ -33,7 +33,7 @@ ll = { command = "ls -la", enabled = true, global = false }
 "#
     };
 
-    pub fn expected_config() -> Config {
+    pub fn expected_catalog() -> AliasCatalog {
         let mut aliases = IndexMap::new();
         let mut groups = IndexMap::new();
         aliases.insert("py".into(), Alias::new("python3".into(), None, true, false));
@@ -61,6 +61,6 @@ ll = { command = "ls -la", enabled = true, global = false }
         groups.insert("git".into(), true);
         groups.insert("foo".into(), false);
 
-        Config { aliases, groups }
+        AliasCatalog { aliases, groups }
     }
 }

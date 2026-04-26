@@ -1,36 +1,36 @@
 use super::add::add_alias;
 use super::remove::remove_alias;
 use super::{Failure, Outcome};
-use crate::config::types::Config;
+use crate::catalog::types::AliasCatalog;
 
 use log::error;
 
 pub fn rename_alias(
-    config: &mut Config,
+    catalog: &mut AliasCatalog,
     old_alias: &str,
     new_alias: &str,
 ) -> Result<Outcome, Failure> {
-    if !config.aliases.contains_key(old_alias) {
+    if !catalog.aliases.contains_key(old_alias) {
         error!("Alias {} does not exists.", old_alias);
         return Err(Failure::AliasDoesNotExist);
     }
 
-    if config.aliases.contains_key(new_alias) {
+    if catalog.aliases.contains_key(new_alias) {
         error!("Alias {} already exists.", new_alias);
         return Err(Failure::AliasAlreadyExists);
     }
 
     let mut command = String::new();
-    let alias = config.aliases[old_alias].clone();
+    let alias = catalog.aliases[old_alias].clone();
 
-    if let Outcome::Command(cmd) = remove_alias(config, old_alias)? {
+    if let Outcome::Command(cmd) = remove_alias(catalog, old_alias)? {
         command.push_str(&cmd);
         command.push('\n');
     } else {
         unreachable!("Unexpected behavior when removing alias {}", old_alias);
     }
 
-    if let Outcome::Command(cmd) = add_alias(config, new_alias, &alias)? {
+    if let Outcome::Command(cmd) = add_alias(catalog, new_alias, &alias)? {
         command.push_str(&cmd);
     } else {
         unreachable!("Unexpected behavior when adding alias {}", new_alias);
@@ -40,102 +40,102 @@ pub fn rename_alias(
 }
 
 pub fn rename_group(
-    config: &mut Config,
+    catalog: &mut AliasCatalog,
     old_group: &str,
     new_group: &str,
 ) -> Result<Outcome, Failure> {
-    if !config.groups.contains_key(old_group) {
+    if !catalog.groups.contains_key(old_group) {
         error!("Group {} does not exists.", old_group);
         return Err(Failure::GroupDoesNotExist);
     }
 
-    if config.groups.contains_key(new_group) {
+    if catalog.groups.contains_key(new_group) {
         error!("Group {} already exists.", new_group);
         return Err(Failure::GroupAlreadyExists);
     }
 
-    let enabled = config
+    let enabled = catalog
         .groups
         .shift_remove(old_group)
         .expect("the group has been checked to exist already");
 
-    config.groups.insert(new_group.into(), enabled);
+    catalog.groups.insert(new_group.into(), enabled);
 
-    for alias in config.aliases.values_mut() {
+    for alias in catalog.aliases.values_mut() {
         if alias.group == Some(old_group.into()) {
             alias.group = Some(new_group.into());
         }
     }
 
-    Ok(Outcome::ConfigChanged)
+    Ok(Outcome::CatalogChanged)
 }
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
-    use crate::config::types::Alias;
+    use crate::catalog::types::Alias;
     use assert_matches::assert_matches;
 
-    fn create_config() -> Config {
-        let mut config = Config::new();
-        config.groups.insert("group".into(), true);
-        config.groups.insert("other_group".into(), true);
-        config.aliases.insert(
+    fn create_catalog() -> AliasCatalog {
+        let mut catalog = AliasCatalog::new();
+        catalog.groups.insert("group".into(), true);
+        catalog.groups.insert("other_group".into(), true);
+        catalog.aliases.insert(
             "foo".into(),
             Alias::new("bar".into(), Some("group".into()), true, false),
         );
-        config
+        catalog
             .aliases
             .insert("ll".into(), Alias::new("ls -la".into(), None, true, false));
 
-        config
+        catalog
     }
 
     #[test]
     fn test_rename_alias_success() {
-        let mut config = create_config();
-        let result = rename_alias(&mut config, "foo", "nonexistent");
+        let mut catalog = create_catalog();
+        let result = rename_alias(&mut catalog, "foo", "nonexistent");
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_rename_alias_nonexistent() {
-        let mut config = create_config();
-        let result = rename_alias(&mut config, "nonexistent", "boo");
+        let mut catalog = create_catalog();
+        let result = rename_alias(&mut catalog, "nonexistent", "boo");
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::AliasDoesNotExist);
     }
 
     #[test]
     fn test_rename_alias_to_existent() {
-        let mut config = create_config();
-        let result = rename_alias(&mut config, "foo", "ll");
+        let mut catalog = create_catalog();
+        let result = rename_alias(&mut catalog, "foo", "ll");
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::AliasAlreadyExists);
     }
 
     #[test]
     fn test_rename_group_success() {
-        let mut config = create_config();
-        let result = rename_group(&mut config, "group", "nonexistent");
+        let mut catalog = create_catalog();
+        let result = rename_group(&mut catalog, "group", "nonexistent");
         assert!(result.is_ok());
-        assert_matches!(result.unwrap(), Outcome::ConfigChanged);
-        assert_eq!(config.aliases["foo"].group, Some("nonexistent".into()));
+        assert_matches!(result.unwrap(), Outcome::CatalogChanged);
+        assert_eq!(catalog.aliases["foo"].group, Some("nonexistent".into()));
     }
 
     #[test]
     fn test_rename_group_nonexistent() {
-        let mut config = create_config();
-        let result = rename_group(&mut config, "nonexistent", "boo");
+        let mut catalog = create_catalog();
+        let result = rename_group(&mut catalog, "nonexistent", "boo");
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::GroupDoesNotExist);
     }
 
     #[test]
     fn test_rename_group_to_existent() {
-        let mut config = create_config();
-        let result = rename_group(&mut config, "group", "other_group");
+        let mut catalog = create_catalog();
+        let result = rename_group(&mut catalog, "group", "other_group");
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::GroupAlreadyExists);
     }

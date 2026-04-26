@@ -1,8 +1,8 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 mod app;
+mod catalog;
 mod cli;
-mod config;
 mod core;
 
 use clap::Parser;
@@ -10,16 +10,19 @@ use std::path::PathBuf;
 
 use cli::{Cli, Commands};
 
-use config::io::{load_config, save_config};
+use catalog::io::{
+    catalog_path as resolve_catalog_path,
+    last_synced_catalog_path as resolve_last_synced_catalog_path, load_catalog, save_catalogs,
+};
 
-use config::types::Config;
+use catalog::types::AliasCatalog;
 use core::Outcome;
 
 use app::add::handle_add;
-use app::config_path::determine_config_path;
 use app::disable::handle_disable;
 use app::edit::handle_edit;
 use app::enable::handle_enable;
+use app::file_path::{determine_catalog_path, determine_last_synced_catalog_path};
 use app::init::handle_init;
 use app::list::handle_list;
 use app::r#move::handle_move;
@@ -36,6 +39,7 @@ use log::{LevelFilter, debug};
 fn main() {
     let cli = Cli::parse();
 
+    // Determine log level based on CLI flags
     let level = if cli.quiet {
         LevelFilter::Error
     } else if cli.verbose {
@@ -53,35 +57,46 @@ fn main() {
         .parse_default_env()
         .init();
 
-    let mut config = Config::new();
-    let mut path: Option<PathBuf> = None;
+    let mut catalog = AliasCatalog::new();
+    let mut catalog_path: Option<PathBuf> = None;
+    let mut last_synced_catalog_path: Option<PathBuf> = None;
     let mut shell = DEFAULT_SHELL;
 
     if !matches!(cli.command, Commands::Init(_)) {
         shell = determine_shell();
         debug!("Determined shell: {}", shell);
 
-        path = determine_config_path()
-            .expect("Custom config path did not exist and user chose not to use it.");
-        debug!("Using config path: {:?}", path);
+        catalog_path = determine_catalog_path()
+            .expect("Custom catalog path did not exist and user chose not to use it.");
+        debug!("Using catalog path: {:?}", catalog_path);
 
-        config = load_config(path.as_ref()).expect("Failed to load configuration");
-        debug!("Loaded configuration: {:?}", config);
+        catalog = load_catalog(&resolve_catalog_path(catalog_path.as_ref()))
+            .expect("Failed to load catalog");
+        debug!("Loaded catalog: {:?}", catalog);
+
+        last_synced_catalog_path = determine_last_synced_catalog_path()
+            .expect("Custom last synced catalog path did not exist and user chose not to use it.");
+        debug!(
+            "Using last synced catalog path: {:?}",
+            last_synced_catalog_path
+        );
     }
 
     let result = match cli.command {
         // Add new alias or group
-        Commands::Add(cmd) => handle_add(&mut config, cmd, &shell),
-        Commands::Remove(cmd) => handle_remove(&mut config, cmd, &shell),
-        Commands::Move(cmd) => handle_move(&mut config, cmd),
-        Commands::List(cmd) => handle_list(&config, cmd, &shell),
-        Commands::Rename(cmd) => handle_rename(&mut config, cmd),
-        Commands::Edit(cmd) => handle_edit(&mut config, cmd),
-        Commands::Sort(cmd) => handle_sort(&mut config, cmd),
-        Commands::Enable(cmd) => handle_enable(&mut config, cmd, &shell),
-        Commands::Disable(cmd) => handle_disable(&mut config, cmd, &shell),
+        Commands::Add(cmd) => handle_add(&mut catalog, cmd, &shell),
+        Commands::Remove(cmd) => handle_remove(&mut catalog, cmd, &shell),
+        Commands::Move(cmd) => handle_move(&mut catalog, cmd),
+        Commands::List(cmd) => handle_list(&catalog, cmd, &shell),
+        Commands::Rename(cmd) => handle_rename(&mut catalog, cmd),
+        Commands::Edit(cmd) => handle_edit(&mut catalog, cmd),
+        Commands::Sort(cmd) => handle_sort(&mut catalog, cmd),
+        Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell),
+        Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell),
         Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(
-            &config, shell,
+            &catalog,
+            &shell,
+            &resolve_last_synced_catalog_path(last_synced_catalog_path.as_ref()),
         ))),
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
@@ -94,18 +109,29 @@ fn main() {
     match result {
         Ok(Outcome::Command(msg)) => {
             debug!("Generated command output: {}", msg);
-            save_config(&config, path.as_ref()).expect("Failed to save configuration");
+            save_catalogs(
+                &catalog,
+                catalog_path.as_ref(),
+                last_synced_catalog_path.as_ref(),
+            )
+            .expect("Failed to save catalog");
             send_alias_deltas_to_shell(&msg);
         }
         Ok(Outcome::NoChanges) => {
-            debug!("No changes made to configuration or shell.");
+            debug!("No changes made to catalog or shell.");
         }
-        Ok(Outcome::ConfigChanged) => {
-            if save_config(&config, path.as_ref()).is_err() {
-                eprintln!("Failed to save updated configuration.");
+        Ok(Outcome::CatalogChanged) => {
+            if save_catalogs(
+                &catalog,
+                catalog_path.as_ref(),
+                last_synced_catalog_path.as_ref(),
+            )
+            .is_err()
+            {
+                eprintln!("Failed to save updated catalog.");
                 return;
             }
-            debug!("New configuration saved.");
+            debug!("New catalog saved.");
         }
         Err(_) => debug!("An error occurred during command execution."),
     }

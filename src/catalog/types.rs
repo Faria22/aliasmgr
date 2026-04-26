@@ -1,9 +1,9 @@
-//! Configuration types for command aliases.
-//! ! This module defines the structures used to represent command aliases and their configurations.
+//! Catalog types for command aliases.
+//! ! This module defines the structures used to represent command aliases and their catalogs.
 
 use indexmap::IndexMap;
 
-/// Representation of an alias in the configuration.
+/// Representation of an alias in the catalog.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Alias {
     pub command: String,
@@ -27,17 +27,17 @@ impl Alias {
     }
 }
 
-/// Overall configuration containing aliases and groups.
+/// Overall catalog containing aliases and groups.
 #[derive(PartialEq, Eq, Debug)]
-pub struct Config {
+pub struct AliasCatalog {
     pub aliases: IndexMap<String, Alias>,
     pub groups: IndexMap<String, bool>,
 }
 
-/// Constructor for Config.
-impl Config {
+/// Constructor for AliasCatalog.
+impl AliasCatalog {
     pub fn new() -> Self {
-        Config {
+        AliasCatalog {
             aliases: IndexMap::new(),
             groups: IndexMap::new(),
         }
