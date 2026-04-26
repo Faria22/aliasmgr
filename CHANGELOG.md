@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 - 2026-04-26
+### Added
+- Track a last synced catalog snapshot so `sync` can remove stale managed aliases without clearing unrelated shell aliases.
+- Add `ALIASMGR_LAST_SYNCED_CATALOG_PATH` support for customizing the last synced catalog snapshot location.
+- Add test coverage for missing last synced catalog snapshots.
+
+### Changed
+- `sync` now emits targeted `unalias '<name>'` commands from the last synced catalog instead of using `unalias -a`.
+
 ## 1.0.0 - 2025-11-29
 ### Added
 - Added `enable` command
