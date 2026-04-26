@@ -24,12 +24,12 @@ pub enum Failure {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Outcome {
     /// Contains the command that has to be executed by the shell once everything is done
-    /// It is assumed that the config also needs to be updated in this case
+    /// It is assumed that the catalog also needs to be updated in this case
     Command(String),
 
-    /// Configuration has changed but shell does not need to be updated
-    /// If the configuration has changed, we need to know so that we can update the config file
-    ConfigChanged,
+    /// Catalog has changed but shell does not need to be updated
+    /// If the catalog has changed, we need to know so that we can update the catalog file
+    CatalogChanged,
 
     /// No changes were made
     NoChanges,

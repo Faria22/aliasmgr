@@ -20,15 +20,15 @@ CLI tool to manage shell aliases from a single, versionable TOML file, written i
 - Initialize in your shell rc file so aliasmgr can sync on startup and know which shell you use:
   - Bash: `eval "$(aliasmgr init bash)"`
   - Zsh: `eval "$(aliasmgr init zsh)"`
-- Custom config location: `aliasmgr init zsh --config ~/.aliases.toml`
-  - This sets `ALIASMGR_CONFIG_PATH` so subsequent commands use that file.
+- Custom catalog location: `aliasmgr init zsh --catalog ~/.aliases.toml`
+  - This sets `ALIASMGR_CATALOG_PATH` so subsequent commands use that file.
 - The init script also exports `ALIASMGR_SHELL` and defines a wrapper function that applies alias deltas returned on file descriptor 3.
 
-## Configuration File
+## Alias Catalog File
 - Default path: `~/.config/aliasmgr/aliases.toml` (XDG config home).
 - Format supports top-level aliases and grouped aliases. Disabled or global aliases use the detailed form.
-- Order of groups and aliases matches the config file; new items are appended to the bottom.
-- When aliasmgr rewrites the config, extra whitespace (including blank lines) is removed.
+- Order of groups and aliases matches the catalog file; new items are appended to the bottom.
+- When aliasmgr rewrites the catalog, extra whitespace (including blank lines) is removed.
 
 ```toml
 py = "python3"                                 # enabled by default
@@ -73,7 +73,7 @@ Notes:
 > [!WARNING]
 > `aliasmgr sync` (and the `init` snippet that runs it) starts by executing `unalias -a`, which clears **all** aliases in the current shell.
 - If you maintain aliases outside aliasmgr, define them **after** running `eval "$(aliasmgr init {shell})"` in your rc file. Re-running `sync` after sourcing your rc file will remove any aliases not managed by aliasmgr.
-- Run `aliasmgr sync` again after manually editing the config file without using aliasmgr commands, and after changes made in one terminal when you have multiple shells open.
+- Run `aliasmgr sync` again after manually editing the catalog file without using aliasmgr commands, and after changes made in one terminal when you have multiple shells open.
 - Recommended:
   1. Move all aliases into aliasmgr, **or**
   2. Avoid `sync` and re-source your rc file whenever you update aliases.

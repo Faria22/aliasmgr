@@ -1,12 +1,12 @@
-//! Specification structures and conversion functions for alias configuration.
+//! Specification structures and conversion functions for alias catalog.
 //! This module defines the structures used for serializing and deserializing
-//! alias configurations, as well as functions to convert between the internal
+//! alias catalogs, as well as functions to convert between the internal
 //! representation and the specification representation.
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::types::{Alias, Config};
+use super::types::{Alias, AliasCatalog};
 
 fn default_enabled() -> bool {
     true
@@ -51,9 +51,9 @@ pub enum AliasSpecTypes {
     Group(GroupSpec),
 }
 
-/// Overall configuration specification.
+/// Overall catalog specification.
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
-pub struct ConfigSpec {
+pub struct AliasCatalogSpec {
     #[serde(flatten)]
     pub entries: IndexMap<String, AliasSpecTypes>,
 }
@@ -80,14 +80,14 @@ fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Alias {
     }
 }
 
-/// Convert a ConfigSpec to its corresponding Config representation.
+/// Convert an AliasCatalogSpec to its corresponding AliasCatalog representation.
 ///
 /// # Arguments
-/// * `spec` - The ConfigSpec to be converted.
+/// * `spec` - The AliasCatalogSpec to be converted.
 ///
 /// # Returns
-/// * A Config representation of the given ConfigSpec.
-pub fn convert_spec_to_config(spec: ConfigSpec) -> Config {
+/// * An AliasCatalog representation of the given AliasCatalogSpec.
+pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> AliasCatalog {
     let mut aliases = IndexMap::new();
     let mut groups = IndexMap::new();
 
@@ -108,19 +108,19 @@ pub fn convert_spec_to_config(spec: ConfigSpec) -> Config {
         }
     }
 
-    Config { aliases, groups }
+    AliasCatalog { aliases, groups }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tests::{SAMPLE_TOML, expected_config};
+    use crate::catalog::tests::{SAMPLE_TOML, expected_catalog};
 
     #[test]
-    fn test_convert_spec_to_config() {
-        let spec: ConfigSpec = toml::from_str(SAMPLE_TOML).unwrap();
-        let config = convert_spec_to_config(spec);
-        assert_eq!(config, expected_config());
+    fn test_convert_spec_to_catalog() {
+        let spec: AliasCatalogSpec = toml::from_str(SAMPLE_TOML).unwrap();
+        let catalog = convert_spec_to_catalog(spec);
+        assert_eq!(catalog, expected_catalog());
     }
 
     #[test]
@@ -136,7 +136,7 @@ mod tests {
         alias2 = "command2"
         "#;
 
-        let spec: ConfigSpec = toml::from_str(toml_data).unwrap();
-        convert_spec_to_config(spec);
+        let spec: AliasCatalogSpec = toml::from_str(toml_data).unwrap();
+        convert_spec_to_catalog(spec);
     }
 }

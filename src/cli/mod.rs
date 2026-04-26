@@ -97,7 +97,7 @@ pub enum Commands {
     #[command(visible_alias = "mv")]
     Move(MoveCommand),
 
-    /// Synchronize aliases with configuration file
+    /// Synchronize aliases with catalog file
     Sync,
 
     /// Sort aliases or groups by name

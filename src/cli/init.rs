@@ -8,7 +8,7 @@ pub struct InitCommand {
     #[arg(value_enum, ignore_case = true)]
     pub shell: ShellType,
 
-    /// Custom location of the configuration file
+    /// Custom location of the alias catalog file
     #[arg(long)]
-    pub config: Option<PathBuf>,
+    pub catalog: Option<PathBuf>,
 }

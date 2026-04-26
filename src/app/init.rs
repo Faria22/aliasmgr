@@ -1,4 +1,4 @@
-use super::config_path::CONFIG_FILE_ENV_VAR;
+use super::catalog_path::CATALOG_FILE_ENV_VAR;
 use super::shell::{SHELL_ENV_VAR, ShellType};
 use crate::cli::init::InitCommand;
 
@@ -33,8 +33,8 @@ fn helper_shell_command(shell: &ShellType) -> &'static str {
 pub fn handle_init(cmd: InitCommand) -> String {
     let mut content = String::from("# Alias Manager Initialization Script\n");
     content += &format!("export {}={}\n", SHELL_ENV_VAR, cmd.shell);
-    if let Some(config_path) = cmd.config {
-        content += &format!("export {}={:?}\n", CONFIG_FILE_ENV_VAR, config_path);
+    if let Some(catalog_path) = cmd.catalog {
+        content += &format!("export {}={:?}\n", CATALOG_FILE_ENV_VAR, catalog_path);
     }
 
     content += "\n";
@@ -55,10 +55,10 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn test_handle_init_bash_no_config() {
+    fn test_handle_init_bash_no_catalog() {
         let cmd = InitCommand {
             shell: ShellType::Bash,
-            config: None,
+            catalog: None,
         };
         let output = handle_init(cmd);
         assert!(output.contains(&ShellType::Bash.to_string()));
@@ -67,10 +67,10 @@ mod tests {
     }
 
     #[test]
-    fn test_handle_init_zsh_no_config() {
+    fn test_handle_init_zsh_no_catalog() {
         let cmd = InitCommand {
             shell: ShellType::Zsh,
-            config: None,
+            catalog: None,
         };
         let output = handle_init(cmd);
         assert!(output.contains(&ShellType::Zsh.to_string()));
@@ -79,11 +79,11 @@ mod tests {
     }
 
     #[test]
-    fn test_handle_init_with_config() {
-        let path = PathBuf::from("/config/path");
+    fn test_handle_init_with_catalog() {
+        let path = PathBuf::from("/catalog/path");
         let cmd = InitCommand {
             shell: ShellType::Bash,
-            config: Some(path.clone()),
+            catalog: Some(path.clone()),
         };
         let output = handle_init(cmd);
         assert!(output.contains(&ShellType::Bash.to_string()));
@@ -92,11 +92,11 @@ mod tests {
     }
 
     #[test]
-    fn test_handle_init_with_config_zsh() {
-        let path = PathBuf::from("/config/path");
+    fn test_handle_init_with_catalog_zsh() {
+        let path = PathBuf::from("/catalog/path");
         let cmd = InitCommand {
             shell: ShellType::Zsh,
-            config: Some(path.clone()),
+            catalog: Some(path.clone()),
         };
         let output = handle_init(cmd);
         assert!(output.contains(&ShellType::Zsh.to_string()));

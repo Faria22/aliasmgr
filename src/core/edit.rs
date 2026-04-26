@@ -1,27 +1,31 @@
-//! Module for editing aliases in the configuration.
+//! Module for editing aliases in the catalog.
 //! Provides functionality to edit existing aliases.
 //! Handles errors when trying to edit non-existent aliases.
 //!
 //! # Functions
-//! - `edit_alias`: Edits an alias in the configuration.
+//! - `edit_alias`: Edits an alias in the catalog.
 
 use super::add::add_alias_str;
 use super::{Failure, Outcome};
-use crate::config::types::{Alias, Config};
+use crate::catalog::types::{Alias, AliasCatalog};
 use log::info;
 
-/// Edits an alias in the given configuration.
+/// Edits an alias in the given catalog.
 ///
 /// # Arguments
-/// - `config`: Mutable reference to the configuration.
+/// - `catalog`: Mutable reference to the catalog.
 /// - `name`: Name of the alias to edit.
 /// - `new_command`: New command for the alias.
 ///
 /// # Returns
 /// - `Ok(())` if the alias was edited successfully.
 /// - `Err(EditError)` if an error occurred.
-pub fn edit_alias(config: &mut Config, name: &str, new_alias: &Alias) -> Result<Outcome, Failure> {
-    match config.aliases.get_mut(name) {
+pub fn edit_alias(
+    catalog: &mut AliasCatalog,
+    name: &str,
+    new_alias: &Alias,
+) -> Result<Outcome, Failure> {
+    match catalog.aliases.get_mut(name) {
         Some(alias) => {
             info!("Editing alias '{}'.", name);
             *alias = new_alias.clone();
@@ -38,7 +42,7 @@ pub fn edit_alias(config: &mut Config, name: &str, new_alias: &Alias) -> Result<
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use crate::config::types::{Alias, Config};
+    use crate::catalog::types::{Alias, AliasCatalog};
     use assert_matches::assert_matches;
 
     fn test_alias() -> Alias {
@@ -47,25 +51,25 @@ mod tests {
 
     #[test]
     fn test_edit_alias_success() {
-        let mut config = Config::new();
-        config.aliases.insert(
+        let mut catalog = AliasCatalog::new();
+        catalog.aliases.insert(
             "test".into(),
             Alias::new("old_command".into(), None, true, false),
         );
 
         let new_alias = test_alias();
 
-        let result = edit_alias(&mut config, "test", &new_alias);
+        let result = edit_alias(&mut catalog, "test", &new_alias);
 
         assert!(result.is_ok());
-        assert_eq!(config.aliases.get("test").unwrap(), &new_alias);
+        assert_eq!(catalog.aliases.get("test").unwrap(), &new_alias);
     }
 
     #[test]
     fn test_edit_alias_nonexistent() {
-        let mut config = Config::new();
+        let mut catalog = AliasCatalog::new();
         let new_alias = test_alias();
-        let result = edit_alias(&mut config, "nonexistent", &new_alias);
+        let result = edit_alias(&mut catalog, "nonexistent", &new_alias);
         assert_matches!(result, Err(Failure::AliasDoesNotExist));
     }
 }
