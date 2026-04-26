@@ -1,4 +1,4 @@
-use super::catalog_path::CATALOG_FILE_ENV_VAR;
+use super::file_path::CATALOG_FILE_ENV_VAR;
 use super::shell::{SHELL_ENV_VAR, ShellType};
 use crate::cli::init::InitCommand;
 

@@ -10,16 +10,16 @@ use std::path::PathBuf;
 
 use cli::{Cli, Commands};
 
-use catalog::io::{load_catalog, save_catalog};
+use catalog::io::{load_catalog, save_catalogs};
 
 use catalog::types::AliasCatalog;
 use core::Outcome;
 
 use app::add::handle_add;
-use app::catalog_path::determine_catalog_path;
 use app::disable::handle_disable;
 use app::edit::handle_edit;
 use app::enable::handle_enable;
+use app::file_path::{determine_catalog_path, determine_last_synced_catalog_path};
 use app::init::handle_init;
 use app::list::handle_list;
 use app::r#move::handle_move;
@@ -55,18 +55,26 @@ fn main() {
         .init();
 
     let mut catalog = AliasCatalog::new();
-    let mut path: Option<PathBuf> = None;
+    let mut catalog_path: Option<PathBuf> = None;
+    let mut last_synced_catalog_path: Option<PathBuf> = None;
     let mut shell = DEFAULT_SHELL;
 
     if !matches!(cli.command, Commands::Init(_)) {
         shell = determine_shell();
         debug!("Determined shell: {}", shell);
 
-        path = determine_catalog_path()
+        catalog_path = determine_catalog_path()
             .expect("Custom catalog path did not exist and user chose not to use it.");
-        debug!("Using catalog path: {:?}", path);
+        debug!("Using catalog path: {:?}", catalog_path);
 
-        catalog = load_catalog(path.as_ref()).expect("Failed to load catalog");
+        last_synced_catalog_path = determine_last_synced_catalog_path()
+            .expect("Custom last synced catalog path did not exist and user chose not to use it.");
+        debug!(
+            "Using last synced catalog path: {:?}",
+            last_synced_catalog_path
+        );
+
+        catalog = load_catalog(catalog_path.as_ref()).expect("Failed to load catalog");
         debug!("Loaded catalog: {:?}", catalog);
     }
 
@@ -95,14 +103,25 @@ fn main() {
     match result {
         Ok(Outcome::Command(msg)) => {
             debug!("Generated command output: {}", msg);
-            save_catalog(&catalog, path.as_ref()).expect("Failed to save catalog");
+            save_catalogs(
+                &catalog,
+                catalog_path.as_ref(),
+                last_synced_catalog_path.as_ref(),
+            )
+            .expect("Failed to save catalog");
             send_alias_deltas_to_shell(&msg);
         }
         Ok(Outcome::NoChanges) => {
             debug!("No changes made to catalog or shell.");
         }
         Ok(Outcome::CatalogChanged) => {
-            if save_catalog(&catalog, path.as_ref()).is_err() {
+            if save_catalogs(
+                &catalog,
+                catalog_path.as_ref(),
+                last_synced_catalog_path.as_ref(),
+            )
+            .is_err()
+            {
                 eprintln!("Failed to save updated catalog.");
                 return;
             }
