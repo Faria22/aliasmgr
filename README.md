@@ -84,3 +84,4 @@ Notes:
 - Run tests: `cargo test`
 - Format: `cargo fmt`
 - Lint: `cargo clippy`
+- Release: use `cargo publish` to bump the crate version and publish to crates.io.
