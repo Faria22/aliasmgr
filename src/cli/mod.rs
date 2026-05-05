@@ -10,6 +10,7 @@ pub(crate) mod r#move;
 pub(crate) mod remove;
 pub(crate) mod rename;
 pub(crate) mod sort;
+pub(crate) mod sync;
 
 pub(crate) mod interaction;
 
@@ -23,6 +24,7 @@ use r#move::MoveCommand;
 use remove::RemoveCommand;
 use rename::RenameCommand;
 use sort::SortCommand;
+use sync::SyncCommand;
 
 #[derive(Parser)]
 #[command(
@@ -98,7 +100,7 @@ pub enum Commands {
     Move(MoveCommand),
 
     /// Synchronize aliases with catalog file
-    Sync,
+    Sync(SyncCommand),
 
     /// Sort aliases or groups by name
     Sort(SortCommand),

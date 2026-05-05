@@ -15,12 +15,12 @@ pub fn remove_alias(catalog: &mut AliasCatalog, name: &str) -> Result<Outcome, F
     }
 }
 
-pub fn remove_all_aliases(
+pub fn remove_all_active_aliases(
     catalog: &mut AliasCatalog,
     shell: &ShellType,
 ) -> Result<Outcome, Failure> {
     let mut content = String::new();
-    for (group, aliases) in get_all_aliases_grouped(catalog, &shell) {
+    for (group, aliases) in get_all_aliases_grouped(catalog, shell) {
         // Only remove groups that were enabled , `ungrouped` is always enabled
         if match group {
             None => true,
@@ -44,7 +44,7 @@ pub fn remove_all_groups(catalog: &mut AliasCatalog) -> Result<Outcome, Failure>
 }
 
 pub fn remove_all(catalog: &mut AliasCatalog, shell: &ShellType) -> Result<Outcome, Failure> {
-    let outcome = remove_all_aliases(catalog, shell)?;
+    let outcome = remove_all_active_aliases(catalog, shell)?;
     remove_all_groups(catalog)?;
     Ok(outcome)
 }

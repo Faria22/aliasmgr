@@ -43,8 +43,8 @@ pub fn handle_init(cmd: InitCommand) -> String {
 
     content += ALIASMGR_SHELL_FUNCTION;
 
-    content += "\n# Sync aliases on shell startup\n";
-    content += "aliasmgr sync";
+    content += "\n# Add aliases on shell startup\n";
+    content += "aliasmgr sync --startup";
 
     content
 }
@@ -63,7 +63,7 @@ mod tests {
         let output = handle_init(cmd);
         assert!(output.contains(&ShellType::Bash.to_string()));
         assert!(output.contains("__aliasmgr_cmd=$(type -P aliasmgr)"));
-        assert!(output.contains("aliasmgr sync"));
+        assert!(output.contains("aliasmgr sync --startup"));
     }
 
     #[test]

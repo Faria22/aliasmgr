@@ -1,11 +1,9 @@
 use super::Outcome;
-use super::add::add_alias_str;
-use super::list::get_all_aliases_grouped;
-use crate::app::add::is_valid_alias_name;
+use super::add::add_all_active_aliases;
 use crate::app::shell::ShellType;
 use crate::catalog::io::load_catalog;
 use crate::catalog::types::AliasCatalog;
-use crate::core::remove::remove_all_aliases;
+use crate::core::remove::remove_all_active_aliases;
 use log::{info, warn};
 use std::fmt::Write;
 use std::path::PathBuf;
@@ -37,7 +35,7 @@ pub fn generate_alias_script_content(
     };
 
     info!("Removing old aliases from the shell...");
-    match remove_all_aliases(&mut last_synced_catalog, shell) {
+    match remove_all_active_aliases(&mut last_synced_catalog, shell) {
         Err(_) => warn!(
             "Failed to generate remove commands for old aliases. Proceeding without removing old aliases.",
         ),
@@ -48,27 +46,7 @@ pub fn generate_alias_script_content(
     };
 
     info!("Adding new aliases to the shell...");
-    for (group, aliases) in get_all_aliases_grouped(catalog, &shell) {
-        // Only add groups that are enabled, `ungrouped` is always enabled
-        if match group {
-            None => true,
-            Some(g) => *catalog.groups.get(&g).unwrap(),
-        } {
-            for alias in &aliases {
-                let alias_obj = catalog.aliases.get(alias).unwrap();
-                if !is_valid_alias_name(alias) {
-                    warn!(
-                        "Alias name '{}' contains invalid characters. Skipping.",
-                        alias
-                    );
-                    continue;
-                }
-                if alias_obj.enabled {
-                    writeln!(content, "{}", add_alias_str(alias, alias_obj)).unwrap();
-                }
-            }
-        }
-    }
+    content.push_str(&add_all_active_aliases(catalog, shell));
 
     content
 }

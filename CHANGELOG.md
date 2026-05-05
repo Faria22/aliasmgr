@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 - 2026-05-05
+### Fixed
+- Use `sync --startup` from generated shell init scripts so a new shell only adds active aliases and does not remove aliases from the last synced catalog snapshot before they are active.
+- Avoid emitting extra blank lines when generated sync output has no alias commands.
+
+### Added
+- Add tests covering startup sync behavior and active-alias command generation.
+
 ## 1.1.0 - 2026-04-26
 ### Added
 - Track a last synced catalog snapshot so `sync` can remove stale managed aliases without clearing unrelated shell aliases.

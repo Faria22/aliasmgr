@@ -29,7 +29,7 @@ use app::r#move::handle_move;
 use app::remove::handle_remove;
 use app::rename::handle_rename;
 use app::sort::handle_sort;
-use core::sync::generate_alias_script_content;
+use app::sync::handle_sync;
 
 use app::shell::{DEFAULT_SHELL, determine_shell, send_alias_deltas_to_shell};
 
@@ -93,11 +93,12 @@ fn main() {
         Commands::Sort(cmd) => handle_sort(&mut catalog, cmd),
         Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell),
         Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell),
-        Commands::Sync => Ok(Outcome::Command(generate_alias_script_content(
-            &catalog,
+        Commands::Sync(cmd) => handle_sync(
+            &mut catalog,
             &shell,
+            cmd,
             &resolve_last_synced_catalog_path(last_synced_catalog_path.as_ref()),
-        ))),
+        ),
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
             debug!("Generated init script content");
