@@ -48,11 +48,13 @@ ll = { command = "ls -la", enabled = true }
 ```
 
 ## Commands
-- `aliasmgr add alias <name> <command> [--group <group>] [--disabled] [--global]`
+- `aliasmgr add <name> <command> [--group <group>] [--disabled] [--global]`
+- `aliasmgr add alias <name> <command> [--group <group>] [--disabled] [--global]` (explicit form)
 - `aliasmgr add group <name> [--disabled]`
 - `aliasmgr move <name> [group]`
 - `aliasmgr list [<pattern>] [--group [group]] [--enabled] [--disabled] [--global]`
-- `aliasmgr remove alias <name>`
+- `aliasmgr remove <name>` (removes the matching alias or group; prompts if both exist)
+- `aliasmgr remove alias <name>` (explicit form)
 - `aliasmgr remove group <name> [--reassign]`
 - `aliasmgr remove all`
 - `aliasmgr rename alias <old_name> <new_name>`

@@ -144,7 +144,12 @@ pub fn handle_add(
     cmd: AddCommand,
     shell: &ShellType,
 ) -> Result<Outcome, Failure> {
-    match cmd.target {
+    let target = match cmd.target {
+        Some(target) => target,
+        None => AddTarget::Alias(cmd.alias.into_alias_args()),
+    };
+
+    match target {
         // Add alias
         AddTarget::Alias(args) => {
             if args.global && *shell != ShellType::Zsh {
@@ -209,6 +214,28 @@ mod tests {
             catalog.aliases.get(SAMPLE_ALIAS_NAME),
             Some(&sample_alias())
         );
+    }
+
+    #[test]
+    fn test_handle_add_shorthand_alias() {
+        let mut catalog = AliasCatalog::new();
+        let result = handle_add(
+            &mut catalog,
+            AddCommand {
+                target: None,
+                alias: crate::cli::add::ShorthandAddAliasArgs {
+                    name: Some("ll".into()),
+                    command: Some("ls -l".into()),
+                    group: None,
+                    disabled: false,
+                    global: false,
+                },
+            },
+            &ShellType::Bash,
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(catalog.aliases.get("ll"), Some(&sample_alias()));
     }
 
     #[test]
@@ -341,10 +368,11 @@ mod tests {
         let result = handle_add(
             &mut catalog,
             AddCommand {
-                target: AddTarget::Group(crate::cli::add::AddGroupArgs {
+                target: Some(AddTarget::Group(crate::cli::add::AddGroupArgs {
                     name: "dev".into(),
                     disabled: false,
-                }),
+                })),
+                alias: Default::default(),
             },
             &ShellType::Bash,
         );
@@ -359,10 +387,11 @@ mod tests {
         let result = handle_add(
             &mut catalog,
             AddCommand {
-                target: AddTarget::Group(crate::cli::add::AddGroupArgs {
+                target: Some(AddTarget::Group(crate::cli::add::AddGroupArgs {
                     name: "utils".into(),
                     disabled: false,
-                }),
+                })),
+                alias: Default::default(),
             },
             &ShellType::Bash,
         );
@@ -377,13 +406,14 @@ mod tests {
         let result = handle_add(
             &mut catalog,
             AddCommand {
-                target: AddTarget::Alias(crate::cli::add::AddAliasArgs {
+                target: Some(AddTarget::Alias(crate::cli::add::AddAliasArgs {
                     name: "ll".into(),
                     command: "ls -l".into(),
                     group: None,
                     disabled: false,
                     global: true,
-                }),
+                })),
+                alias: Default::default(),
             },
             &ShellType::Bash,
         );
@@ -398,13 +428,14 @@ mod tests {
         let result = handle_add(
             &mut catalog,
             AddCommand {
-                target: AddTarget::Alias(crate::cli::add::AddAliasArgs {
+                target: Some(AddTarget::Alias(crate::cli::add::AddAliasArgs {
                     name: "ll".into(),
                     command: "ls -l".into(),
                     group: None,
                     disabled: false,
                     global: true,
-                }),
+                })),
+                alias: Default::default(),
             },
             &ShellType::Zsh,
         );
@@ -434,13 +465,14 @@ mod tests {
         let result = handle_add(
             &mut catalog,
             AddCommand {
-                target: AddTarget::Alias(crate::cli::add::AddAliasArgs {
+                target: Some(AddTarget::Alias(crate::cli::add::AddAliasArgs {
                     name: "invalid alias".into(),
                     command: "ls -l".into(),
                     group: None,
                     disabled: false,
                     global: false,
-                }),
+                })),
+                alias: Default::default(),
             },
             &ShellType::Bash,
         );
@@ -455,13 +487,14 @@ mod tests {
         let result = handle_add(
             &mut catalog,
             AddCommand {
-                target: AddTarget::Alias(crate::cli::add::AddAliasArgs {
+                target: Some(AddTarget::Alias(crate::cli::add::AddAliasArgs {
                     name: "invalid=alias".into(),
                     command: "ls -l".into(),
                     group: None,
                     disabled: false,
                     global: false,
-                }),
+                })),
+                alias: Default::default(),
             },
             &ShellType::Bash,
         );

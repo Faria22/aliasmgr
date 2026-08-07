@@ -1,4 +1,4 @@
-use dialoguer::Confirm;
+use dialoguer::{Confirm, Select};
 
 #[cfg_attr(coverage_nightly, coverage(off))]
 pub fn prompt_overwrite_existing_alias(alias: &str) -> bool {
@@ -55,4 +55,18 @@ pub fn prompt_confirm_remove_all() -> bool {
         .default(false)
         .interact()
         .unwrap()
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn prompt_remove_alias_or_group(name: &str) -> bool {
+    Select::new()
+        .with_prompt(format!(
+            "An alias and a group named '{}' both exist. Which should be removed?",
+            name
+        ))
+        .items(["Alias", "Group"])
+        .default(0)
+        .interact()
+        .unwrap()
+        == 0
 }
