@@ -1,0 +1,61 @@
+name: Close completed milestone
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  close-milestone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Close milestone when complete
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          matches_file=$(mktemp)
+          gh api --paginate "repos/${GH_REPO}/milestones?state=open&per_page=100" \
+            | jq --raw-output --arg tag "$TAG" '
+                .[]
+                | select(.title == $tag or (.title | startswith($tag + " ")))
+                | [.number, .open_issues, .title]
+                | @tsv
+              ' > "$matches_file"
+
+          mapfile -t matches < "$matches_file"
+
+          if (( ${#matches[@]} == 0 )); then
+            echo "::notice::No open milestone matches tag ${TAG}; skipping."
+            exit 0
+          fi
+
+          if (( ${#matches[@]} > 1 )); then
+            echo "::error::Multiple open milestones match tag ${TAG}."
+            printf '%s\n' "${matches[@]}"
+            exit 1
+          fi
+
+          IFS=$'\t' read -r milestone_number open_issues milestone_title \
+            <<< "${matches[0]}"
+
+          if (( open_issues > 0 )); then
+            echo "::notice::Milestone '${milestone_title}' still has ${open_issues} open item(s); leaving it open."
+            exit 0
+          fi
+
+          gh api --method PATCH \
+            "repos/${GH_REPO}/milestones/${milestone_number}" \
+            --field state=closed \
+            --silent
+
+          echo "Closed completed milestone '${milestone_title}'."
