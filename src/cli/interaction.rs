@@ -93,6 +93,7 @@ fn enable_reassigned_aliases_confirm(name: &str, alias_count: usize) -> Confirm<
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 
