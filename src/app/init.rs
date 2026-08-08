@@ -123,6 +123,7 @@ pub fn handle_init(cmd: InitCommand) -> String {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use std::path::PathBuf;

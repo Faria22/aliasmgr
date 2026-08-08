@@ -75,6 +75,7 @@ fn reassign_group_confirm(name: &str) -> Confirm<'static> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 
