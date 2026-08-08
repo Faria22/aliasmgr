@@ -38,38 +38,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           VERSION="${TAG#v}"
-          NOTES=$(python - "$VERSION" <<'PY'
-          import re
-          import sys
-          from pathlib import Path
-
-          version = sys.argv[1]
-          text = Path("CHANGELOG.md").read_text()
-          pattern = rf"^##\s+{re.escape(version)}\s+-"
-          lines = text.splitlines()
-
-          start = None
-          for idx, line in enumerate(lines):
-              if re.match(pattern, line):
-                  start = idx + 1
-                  break
-
-          if start is None:
-              sys.exit(f"No changelog entry for version {version}")
-
-          end = len(lines)
-          for idx in range(start, len(lines)):
-              if lines[idx].startswith("## "):
-                  end = idx
-                  break
-
-          body = "\n".join(lines[start:end]).strip()
-          if not body:
-              sys.exit(f"Changelog entry for version {version} is empty")
-
-          print(body)
-          PY
-          )
+          NOTES=$(python3 scripts/release-changelog.py "$VERSION" notes)
           DELIM="EOF_NOTES_$$"
           {
             echo "notes<<$DELIM"
@@ -84,29 +53,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           VERSION="${TAG#v}"
-          PREV=$(python - "$VERSION" <<'PY'
-          import re
-          import sys
-          from pathlib import Path
-
-          current = sys.argv[1]
-          text = Path("CHANGELOG.md").read_text()
-          headings = []
-          for line in text.splitlines():
-              m = re.match(r"^##\s+([0-9]+\.[0-9]+\.[0-9]+)\s+-", line)
-              if m:
-                  headings.append(m.group(1))
-
-          if current not in headings:
-              sys.exit(f"No changelog entry for version {current}")
-
-          idx = headings.index(current)
-          if idx + 1 >= len(headings):
-              sys.exit(f"No previous changelog entry found for version {current}")
-
-          print(headings[idx + 1])
-          PY
-          )
+          PREV=$(python3 scripts/release-changelog.py "$VERSION" previous-version)
 
           echo "version=$PREV" >> "$GITHUB_OUTPUT"
 

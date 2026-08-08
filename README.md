@@ -96,12 +96,13 @@ Notes:
 ## Releasing
 1. Add a dated `## <version> - <date>` entry to `CHANGELOG.md` with non-empty
    release notes.
-2. Run the test, formatting, and lint checks listed above.
-3. Run `cargo release <major|minor|patch> --execute`.
+2. Run `cargo release <major|minor|patch> --execute`.
 
 `cargo release` bumps the package version, verifies and publishes the crate to
 crates.io, creates the release commit and `v<version>` tag, and pushes them to
-GitHub. Pushing the tag creates a GitHub Release from the matching changelog
+GitHub. Before committing, its release hook runs the build, tests, linter,
+formatter check, and the same changelog validation used by the GitHub Release
+workflow. Pushing the tag creates a GitHub Release from the matching changelog
 entry and opens a formula update pull request in the Homebrew tap. The formula
 update merges automatically after the tap's test suite passes. If the matching
 GitHub milestone has no open issues or pull requests, the tag workflow closes

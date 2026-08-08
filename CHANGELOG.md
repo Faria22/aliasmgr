@@ -1,14 +1,21 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 - 2026-08-08
 ### Added
+- Allow aliases to be managed without spelling out the `alias` resource for `add`, `remove`, `rename`, `enable`, and `disable`, while retaining explicit alias and group forms.
 - Synchronize aliases automatically before each Bash or Zsh prompt when the effective catalog changes.
 - Track managed alias names and the applied catalog revision independently in each terminal.
 - Add `aliasmgr init --no-auto-sync` for manual synchronization workflows.
+- Prompt before individually enabled aliases are activated when removing a disabled group with `--reassign`, with flags for non-interactive control.
 
 ### Changed
+- Allow an ungrouped alias and a group to share a name, prompting to disambiguate shorthand commands when necessary.
 - Generate reconciliation code through a dedicated stdout command instead of sending alias deltas over file descriptor 3.
 - Make `aliasmgr sync` force a complete reconciliation of the current terminal.
+- Reject adding, moving, or editing aliases into groups that do not exist.
+
+### Fixed
+- Avoid prompting about reassigned aliases when removing an empty group.
 
 ### Removed
 - Remove the shared last-synced catalog snapshot, `ALIASMGR_LAST_SYNCED_CATALOG_PATH`, and hidden startup sync mode.
