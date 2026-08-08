@@ -62,6 +62,7 @@ fn handle_configured_file_path(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use temp_env::with_var;

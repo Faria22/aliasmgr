@@ -13,6 +13,7 @@ pub(crate) mod spec;
 pub(crate) mod types;
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub(crate) mod tests {
     use crate::catalog::types::{Alias, AliasCatalog};
     use indexmap::IndexMap;

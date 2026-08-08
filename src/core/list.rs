@@ -79,6 +79,7 @@ pub fn get_aliases_from_single_group(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::catalog::types::Alias;

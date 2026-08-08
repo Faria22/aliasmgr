@@ -49,6 +49,7 @@ pub fn determine_shell() -> ShellType {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use temp_env::with_var;

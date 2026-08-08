@@ -60,7 +60,12 @@ fn handle_remove_shorthand(
     match resolve_resource_type(catalog, name, choose_alias) {
         ResourceType::Alias => remove_alias(catalog, name),
         ResourceType::Group => {
-            handle_remove_group(catalog, Some(name), reassign_group(name), shell)
+            let has_aliases = catalog
+                .aliases
+                .values()
+                .any(|alias| alias.group.as_deref() == Some(name));
+            let reassign = has_aliases && reassign_group(name);
+            handle_remove_group(catalog, Some(name), reassign, shell)
         }
     }
 }
@@ -89,6 +94,7 @@ pub fn handle_remove(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::catalog::types::Alias;
@@ -271,6 +277,26 @@ mod tests {
         assert!(!catalog.groups.contains_key("files"));
         assert!(catalog.aliases.contains_key("ls"));
         assert!(catalog.aliases.get("ls").unwrap().group.is_none());
+    }
+
+    #[test]
+    fn test_remove_shorthand_empty_group_without_reassign_prompt() {
+        let mut catalog = sample_catalog();
+        catalog.groups.insert("empty".to_string(), true);
+
+        let result = handle_remove_shorthand(
+            &mut catalog,
+            "empty",
+            &ShellType::Bash,
+            |_| panic!("a sole group should not prompt for a resource"),
+            |_| panic!("an empty group should not prompt for reassignment"),
+        );
+
+        assert_eq!(result.unwrap(), Outcome::CatalogChanged);
+        assert!(!catalog.groups.contains_key("empty"));
+        assert!(catalog.groups.contains_key("files"));
+        assert!(catalog.aliases.contains_key("ls"));
+        assert!(catalog.aliases.contains_key("rm"));
     }
 
     #[test]

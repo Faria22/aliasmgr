@@ -37,6 +37,7 @@ pub fn handle_rename(catalog: &mut AliasCatalog, cmd: RenameCommand) -> Result<O
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::catalog::types::Alias;

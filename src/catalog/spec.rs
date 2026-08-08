@@ -122,6 +122,7 @@ pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> AliasCatalog {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::catalog::tests::{SAMPLE_TOML, expected_catalog};

@@ -37,6 +37,7 @@ pub fn remove_group(catalog: &mut AliasCatalog, name: &str) -> Result<Outcome, F
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::catalog::types::Alias;

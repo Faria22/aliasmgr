@@ -114,6 +114,7 @@ pub enum Commands {
     Init(InitCommand),
 }
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::cli::add::AddTarget;

@@ -156,6 +156,7 @@ pub fn save_catalog(catalog: &AliasCatalog, path: &PathBuf) -> Result<()> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::catalog::tests::{SAMPLE_TOML, expected_catalog};
