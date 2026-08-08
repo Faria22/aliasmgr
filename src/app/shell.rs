@@ -1,7 +1,6 @@
 use clap::ValueEnum;
-use log::{debug, error, warn};
+use log::warn;
 use std::fmt;
-use std::os::fd::BorrowedFd;
 
 #[derive(Clone, ValueEnum, Debug, PartialEq, Eq)]
 pub enum ShellType {
@@ -43,19 +42,6 @@ pub fn determine_shell() -> ShellType {
             DEFAULT_SHELL
         }
     }
-}
-
-#[cfg_attr(coverage_nightly, coverage(off))]
-pub fn send_alias_deltas_to_shell(deltas: &str) {
-    let fd3 = unsafe { BorrowedFd::borrow_raw(3) };
-    if let Err(e) = nix::unistd::write(fd3, deltas.as_bytes()) {
-        error!(
-            "Failed to send alias deltas to shell. Make sure to use aliasmgr init in your shell configuration."
-        );
-        error!("{}", e);
-        return;
-    }
-    debug!("Sent alias deltas to shell: {}", deltas);
 }
 
 #[cfg(test)]

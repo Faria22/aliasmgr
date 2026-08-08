@@ -120,10 +120,7 @@ mod tests {
             },
             &ShellType::Bash,
         );
-        assert_eq!(
-            result.unwrap(),
-            Outcome::Command("unalias 'ls'".to_string())
-        );
+        assert_eq!(result.unwrap(), Outcome::CatalogChanged);
         assert!(!catalog.groups.contains_key("files"));
     }
 

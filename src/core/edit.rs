@@ -5,7 +5,6 @@
 //! # Functions
 //! - `edit_alias`: Edits an alias in the catalog.
 
-use super::add::add_alias_str;
 use super::{Failure, Outcome};
 use crate::catalog::types::{Alias, AliasCatalog};
 use log::info;
@@ -29,7 +28,7 @@ pub fn edit_alias(
         Some(alias) => {
             info!("Editing alias '{}'.", name);
             *alias = new_alias.clone();
-            Ok(Outcome::Command(add_alias_str(name, new_alias).to_string()))
+            Ok(Outcome::CatalogChanged)
         }
         None => {
             info!("Alias '{}' does not exist.", name);

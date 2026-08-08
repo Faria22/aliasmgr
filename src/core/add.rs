@@ -6,13 +6,9 @@
 //! - `add_alias`: Adds an alias to the catalog.
 //! - `add_group`: Adds a group to the catalog.
 
-use super::list::get_all_aliases_grouped;
 use super::{Failure, Outcome};
-use crate::app::add::is_valid_alias_name;
-use crate::app::shell::ShellType;
 use crate::catalog::types::{Alias, AliasCatalog};
-use log::{info, warn};
-use std::fmt::Write;
+use log::info;
 
 /// Adds an alias to the catalog.
 ///
@@ -47,44 +43,7 @@ pub fn add_alias(
     catalog.aliases.insert(name.into(), alias.clone());
 
     info!("Alias '{}' added with command '{}'.", name, alias.command);
-    Ok(Outcome::Command(add_alias_str(name, alias).to_string()))
-}
-
-pub fn add_alias_str(name: &str, alias: &Alias) -> String {
-    format!(
-        "alias{} -- '{}'='{}'",
-        if alias.global { " -g" } else { "" },
-        name,
-        alias.command
-    )
-}
-
-pub fn add_all_active_aliases(catalog: &AliasCatalog, shell: &ShellType) -> String {
-    let mut content = String::new();
-
-    for (group, aliases) in get_all_aliases_grouped(catalog, shell) {
-        // Only add groups that are enabled, `ungrouped` is always enabled
-        if match group {
-            None => true,
-            Some(g) => *catalog.groups.get(&g).unwrap(),
-        } {
-            for alias in &aliases {
-                let alias_obj = catalog.aliases.get(alias).unwrap();
-                if !is_valid_alias_name(alias) {
-                    warn!(
-                        "Alias name '{}' contains invalid characters. Skipping.",
-                        alias
-                    );
-                    continue;
-                }
-                if alias_obj.enabled {
-                    writeln!(content, "{}", add_alias_str(alias, alias_obj)).unwrap();
-                }
-            }
-        }
-    }
-
-    content
+    Ok(Outcome::CatalogChanged)
 }
 
 /// Adds a group to the catalog.
@@ -242,64 +201,5 @@ mod test {
         let result = add_alias(&mut catalog, "ll", &new_alias);
         assert!(result.is_ok());
         assert_eq!(catalog.aliases.get("ll"), Some(&new_alias));
-    }
-
-    #[test]
-    fn add_string_global_alias() {
-        let alias = Alias::new("ls -la".into(), None, true, true);
-        let result = add_alias_str("ll", &alias);
-        assert_eq!(result, "alias -g -- 'll'='ls -la'");
-    }
-
-    #[test]
-    fn add_string_non_global_alias() {
-        let alias = Alias::new("ls -la".into(), None, true, false);
-        let result = add_alias_str("ll", &alias);
-        assert_eq!(result, "alias -- 'll'='ls -la'");
-    }
-
-    #[test]
-    fn add_all_active_aliases_only_adds_enabled_aliases() {
-        let mut catalog = AliasCatalog::new();
-        catalog.aliases.insert(
-            "enabled".into(),
-            Alias::new("echo enabled".into(), None, true, false),
-        );
-        catalog.aliases.insert(
-            "disabled".into(),
-            Alias::new("echo disabled".into(), None, false, false),
-        );
-
-        let result = add_all_active_aliases(&catalog, &ShellType::Bash);
-
-        assert_eq!(result, "alias -- 'enabled'='echo enabled'\n");
-        assert!(!result.contains("disabled"));
-    }
-
-    #[test]
-    fn add_all_active_aliases_skips_disabled_groups() {
-        let mut catalog = AliasCatalog::new();
-        catalog.groups.insert("group".into(), false);
-        catalog.aliases.insert(
-            "grouped".into(),
-            Alias::new("echo grouped".into(), Some("group".into()), true, false),
-        );
-
-        let result = add_all_active_aliases(&catalog, &ShellType::Bash);
-
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn add_all_active_aliases_skips_invalid_alias_names() {
-        let mut catalog = AliasCatalog::new();
-        catalog.aliases.insert(
-            "invalid alias".into(),
-            Alias::new("echo invalid".into(), None, true, false),
-        );
-
-        let result = add_all_active_aliases(&catalog, &ShellType::Bash);
-
-        assert!(result.is_empty());
     }
 }

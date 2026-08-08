@@ -21,7 +21,7 @@ pub fn handle_move(catalog: &mut AliasCatalog, cmd: MoveCommand) -> Result<Outco
                 prompt_create_non_existent_group,
             ),
             Failure::AliasDoesNotExist => {
-                error!("Alias '{}' does not exist", &cmd.name);
+                error!("Alias '{}' does not exist", cmd.name);
                 Err(e)
             }
             _ => unreachable!(),
@@ -42,7 +42,7 @@ fn handle_non_existing_group(
     } else {
         debug!(
             "User aborted moving alias '{}' to non-existent group '{}'",
-            &alias, group
+            alias, group
         );
         Ok(Outcome::NoChanges)
     }

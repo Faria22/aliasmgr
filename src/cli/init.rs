@@ -11,4 +11,8 @@ pub struct InitCommand {
     /// Custom location of the alias catalog file
     #[arg(long)]
     pub catalog: Option<PathBuf>,
+
+    /// Do not synchronize aliases automatically before each prompt
+    #[arg(long, default_value_t = false)]
+    pub no_auto_sync: bool,
 }
