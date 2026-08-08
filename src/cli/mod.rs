@@ -121,13 +121,15 @@ mod tests {
         let cli = Cli::try_parse_from(["aliasmgr", "add", "ll", "ls -l", "--disabled"])
             .expect("shorthand add should parse");
 
-        let Commands::Add(cmd) = cli.command else {
-            panic!("expected add command");
-        };
-        assert!(cmd.target.is_none());
-        assert_eq!(cmd.alias.name.as_deref(), Some("ll"));
-        assert_eq!(cmd.alias.command.as_deref(), Some("ls -l"));
-        assert!(cmd.alias.disabled);
+        assert!(matches!(
+            cli.command,
+            Commands::Add(AddCommand {
+                target: None,
+                alias,
+            }) if alias.name.as_deref() == Some("ll")
+                && alias.command.as_deref() == Some("ls -l")
+                && alias.disabled
+        ));
     }
 
     #[test]
@@ -135,14 +137,13 @@ mod tests {
         let cli = Cli::try_parse_from(["aliasmgr", "add", "alias", "group", "echo group"])
             .expect("explicit add alias should parse");
 
-        let Commands::Add(cmd) = cli.command else {
-            panic!("expected add command");
-        };
-        let Some(AddTarget::Alias(args)) = cmd.target else {
-            panic!("expected explicit alias target");
-        };
-        assert_eq!(args.name, "group");
-        assert_eq!(args.command, "echo group");
+        assert!(matches!(
+            cli.command,
+            Commands::Add(AddCommand {
+                target: Some(AddTarget::Alias(args)),
+                ..
+            }) if args.name == "group" && args.command == "echo group"
+        ));
     }
 
     #[test]
@@ -150,14 +151,13 @@ mod tests {
         let cli = Cli::try_parse_from(["aliasmgr", "add", "group", "tools", "--disabled"])
             .expect("explicit add group should parse");
 
-        let Commands::Add(cmd) = cli.command else {
-            panic!("expected add command");
-        };
-        let Some(AddTarget::Group(args)) = cmd.target else {
-            panic!("expected explicit group target");
-        };
-        assert_eq!(args.name, "tools");
-        assert!(args.disabled);
+        assert!(matches!(
+            cli.command,
+            Commands::Add(AddCommand {
+                target: Some(AddTarget::Group(args)),
+                ..
+            }) if args.name == "tools" && args.disabled
+        ));
     }
 
     #[test]
@@ -165,11 +165,13 @@ mod tests {
         let cli = Cli::try_parse_from(["aliasmgr", "remove", "ll"])
             .expect("shorthand remove should parse");
 
-        let Commands::Remove(cmd) = cli.command else {
-            panic!("expected remove command");
-        };
-        assert!(cmd.target.is_none());
-        assert_eq!(cmd.name.as_deref(), Some("ll"));
+        assert!(matches!(
+            cli.command,
+            Commands::Remove(RemoveCommand {
+                target: None,
+                name: Some(name),
+            }) if name == "ll"
+        ));
     }
 
     #[test]
@@ -177,29 +179,35 @@ mod tests {
         let cli = Cli::try_parse_from(["aliasmgr", "remove", "alias", "all"])
             .expect("explicit remove alias should parse");
 
-        let Commands::Remove(cmd) = cli.command else {
-            panic!("expected remove command");
-        };
-        let Some(RemoveTarget::Alias(args)) = cmd.target else {
-            panic!("expected explicit alias target");
-        };
-        assert_eq!(args.name, "all");
+        assert!(matches!(
+            cli.command,
+            Commands::Remove(RemoveCommand {
+                target: Some(RemoveTarget::Alias(args)),
+                ..
+            }) if args.name == "all"
+        ));
     }
 
     #[test]
     fn parses_explicit_remove_group_and_all() {
         let group = Cli::try_parse_from(["aliasmgr", "remove", "group", "tools"])
             .expect("explicit remove group should parse");
-        let Commands::Remove(group) = group.command else {
-            panic!("expected remove command");
-        };
-        assert!(matches!(group.target, Some(RemoveTarget::Group(_))));
+        assert!(matches!(
+            group.command,
+            Commands::Remove(RemoveCommand {
+                target: Some(RemoveTarget::Group(_)),
+                ..
+            })
+        ));
 
         let all = Cli::try_parse_from(["aliasmgr", "remove", "all"])
             .expect("remove all should continue to parse");
-        let Commands::Remove(all) = all.command else {
-            panic!("expected remove command");
-        };
-        assert!(matches!(all.target, Some(RemoveTarget::All)));
+        assert!(matches!(
+            all.command,
+            Commands::Remove(RemoveCommand {
+                target: Some(RemoveTarget::All),
+                ..
+            })
+        ));
     }
 }

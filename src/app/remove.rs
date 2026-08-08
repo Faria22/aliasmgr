@@ -225,12 +225,13 @@ mod tests {
     #[test]
     fn test_remove_shorthand_alias_without_prompt() {
         let mut catalog = sample_catalog();
-        let result = handle_remove_shorthand(
+        let result = handle_remove(
             &mut catalog,
-            "rm",
+            RemoveCommand {
+                target: None,
+                name: Some("rm".to_string()),
+            },
             &ShellType::Bash,
-            |_| panic!("a sole alias should not prompt for a resource"),
-            |_| panic!("removing an alias should not prompt for reassignment"),
         );
 
         assert!(result.is_ok());
