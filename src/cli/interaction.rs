@@ -59,6 +59,10 @@ pub fn prompt_confirm_remove_all() -> bool {
 
 #[cfg_attr(coverage_nightly, coverage(off))]
 pub fn prompt_remove_alias_or_group(name: &str) -> bool {
+    remove_alias_or_group_select(name).interact().unwrap() == 0
+}
+
+fn remove_alias_or_group_select(name: &str) -> Select<'static> {
     Select::new()
         .with_prompt(format!(
             "An alias and a group named '{}' both exist. Which should be removed?",
@@ -66,19 +70,33 @@ pub fn prompt_remove_alias_or_group(name: &str) -> bool {
         ))
         .items(["Alias", "Group"])
         .default(0)
-        .interact()
-        .unwrap()
-        == 0
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
 pub fn prompt_reassign_group_aliases(name: &str) -> bool {
+    reassign_group_confirm(name).interact().unwrap()
+}
+
+fn reassign_group_confirm(name: &str) -> Confirm<'static> {
     Confirm::new()
         .with_prompt(format!(
             "Move aliases from group '{}' to ungrouped instead of removing them?",
             name
         ))
         .default(false)
-        .interact()
-        .unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builds_remove_alias_or_group_select() {
+        drop(remove_alias_or_group_select("tools"));
+    }
+
+    #[test]
+    fn builds_reassign_group_confirm() {
+        drop(reassign_group_confirm("tools"));
+    }
 }
