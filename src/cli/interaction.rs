@@ -70,3 +70,15 @@ pub fn prompt_remove_alias_or_group(name: &str) -> bool {
         .unwrap()
         == 0
 }
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn prompt_reassign_group_aliases(name: &str) -> bool {
+    Confirm::new()
+        .with_prompt(format!(
+            "Move aliases from group '{}' to ungrouped instead of removing them?",
+            name
+        ))
+        .default(false)
+        .interact()
+        .unwrap()
+}

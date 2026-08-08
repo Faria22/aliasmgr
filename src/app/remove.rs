@@ -7,7 +7,9 @@ use crate::core::{Failure, Outcome};
 
 use super::shell::ShellType;
 
-use crate::cli::interaction::{prompt_confirm_remove_all, prompt_remove_alias_or_group};
+use crate::cli::interaction::{
+    prompt_confirm_remove_all, prompt_reassign_group_aliases, prompt_remove_alias_or_group,
+};
 
 use crate::cli::remove::{RemoveCommand, RemoveTarget};
 
@@ -51,13 +53,16 @@ fn handle_remove_shorthand(
     name: &str,
     shell: &ShellType,
     choose_alias: impl FnOnce(&str) -> bool,
+    reassign_group: impl FnOnce(&str) -> bool,
 ) -> Result<Outcome, Failure> {
     let alias_exists = catalog.aliases.contains_key(name);
     let group_exists = catalog.groups.contains_key(name);
 
     match (alias_exists, group_exists) {
         (true, true) if choose_alias(name) => remove_alias(catalog, name),
-        (true, true) | (false, true) => handle_remove_group(catalog, Some(name), false, shell),
+        (true, true) | (false, true) => {
+            handle_remove_group(catalog, Some(name), reassign_group(name), shell)
+        }
         (true, false) | (false, false) => remove_alias(catalog, name),
     }
 }
@@ -80,6 +85,7 @@ pub fn handle_remove(
                 .expect("clap requires a name when no subcommand is used"),
             shell,
             prompt_remove_alias_or_group,
+            prompt_reassign_group_aliases,
         ),
     }
 }
@@ -219,9 +225,13 @@ mod tests {
     #[test]
     fn test_remove_shorthand_alias_without_prompt() {
         let mut catalog = sample_catalog();
-        let result = handle_remove_shorthand(&mut catalog, "rm", &ShellType::Bash, |_| {
-            panic!("a sole alias should not prompt")
-        });
+        let result = handle_remove_shorthand(
+            &mut catalog,
+            "rm",
+            &ShellType::Bash,
+            |_| panic!("a sole alias should not prompt for a resource"),
+            |_| panic!("removing an alias should not prompt for reassignment"),
+        );
 
         assert!(result.is_ok());
         assert!(!catalog.aliases.contains_key("rm"));
@@ -229,11 +239,18 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_shorthand_group_without_prompt() {
+    fn test_remove_shorthand_group_without_resource_prompt() {
         let mut catalog = sample_catalog();
-        let result = handle_remove_shorthand(&mut catalog, "files", &ShellType::Bash, |_| {
-            panic!("a sole group should not prompt")
-        });
+        let result = handle_remove_shorthand(
+            &mut catalog,
+            "files",
+            &ShellType::Bash,
+            |_| panic!("a sole group should not prompt for a resource"),
+            |name| {
+                assert_eq!(name, "files");
+                false
+            },
+        );
 
         assert_eq!(
             result.unwrap(),
@@ -244,6 +261,26 @@ mod tests {
     }
 
     #[test]
+    fn test_remove_shorthand_group_with_reassign() {
+        let mut catalog = sample_catalog();
+        let result = handle_remove_shorthand(
+            &mut catalog,
+            "files",
+            &ShellType::Bash,
+            |_| panic!("a sole group should not prompt for a resource"),
+            |name| {
+                assert_eq!(name, "files");
+                true
+            },
+        );
+
+        assert_eq!(result.unwrap(), Outcome::CatalogChanged);
+        assert!(!catalog.groups.contains_key("files"));
+        assert!(catalog.aliases.contains_key("ls"));
+        assert!(catalog.aliases.get("ls").unwrap().group.is_none());
+    }
+
+    #[test]
     fn test_remove_shorthand_collision_choose_alias() {
         let mut catalog = sample_catalog();
         catalog.aliases.insert(
@@ -251,10 +288,16 @@ mod tests {
             Alias::new("find .".to_string(), None, true, false),
         );
 
-        let result = handle_remove_shorthand(&mut catalog, "files", &ShellType::Bash, |name| {
-            assert_eq!(name, "files");
-            true
-        });
+        let result = handle_remove_shorthand(
+            &mut catalog,
+            "files",
+            &ShellType::Bash,
+            |name| {
+                assert_eq!(name, "files");
+                true
+            },
+            |_| panic!("choosing the alias should not prompt for reassignment"),
+        );
 
         assert_eq!(
             result.unwrap(),
@@ -273,10 +316,19 @@ mod tests {
             Alias::new("find .".to_string(), None, true, false),
         );
 
-        let result = handle_remove_shorthand(&mut catalog, "files", &ShellType::Bash, |name| {
-            assert_eq!(name, "files");
-            false
-        });
+        let result = handle_remove_shorthand(
+            &mut catalog,
+            "files",
+            &ShellType::Bash,
+            |name| {
+                assert_eq!(name, "files");
+                false
+            },
+            |name| {
+                assert_eq!(name, "files");
+                false
+            },
+        );
 
         assert_eq!(
             result.unwrap(),
@@ -290,9 +342,13 @@ mod tests {
     #[test]
     fn test_remove_shorthand_missing_defaults_to_alias_failure() {
         let mut catalog = sample_catalog();
-        let result = handle_remove_shorthand(&mut catalog, "nonexistent", &ShellType::Bash, |_| {
-            panic!("a missing resource should not prompt")
-        });
+        let result = handle_remove_shorthand(
+            &mut catalog,
+            "nonexistent",
+            &ShellType::Bash,
+            |_| panic!("a missing resource should not prompt for a resource"),
+            |_| panic!("a missing resource should not prompt for reassignment"),
+        );
 
         assert_matches!(result, Err(Failure::AliasDoesNotExist));
     }

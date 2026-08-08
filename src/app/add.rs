@@ -144,10 +144,9 @@ pub fn handle_add(
     cmd: AddCommand,
     shell: &ShellType,
 ) -> Result<Outcome, Failure> {
-    let target = match cmd.target {
-        Some(target) => target,
-        None => AddTarget::Alias(cmd.alias.into_alias_args()),
-    };
+    let target = cmd
+        .target
+        .unwrap_or_else(|| AddTarget::Alias(cmd.alias.into_alias_args()));
 
     match target {
         // Add alias
