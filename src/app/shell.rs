@@ -21,6 +21,10 @@ pub const DEFAULT_SHELL: ShellType = ShellType::Bash;
 
 pub const SHELL_ENV_VAR: &str = "ALIASMGR_SHELL";
 
+pub fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
 pub fn determine_shell() -> ShellType {
     match std::env::var(SHELL_ENV_VAR) {
         Ok(val) => match ShellType::from_str(&val, true) {
@@ -53,6 +57,12 @@ mod tests {
     fn test_shell_type_display() {
         assert_eq!(ShellType::Bash.to_string(), "BASH");
         assert_eq!(ShellType::Zsh.to_string(), "ZSH");
+    }
+
+    #[test]
+    fn test_shell_quote() {
+        assert_eq!(shell_quote("plain value"), "'plain value'");
+        assert_eq!(shell_quote("it's quoted"), "'it'\"'\"'s quoted'");
     }
 
     #[test]

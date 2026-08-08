@@ -1,5 +1,5 @@
 use super::file_path::CATALOG_FILE_ENV_VAR;
-use super::shell::{SHELL_ENV_VAR, ShellType};
+use super::shell::{SHELL_ENV_VAR, ShellType, shell_quote};
 use crate::cli::init::InitCommand;
 
 const COMMON_SHELL_FUNCTIONS: &str = r#"
@@ -92,10 +92,6 @@ fn helper_shell_command(shell: &ShellType) -> &'static str {
         ShellType::Zsh => "whence -p aliasmgr",
         ShellType::Bash => "type -P aliasmgr",
     }
-}
-
-fn shell_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
 pub fn handle_init(cmd: InitCommand) -> String {

@@ -1,6 +1,7 @@
 use crate::app::add::is_valid_alias_name;
-use crate::app::shell::ShellType;
+use crate::app::shell::{ShellType, shell_quote};
 use crate::catalog::types::{Alias, AliasCatalog};
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 pub const MANAGED_ALIASES_ENV_VAR: &str = "ALIASMGR_MANAGED_ALIASES";
 pub const CATALOG_REVISION_ENV_VAR: &str = "ALIASMGR_CATALOG_REVISION";
@@ -27,33 +28,15 @@ fn active_aliases<'a>(catalog: &'a AliasCatalog, shell: &ShellType) -> Vec<Activ
         .collect()
 }
 
-fn hash_bytes(hash: &mut u64, bytes: &[u8]) {
-    for byte in bytes {
-        *hash ^= u64::from(*byte);
-        *hash = hash.wrapping_mul(0x100000001b3);
-    }
-}
-
-fn hash_field(hash: &mut u64, value: &str) {
-    hash_bytes(hash, &value.len().to_le_bytes());
-    hash_bytes(hash, value.as_bytes());
-}
-
 fn catalog_revision(active: &[ActiveAlias<'_>]) -> String {
     let mut aliases: Vec<_> = active.iter().collect();
     aliases.sort_unstable_by_key(|entry| entry.name);
 
-    let mut hash = 0xcbf29ce484222325;
+    let mut hasher = DefaultHasher::new();
     for entry in aliases {
-        hash_field(&mut hash, entry.name);
-        hash_field(&mut hash, &entry.alias.command);
-        hash_bytes(&mut hash, &[u8::from(entry.alias.global)]);
+        (entry.name, &entry.alias.command, entry.alias.global).hash(&mut hasher);
     }
-    format!("{hash:016x}")
-}
-
-fn shell_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\"'\"'"))
+    format!("{:016x}", hasher.finish())
 }
 
 fn alias_command(name: &str, alias: &Alias) -> String {
@@ -77,36 +60,43 @@ pub fn generate_reconciliation_script(
         return String::new();
     }
 
-    let mut lines = vec!["__aliasmgr_sync_status=0".to_string()];
-    for name in managed_aliases.lines().filter(|name| !name.is_empty()) {
-        lines.push(format!(
-            "unalias -- {} 2>/dev/null || true",
-            shell_quote(name)
-        ));
-    }
-    for entry in &active {
-        lines.push(format!(
-            "{} || __aliasmgr_sync_status=$?",
-            alias_command(entry.name, entry.alias)
-        ));
-    }
+    let unalias_commands = managed_aliases
+        .lines()
+        .filter(|name| !name.is_empty())
+        .map(|name| format!("unalias -- {} 2>/dev/null || true", shell_quote(name)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let alias_commands = active
+        .iter()
+        .map(|entry| {
+            format!(
+                "{} || __aliasmgr_sync_status=$?",
+                alias_command(entry.name, entry.alias)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
 
     let names = active
         .iter()
         .map(|entry| entry.name)
         .collect::<Vec<_>>()
         .join("\n");
-    lines.extend([
-        "if [ \"$__aliasmgr_sync_status\" -eq 0 ]; then".to_string(),
-        format!("    __aliasmgr_managed_aliases={}", shell_quote(&names)),
-        format!("    __aliasmgr_catalog_revision={}", shell_quote(&revision)),
-        "    unset __aliasmgr_sync_status".to_string(),
-        "else".to_string(),
-        "    unset __aliasmgr_sync_status".to_string(),
-        "    false".to_string(),
-        "fi".to_string(),
-    ]);
-    lines.join("\n")
+    format!(
+        r#"__aliasmgr_sync_status=0
+{unalias_commands}
+{alias_commands}
+if [ "$__aliasmgr_sync_status" -eq 0 ]; then
+    __aliasmgr_managed_aliases={}
+    __aliasmgr_catalog_revision={}
+    unset __aliasmgr_sync_status
+else
+    unset __aliasmgr_sync_status
+    false
+fi"#,
+        shell_quote(&names),
+        shell_quote(&revision),
+    )
 }
 
 #[cfg(test)]
