@@ -63,11 +63,7 @@ fn group_header(catalog: &AliasCatalog, group: &Option<String>) -> Result<String
         group_name = "ungrouped".to_string();
     }
 
-    let header_message = format!(
-        " Group: {} {} ",
-        &group_name,
-        enabled_symbol(*group_enabled)
-    );
+    let header_message = format!(" Group: {} {} ", group_name, enabled_symbol(*group_enabled));
     Ok(format!("{:=^width$}", header_message, width = 50))
 }
 

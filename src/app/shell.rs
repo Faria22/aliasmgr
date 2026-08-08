@@ -1,7 +1,6 @@
 use clap::ValueEnum;
-use log::{debug, error, warn};
+use log::warn;
 use std::fmt;
-use std::os::fd::BorrowedFd;
 
 #[derive(Clone, ValueEnum, Debug, PartialEq, Eq)]
 pub enum ShellType {
@@ -21,6 +20,10 @@ impl fmt::Display for ShellType {
 pub const DEFAULT_SHELL: ShellType = ShellType::Bash;
 
 pub const SHELL_ENV_VAR: &str = "ALIASMGR_SHELL";
+
+pub fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
 
 pub fn determine_shell() -> ShellType {
     match std::env::var(SHELL_ENV_VAR) {
@@ -45,19 +48,6 @@ pub fn determine_shell() -> ShellType {
     }
 }
 
-#[cfg_attr(coverage_nightly, coverage(off))]
-pub fn send_alias_deltas_to_shell(deltas: &str) {
-    let fd3 = unsafe { BorrowedFd::borrow_raw(3) };
-    if let Err(e) = nix::unistd::write(fd3, deltas.as_bytes()) {
-        error!(
-            "Failed to send alias deltas to shell. Make sure to use aliasmgr init in your shell configuration."
-        );
-        error!("{}", e);
-        return;
-    }
-    debug!("Sent alias deltas to shell: {}", deltas);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -67,6 +57,12 @@ mod tests {
     fn test_shell_type_display() {
         assert_eq!(ShellType::Bash.to_string(), "BASH");
         assert_eq!(ShellType::Zsh.to_string(), "ZSH");
+    }
+
+    #[test]
+    fn test_shell_quote() {
+        assert_eq!(shell_quote("plain value"), "'plain value'");
+        assert_eq!(shell_quote("it's quoted"), "'it'\"'\"'s quoted'");
     }
 
     #[test]

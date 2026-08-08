@@ -20,23 +20,10 @@ pub fn rename_alias(
         return Err(Failure::AliasAlreadyExists);
     }
 
-    let mut command = String::new();
     let alias = catalog.aliases[old_alias].clone();
-
-    if let Outcome::Command(cmd) = remove_alias(catalog, old_alias)? {
-        command.push_str(&cmd);
-        command.push('\n');
-    } else {
-        unreachable!("Unexpected behavior when removing alias {}", old_alias);
-    }
-
-    if let Outcome::Command(cmd) = add_alias(catalog, new_alias, &alias)? {
-        command.push_str(&cmd);
-    } else {
-        unreachable!("Unexpected behavior when adding alias {}", new_alias);
-    }
-
-    Ok(Outcome::Command(command))
+    remove_alias(catalog, old_alias)?;
+    add_alias(catalog, new_alias, &alias)?;
+    Ok(Outcome::CatalogChanged)
 }
 
 pub fn rename_group(

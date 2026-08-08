@@ -35,26 +35,6 @@ pub fn catalog_path(path: Option<&PathBuf>) -> PathBuf {
         .join("aliases.toml")
 }
 
-/// Determine the last synced catalog file path.
-/// If a custom path is provided, it is used; otherwise, the default XDG last synced catalog path is used.
-///
-/// # Arguments
-/// `path` - An optional custom path to the last synced catalog file.
-///
-/// # Returns
-/// A `PathBuf` representing the last synced catalog file path.
-pub fn last_synced_catalog_path(path: Option<&PathBuf>) -> PathBuf {
-    if let Some(p) = path {
-        return p.clone();
-    }
-
-    cross_xdg::BaseDirs::new()
-        .expect("could not determine XDG base directories")
-        .state_home()
-        .join("aliasmgr")
-        .join("last_synced_catalog.toml")
-}
-
 /// Load the catalog from the specified path or the default XDG catalog path.
 /// If the file does not exist, an empty catalog is returned.
 ///
@@ -150,7 +130,7 @@ fn build_toml_document(catalog: &AliasCatalog) -> DocumentMut {
 ///
 /// # Returns
 /// A `Result` indicating success or failure.
-fn save_catalog(catalog: &AliasCatalog, path: &PathBuf) -> Result<()> {
+pub fn save_catalog(catalog: &AliasCatalog, path: &PathBuf) -> Result<()> {
     if !path.exists() {
         warn!("alias catalog file {:?} does not exist, creating it", path);
     }
@@ -169,19 +149,6 @@ fn save_catalog(catalog: &AliasCatalog, path: &PathBuf) -> Result<()> {
     let content = doc.to_string();
     fs::write(path, content)?;
 
-    Ok(())
-}
-
-pub fn save_catalogs(
-    catalog: &AliasCatalog,
-    custom_catalog_path: Option<&PathBuf>,
-    custom_last_synced_path: Option<&PathBuf>,
-) -> Result<()> {
-    let catalog_path = catalog_path(custom_catalog_path);
-    save_catalog(catalog, &catalog_path)?;
-
-    let last_synced_path = last_synced_catalog_path(custom_last_synced_path);
-    save_catalog(catalog, &last_synced_path)?;
     Ok(())
 }
 
@@ -275,27 +242,6 @@ mod tests {
     }
 
     #[test]
-    fn test_save_catalogs_writes_catalog_and_last_synced_catalog() {
-        let temp_dir = TempDir::new().unwrap();
-        let catalog_path = temp_dir.path().join("aliases.toml");
-        let last_synced_catalog_path = temp_dir.path().join("last_synced_catalog.toml");
-
-        let catalog = expected_catalog();
-        save_catalogs(
-            &catalog,
-            Some(&catalog_path),
-            Some(&last_synced_catalog_path),
-        )
-        .unwrap();
-
-        assert_eq!(fs::read_to_string(&catalog_path).unwrap(), SAMPLE_TOML);
-        assert_eq!(
-            fs::read_to_string(&last_synced_catalog_path).unwrap(),
-            SAMPLE_TOML
-        );
-    }
-
-    #[test]
     fn test_catalog_path_custom() {
         let custom_path = PathBuf::from("/custom/path/aliases.toml");
         let path = catalog_path(Some(&custom_path));
@@ -306,19 +252,6 @@ mod tests {
     fn test_catalog_path_default() {
         let path = catalog_path(None);
         assert!(path.ends_with(".config/aliasmgr/aliases.toml"));
-    }
-
-    #[test]
-    fn test_last_synced_catalog_path_custom() {
-        let custom_path = PathBuf::from("/custom/path/last_synced_catalog.toml");
-        let path = last_synced_catalog_path(Some(&custom_path));
-        assert_eq!(path, custom_path);
-    }
-
-    #[test]
-    fn test_last_synced_catalog_path_default() {
-        let path = last_synced_catalog_path(None);
-        assert!(path.ends_with(".local/state/aliasmgr/last_synced_catalog.toml"));
     }
 
     #[test]

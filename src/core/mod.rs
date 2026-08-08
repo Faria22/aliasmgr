@@ -23,12 +23,7 @@ pub enum Failure {
 /// Represents the outcome of core operations.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Outcome {
-    /// Contains the command that has to be executed by the shell once everything is done
-    /// It is assumed that the catalog also needs to be updated in this case
-    Command(String),
-
-    /// Catalog has changed but shell does not need to be updated
-    /// If the catalog has changed, we need to know so that we can update the catalog file
+    /// The catalog changed and must be saved.
     CatalogChanged,
 
     /// No changes were made

@@ -123,7 +123,6 @@ fn handle_add_alias(
                             );
                             Ok(Outcome::NoChanges)
                         }
-                        Ok(_) => unreachable!("Unexpected outcome encountered"),
                         Err(e) => panic!("Unexpected error encountered: {:?}", e),
                     }
                 }
@@ -135,7 +134,7 @@ fn handle_add_alias(
 
 pub fn is_valid_alias_name(name: &str) -> bool {
     // Alias name must not contain white space or '='
-    !name.chars().any(|c| c.is_whitespace()) && !name.contains('=')
+    !name.is_empty() && !name.chars().any(|c| c.is_whitespace()) && !name.contains('=')
 }
 
 /// Handle the 'add' command
@@ -158,7 +157,7 @@ pub fn handle_add(
 
             if !is_valid_alias_name(&args.name) {
                 error!(
-                    "Invalid alias name '{}'. Alias names must not contain whitespace or '='.",
+                    "Invalid alias name '{}'. Alias names must not be empty or contain whitespace or '='.",
                     args.name
                 );
                 return Err(Failure::InvalidAliasName);
@@ -450,6 +449,7 @@ mod tests {
         assert!(is_valid_alias_name("ll"));
         assert!(is_valid_alias_name("my_alias"));
         assert!(is_valid_alias_name("valid-alias_123"));
+        assert!(!is_valid_alias_name(""));
         assert!(!is_valid_alias_name("inavalid alias name"));
         assert!(!is_valid_alias_name("invalid\nalias"));
         assert!(!is_valid_alias_name("invalid\talias"));

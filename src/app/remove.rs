@@ -157,10 +157,7 @@ mod tests {
             },
             &ShellType::Bash,
         );
-        assert_eq!(
-            result.unwrap(),
-            Outcome::Command("unalias 'ls'".to_string())
-        );
+        assert_eq!(result.unwrap(), Outcome::CatalogChanged);
         assert!(!catalog.groups.contains_key("files"));
     }
 
@@ -251,10 +248,7 @@ mod tests {
             },
         );
 
-        assert_eq!(
-            result.unwrap(),
-            Outcome::Command("unalias 'ls'".to_string())
-        );
+        assert_eq!(result.unwrap(), Outcome::CatalogChanged);
         assert!(!catalog.groups.contains_key("files"));
         assert!(!catalog.aliases.contains_key("ls"));
     }
@@ -298,10 +292,7 @@ mod tests {
             |_| panic!("choosing the alias should not prompt for reassignment"),
         );
 
-        assert_eq!(
-            result.unwrap(),
-            Outcome::Command("unalias 'files'".to_string())
-        );
+        assert_eq!(result.unwrap(), Outcome::CatalogChanged);
         assert!(!catalog.aliases.contains_key("files"));
         assert!(catalog.groups.contains_key("files"));
         assert!(catalog.aliases.contains_key("ls"));
@@ -329,10 +320,7 @@ mod tests {
             },
         );
 
-        assert_eq!(
-            result.unwrap(),
-            Outcome::Command("unalias 'ls'".to_string())
-        );
+        assert_eq!(result.unwrap(), Outcome::CatalogChanged);
         assert!(catalog.aliases.contains_key("files"));
         assert!(!catalog.groups.contains_key("files"));
         assert!(!catalog.aliases.contains_key("ls"));

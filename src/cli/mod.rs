@@ -24,7 +24,7 @@ use r#move::MoveCommand;
 use remove::RemoveCommand;
 use rename::RenameCommand;
 use sort::SortCommand;
-use sync::SyncCommand;
+use sync::{ShellSyncCommand, SyncCommand};
 
 #[derive(Parser)]
 #[command(
@@ -102,6 +102,10 @@ pub enum Commands {
     /// Synchronize aliases with catalog file
     Sync(SyncCommand),
 
+    /// Generate shell commands that reconcile aliases in the current terminal
+    #[command(hide = true)]
+    ShellSync(ShellSyncCommand),
+
     /// Sort aliases or groups by name
     Sort(SortCommand),
 
@@ -109,7 +113,6 @@ pub enum Commands {
     #[command(hide = true)]
     Init(InitCommand),
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,5 +285,26 @@ mod tests {
                 ..
             }) if args.old_name == "tools" && args.new_name == "commands"
         ));
+    }
+
+    #[test]
+    fn parses_init_without_automatic_sync() {
+        let cli = Cli::try_parse_from(["aliasmgr", "init", "bash", "--no-auto-sync"])
+            .expect("init option should parse");
+        let Commands::Init(cmd) = cli.command else {
+            panic!("expected init command");
+        };
+        assert!(cmd.no_auto_sync);
+    }
+
+    #[test]
+    fn parses_internal_conditional_shell_sync() {
+        let cli = Cli::try_parse_from(["aliasmgr", "shell-sync", "--if-changed"])
+            .expect("internal shell sync should parse");
+        let Commands::ShellSync(cmd) = cli.command else {
+            panic!("expected shell sync command");
+        };
+        assert!(cmd.if_changed);
+        assert!(!cmd.force);
     }
 }
