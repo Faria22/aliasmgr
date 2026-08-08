@@ -121,3 +121,90 @@ jobs:
           NOTES_FILE=$(mktemp)
           printf "%s\n\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n" "$NOTES" "$REPO" "$PREV" "$TAG" > "$NOTES_FILE"
           gh release create "$TAG" --title "$TAG" --notes-file "$NOTES_FILE"
+
+  update-homebrew-tap:
+    needs: create-release
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      TAP_REPOSITORY: Faria22/homebrew-tap
+      FORMULA: faria22/tap/aliasmgr
+    steps:
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Set up git
+        uses: Homebrew/actions/git-user-config@main
+
+      - name: Create or find formula bump pull request
+        id: bump
+        env:
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Unsupported release tag: $TAG" >&2
+            exit 1
+          fi
+
+          VERSION="${BASH_REMATCH[1]}"
+          BRANCH="bump-aliasmgr-${VERSION}"
+          URL="https://github.com/Faria22/aliasmgr/archive/refs/tags/${TAG}.tar.gz"
+
+          PR_URL=$(gh pr list \
+            --repo "$TAP_REPOSITORY" \
+            --state open \
+            --head "$BRANCH" \
+            --json url \
+            --jq '.[0].url // ""')
+
+          if [[ -z "$PR_URL" ]]; then
+            FORMULA_CONTENT=$(gh api \
+              "repos/${TAP_REPOSITORY}/contents/Formula/aliasmgr.rb" \
+              -H "Accept: application/vnd.github.raw+json")
+
+            if [[ "$FORMULA_CONTENT" == *"/refs/tags/${TAG}.tar.gz"* ]]; then
+              echo "Formula already references ${TAG}; skipping."
+              echo "pr_url=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            brew tap Faria22/tap
+            brew bump-formula-pr \
+              --strict \
+              --no-browse \
+              --no-fork \
+              --version="$VERSION" \
+              --url="$URL" \
+              "$FORMULA"
+
+            PR_URL=$(gh pr list \
+              --repo "$TAP_REPOSITORY" \
+              --state open \
+              --head "$BRANCH" \
+              --json url \
+              --jq '.[0].url // ""')
+          fi
+
+          if [[ -z "$PR_URL" ]]; then
+            echo "Formula bump pull request was not found." >&2
+            exit 1
+          fi
+
+          echo "Formula bump pull request: $PR_URL"
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge
+        if: steps.bump.outputs.pr_url != ''
+        env:
+          PR_URL: ${{ steps.bump.outputs.pr_url }}
+        run: gh pr merge "$PR_URL" --repo "$TAP_REPOSITORY" --auto --merge

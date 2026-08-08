@@ -95,5 +95,7 @@ Notes:
 `cargo release` bumps the package version, verifies and publishes the crate to
 crates.io, creates the release commit and `v<version>` tag, and pushes them to
 GitHub. Pushing the tag creates a GitHub Release from the matching changelog
-entry. If the matching GitHub milestone has no open issues or pull requests,
-the tag workflow closes it automatically.
+entry and opens a formula update pull request in the Homebrew tap. The formula
+update merges automatically after the tap's test suite passes. If the matching
+GitHub milestone has no open issues or pull requests, the tag workflow closes
+it automatically.
