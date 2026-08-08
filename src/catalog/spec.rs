@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use super::types::{Alias, AliasCatalog};
 
+pub(crate) const COLLIDING_ALIAS_KEY: &str = "aliasmgr ungrouped alias";
+
 fn default_enabled() -> bool {
     true
 }
@@ -29,6 +31,9 @@ pub struct AliasSpec {
 pub struct GroupSpec {
     #[serde(default = "default_enabled")]
     pub enabled: bool,
+
+    #[serde(default, rename = "aliasmgr ungrouped alias")]
+    pub ungrouped_alias: Option<Box<AliasSpecTypes>>,
 
     #[serde(flatten)]
     pub aliases: IndexMap<String, AliasSpecTypes>,
@@ -95,6 +100,11 @@ pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> AliasCatalog {
         match entry {
             AliasSpecTypes::Group(group_spec) => {
                 groups.insert(name.clone(), group_spec.enabled);
+
+                if let Some(alias_entry) = group_spec.ungrouped_alias {
+                    let alias = convert_spec_to_alias(*alias_entry, None);
+                    aliases.insert(name.clone(), alias);
+                }
 
                 for (alias_name, alias_entry) in group_spec.aliases {
                     let alias = convert_spec_to_alias(alias_entry, Some(name.clone()));

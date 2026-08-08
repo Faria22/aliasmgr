@@ -11,7 +11,7 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use toml_edit::{DocumentMut, InlineTable, Item, Table};
 
-use super::spec::{AliasCatalogSpec, convert_spec_to_catalog};
+use super::spec::{AliasCatalogSpec, COLLIDING_ALIAS_KEY, convert_spec_to_catalog};
 use super::types::{Alias, AliasCatalog};
 
 /// Determine the catalog file path.
@@ -108,6 +108,9 @@ fn insert_aliases(
             }
             let table = ensure_group_table(doc, group);
             table[alias_name] = build_alias_item(alias);
+        } else if groups.contains_key(alias_name) {
+            let table = ensure_group_table(doc, alias_name);
+            table[COLLIDING_ALIAS_KEY] = build_alias_item(alias);
         } else {
             doc[alias_name] = build_alias_item(alias);
         }
@@ -217,6 +220,30 @@ mod tests {
         let doc = build_toml_document(&catalog);
         let rendered = doc.to_string();
         assert!(rendered.contains("ls = \"ls -la\""));
+    }
+
+    #[test]
+    fn save_and_load_preserves_ungrouped_alias_group_name_collision() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_conf = temp_dir.path().join("aliases.toml");
+        let mut catalog = AliasCatalog::new();
+        catalog.groups.insert("test".into(), true);
+        catalog.aliases.insert(
+            "test".into(),
+            Alias::new("echo alias".into(), None, true, false),
+        );
+        catalog.aliases.insert(
+            "test2".into(),
+            Alias::new("test3".into(), Some("test".into()), true, false),
+        );
+
+        save_catalog(&catalog, &temp_conf).unwrap();
+
+        let saved_content = fs::read_to_string(&temp_conf).unwrap();
+        assert!(saved_content.contains("[test]"));
+        assert!(saved_content.contains("\"aliasmgr ungrouped alias\" = \"echo alias\""));
+        assert!(saved_content.contains("test2 = \"test3\""));
+        assert_eq!(load_catalog(&temp_conf).unwrap(), catalog);
     }
 
     #[test]

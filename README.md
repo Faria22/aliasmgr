@@ -29,6 +29,7 @@ CLI tool to manage shell aliases from a single, versionable TOML file, written i
 ## Alias Catalog File
 - Default path: `~/.config/aliasmgr/aliases.toml` (XDG config home).
 - Format supports top-level aliases and grouped aliases. Disabled or global aliases use the detailed form.
+- An ungrouped alias and a group may share a name; aliasmgr preserves both when writing the catalog.
 - Order of groups and aliases matches the catalog file; new items are appended to the bottom.
 - When aliasmgr rewrites the catalog, extra whitespace (including blank lines) is removed.
 
