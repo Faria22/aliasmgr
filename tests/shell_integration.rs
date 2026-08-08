@@ -70,7 +70,7 @@ __aliasmgr_prompt_sync
 }
 
 #[test]
-fn removing_disabled_group_with_reassign_activates_enabled_alias() {
+fn enabling_reassigned_aliases_from_disabled_group_activates_them() {
     let catalog = tempfile::NamedTempFile::new().unwrap();
     let script = r#"
 eval "$("$1" init bash --catalog "$2")"
@@ -79,9 +79,27 @@ aliasmgr add alias wake 'echo awake' --group dormant
 __aliasmgr_prompt_sync
 ! alias wake 2>/dev/null || exit 30
 
-aliasmgr remove group dormant --reassign
+aliasmgr remove group dormant --reassign --enable-reassigned
 __aliasmgr_prompt_sync
 alias wake | command grep -q 'echo awake' || exit 31
+"#;
+
+    assert_success(run_shell("bash", script, catalog.path()).unwrap());
+}
+
+#[test]
+fn disabling_reassigned_aliases_from_disabled_group_keeps_them_inactive() {
+    let catalog = tempfile::NamedTempFile::new().unwrap();
+    let script = r#"
+eval "$("$1" init bash --catalog "$2")"
+aliasmgr add group dormant --disabled
+aliasmgr add alias sleep 'echo asleep' --group dormant
+__aliasmgr_prompt_sync
+! alias sleep 2>/dev/null || exit 36
+
+aliasmgr remove group dormant --reassign --disable-reassigned
+__aliasmgr_prompt_sync
+! alias sleep 2>/dev/null || exit 37
 "#;
 
     assert_success(run_shell("bash", script, catalog.path()).unwrap());

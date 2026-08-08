@@ -8,12 +8,20 @@ use crate::core::{Failure, Outcome};
 use super::shell::ShellType;
 
 use crate::cli::interaction::{
-    prompt_alias_or_group, prompt_confirm_remove_all, prompt_reassign_group_aliases,
+    prompt_alias_or_group, prompt_confirm_remove_all, prompt_enable_reassigned_aliases,
+    prompt_reassign_group_aliases,
 };
 
 use crate::cli::remove::{RemoveCommand, RemoveTarget};
 
 use super::resource::{ResourceType, resolve_resource_type};
+
+#[derive(Clone, Copy)]
+enum ReassignedAliasAction {
+    Prompt,
+    Enable,
+    Disable,
+}
 
 pub fn handle_remove_all(
     catalog: &mut AliasCatalog,
@@ -32,12 +40,35 @@ fn handle_remove_group(
     name: Option<&str>,
     reassign: bool,
     shell: &ShellType,
+    reassigned_alias_action: ReassignedAliasAction,
+    prompt_enable_reassigned: impl FnOnce(&str, usize) -> bool,
 ) -> Result<Outcome, Failure> {
     if let Some(name) = name {
         let aliases = get_aliases_from_single_group(catalog, Some(name), shell)?;
+        let group_enabled = catalog.groups[name];
+        let enabled_alias_count = aliases
+            .iter()
+            .filter(|alias| catalog.aliases[*alias].enabled)
+            .count();
+        let enable_reassigned = match reassigned_alias_action {
+            ReassignedAliasAction::Enable => true,
+            ReassignedAliasAction::Disable => false,
+            ReassignedAliasAction::Prompt
+                if reassign && !group_enabled && enabled_alias_count > 0 =>
+            {
+                prompt_enable_reassigned(name, enabled_alias_count)
+            }
+            ReassignedAliasAction::Prompt => true,
+        };
+
         remove_group(catalog, name)?;
         if reassign {
             for alias in aliases {
+                if !enable_reassigned {
+                    let alias = catalog.aliases.get_mut(&alias).unwrap();
+                    alias.enabled = false;
+                    alias.detailed = true;
+                }
                 move_alias(catalog, &alias, &None)?;
             }
             Ok(Outcome::CatalogChanged)
@@ -56,12 +87,18 @@ fn handle_remove_shorthand(
     shell: &ShellType,
     choose_alias: impl FnOnce(&str) -> bool,
     reassign_group: impl FnOnce(&str) -> bool,
+    prompt_enable_reassigned: impl FnOnce(&str, usize) -> bool,
 ) -> Result<Outcome, Failure> {
     match resolve_resource_type(catalog, name, choose_alias) {
         ResourceType::Alias => remove_alias(catalog, name),
-        ResourceType::Group => {
-            handle_remove_group(catalog, Some(name), reassign_group(name), shell)
-        }
+        ResourceType::Group => handle_remove_group(
+            catalog,
+            Some(name),
+            reassign_group(name),
+            shell,
+            ReassignedAliasAction::Prompt,
+            prompt_enable_reassigned,
+        ),
     }
 }
 
@@ -73,7 +110,21 @@ pub fn handle_remove(
     match cmd.target {
         Some(RemoveTarget::Alias(args)) => remove_alias(catalog, &args.name),
         Some(RemoveTarget::Group(args)) => {
-            handle_remove_group(catalog, args.name.as_deref(), args.reassign, shell)
+            let reassigned_alias_action = if args.enable_reassigned {
+                ReassignedAliasAction::Enable
+            } else if args.disable_reassigned {
+                ReassignedAliasAction::Disable
+            } else {
+                ReassignedAliasAction::Prompt
+            };
+            handle_remove_group(
+                catalog,
+                args.name.as_deref(),
+                args.reassign,
+                shell,
+                reassigned_alias_action,
+                prompt_enable_reassigned_aliases,
+            )
         }
         Some(RemoveTarget::All) => handle_remove_all(catalog, shell, prompt_confirm_remove_all),
         None => handle_remove_shorthand(
@@ -84,6 +135,7 @@ pub fn handle_remove(
             shell,
             |name| prompt_alias_or_group(name, "removed"),
             prompt_reassign_group_aliases,
+            prompt_enable_reassigned_aliases,
         ),
     }
 }
@@ -152,6 +204,8 @@ mod tests {
                 target: Some(RemoveTarget::Group(crate::cli::remove::GroupRemoveArgs {
                     name: Some("files".to_string()),
                     reassign: false,
+                    enable_reassigned: false,
+                    disable_reassigned: false,
                 })),
                 name: None,
             },
@@ -170,6 +224,8 @@ mod tests {
                 target: Some(RemoveTarget::Group(crate::cli::remove::GroupRemoveArgs {
                     name: Some("nonexistent".to_string()),
                     reassign: false,
+                    enable_reassigned: false,
+                    disable_reassigned: false,
                 })),
                 name: None,
             },
@@ -187,6 +243,8 @@ mod tests {
                 target: Some(RemoveTarget::Group(crate::cli::remove::GroupRemoveArgs {
                     name: None,
                     reassign: false,
+                    enable_reassigned: false,
+                    disable_reassigned: false,
                 })),
                 name: None,
             },
@@ -206,6 +264,8 @@ mod tests {
                 target: Some(RemoveTarget::Group(crate::cli::remove::GroupRemoveArgs {
                     name: Some("files".to_string()),
                     reassign: true,
+                    enable_reassigned: false,
+                    disable_reassigned: false,
                 })),
                 name: None,
             },
@@ -215,6 +275,50 @@ mod tests {
         assert!(!catalog.groups.contains_key("files"));
         assert!(catalog.aliases.contains_key("ls"));
         assert!(catalog.aliases.get("ls").unwrap().group.is_none());
+    }
+
+    #[test]
+    fn disabled_group_reassignment_prompts_once_and_keeps_aliases_disabled() {
+        let mut catalog = sample_catalog();
+        *catalog.groups.get_mut("files").unwrap() = false;
+
+        let result = handle_remove_group(
+            &mut catalog,
+            Some("files"),
+            true,
+            &ShellType::Bash,
+            ReassignedAliasAction::Prompt,
+            |name, alias_count| {
+                assert_eq!(name, "files");
+                assert_eq!(alias_count, 1);
+                false
+            },
+        );
+
+        assert_eq!(result.unwrap(), Outcome::CatalogChanged);
+        assert!(!catalog.groups.contains_key("files"));
+        assert_eq!(catalog.aliases["ls"].group, None);
+        assert!(!catalog.aliases["ls"].enabled);
+        assert!(catalog.aliases["ls"].detailed);
+    }
+
+    #[test]
+    fn enabling_reassigned_aliases_bypasses_prompt() {
+        let mut catalog = sample_catalog();
+        *catalog.groups.get_mut("files").unwrap() = false;
+
+        let result = handle_remove_group(
+            &mut catalog,
+            Some("files"),
+            true,
+            &ShellType::Bash,
+            ReassignedAliasAction::Enable,
+            |_, _| panic!("an explicit action should bypass the prompt"),
+        );
+
+        assert_eq!(result.unwrap(), Outcome::CatalogChanged);
+        assert_eq!(catalog.aliases["ls"].group, None);
+        assert!(catalog.aliases["ls"].enabled);
     }
 
     #[test]
@@ -246,6 +350,7 @@ mod tests {
                 assert_eq!(name, "files");
                 false
             },
+            |_, _| panic!("aliases should not prompt when they are removed"),
         );
 
         assert_eq!(result.unwrap(), Outcome::CatalogChanged);
@@ -265,6 +370,7 @@ mod tests {
                 assert_eq!(name, "files");
                 true
             },
+            |_, _| panic!("an enabled group should not prompt about alias state"),
         );
 
         assert_eq!(result.unwrap(), Outcome::CatalogChanged);
@@ -290,6 +396,7 @@ mod tests {
                 true
             },
             |_| panic!("choosing the alias should not prompt for reassignment"),
+            |_, _| panic!("choosing the alias should not prompt about alias state"),
         );
 
         assert_eq!(result.unwrap(), Outcome::CatalogChanged);
@@ -318,6 +425,7 @@ mod tests {
                 assert_eq!(name, "files");
                 false
             },
+            |_, _| panic!("aliases should not prompt when they are removed"),
         );
 
         assert_eq!(result.unwrap(), Outcome::CatalogChanged);
@@ -335,6 +443,7 @@ mod tests {
             &ShellType::Bash,
             |_| panic!("a missing resource should not prompt for a resource"),
             |_| panic!("a missing resource should not prompt for reassignment"),
+            |_, _| panic!("a missing resource should not prompt about alias state"),
         );
 
         assert_matches!(result, Err(Failure::AliasDoesNotExist));

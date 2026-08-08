@@ -65,11 +65,29 @@ pub fn prompt_reassign_group_aliases(name: &str) -> bool {
     reassign_group_confirm(name).interact().unwrap()
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn prompt_enable_reassigned_aliases(name: &str, alias_count: usize) -> bool {
+    enable_reassigned_aliases_confirm(name, alias_count)
+        .interact()
+        .unwrap()
+}
+
 fn reassign_group_confirm(name: &str) -> Confirm<'static> {
     Confirm::new()
         .with_prompt(format!(
             "Move aliases from group '{}' to ungrouped instead of removing them?",
             name
+        ))
+        .default(false)
+}
+
+fn enable_reassigned_aliases_confirm(name: &str, alias_count: usize) -> Confirm<'static> {
+    Confirm::new()
+        .with_prompt(format!(
+            "Group '{}' is disabled. Enable its {} individually enabled alias{} after reassignment?",
+            name,
+            alias_count,
+            if alias_count == 1 { "" } else { "es" }
         ))
         .default(false)
 }
@@ -86,5 +104,10 @@ mod tests {
     #[test]
     fn builds_reassign_group_confirm() {
         drop(reassign_group_confirm("tools"));
+    }
+
+    #[test]
+    fn builds_enable_reassigned_aliases_confirm() {
+        drop(enable_reassigned_aliases_confirm("tools", 2));
     }
 }

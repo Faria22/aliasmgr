@@ -218,6 +218,69 @@ mod tests {
     }
 
     #[test]
+    fn parses_non_interactive_reassigned_alias_actions() {
+        let enable = Cli::try_parse_from([
+            "aliasmgr",
+            "remove",
+            "group",
+            "tools",
+            "--reassign",
+            "--enable-reassigned",
+        ])
+        .expect("enable-reassigned should parse with reassign");
+        assert!(matches!(
+            enable.command,
+            Commands::Remove(RemoveCommand {
+                target: Some(RemoveTarget::Group(args)),
+                ..
+            }) if args.reassign && args.enable_reassigned && !args.disable_reassigned
+        ));
+
+        let disable = Cli::try_parse_from([
+            "aliasmgr",
+            "remove",
+            "group",
+            "tools",
+            "--reassign",
+            "--disable-reassigned",
+        ])
+        .expect("disable-reassigned should parse with reassign");
+        assert!(matches!(
+            disable.command,
+            Commands::Remove(RemoveCommand {
+                target: Some(RemoveTarget::Group(args)),
+                ..
+            }) if args.reassign && !args.enable_reassigned && args.disable_reassigned
+        ));
+    }
+
+    #[test]
+    fn reassigned_alias_actions_require_reassign_and_conflict() {
+        assert!(
+            Cli::try_parse_from([
+                "aliasmgr",
+                "remove",
+                "group",
+                "tools",
+                "--enable-reassigned",
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "aliasmgr",
+                "remove",
+                "group",
+                "tools",
+                "--reassign",
+                "--enable-reassigned",
+                "--disable-reassigned",
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
     fn parses_shorthand_and_explicit_enable() {
         let shorthand = Cli::try_parse_from(["aliasmgr", "enable", "ll"])
             .expect("shorthand enable should parse");

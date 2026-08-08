@@ -47,4 +47,22 @@ pub struct GroupRemoveArgs {
     /// Removes the group, but moves all its aliases to `ungrouped`
     #[arg(short, long, default_value_t = false, requires("name"))]
     pub reassign: bool,
+
+    /// Enable individually enabled aliases after reassigning them from a disabled group
+    #[arg(
+        long,
+        default_value_t = false,
+        requires("reassign"),
+        conflicts_with("disable_reassigned")
+    )]
+    pub enable_reassigned: bool,
+
+    /// Keep reassigned aliases disabled without prompting
+    #[arg(
+        long,
+        default_value_t = false,
+        requires("reassign"),
+        conflicts_with("enable_reassigned")
+    )]
+    pub disable_reassigned: bool,
 }
