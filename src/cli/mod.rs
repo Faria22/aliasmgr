@@ -114,7 +114,10 @@ pub enum Commands {
 mod tests {
     use super::*;
     use crate::cli::add::AddTarget;
+    use crate::cli::disable::DisableTarget;
+    use crate::cli::enable::EnableTarget;
     use crate::cli::remove::RemoveTarget;
+    use crate::cli::rename::RenameTarget;
 
     #[test]
     fn parses_shorthand_add_alias() {
@@ -208,6 +211,76 @@ mod tests {
                 target: Some(RemoveTarget::All),
                 ..
             })
+        ));
+    }
+
+    #[test]
+    fn parses_shorthand_and_explicit_enable() {
+        let shorthand = Cli::try_parse_from(["aliasmgr", "enable", "ll"])
+            .expect("shorthand enable should parse");
+        assert!(matches!(
+            shorthand.command,
+            Commands::Enable(EnableCommand {
+                target: None,
+                name: Some(name),
+            }) if name == "ll"
+        ));
+
+        let explicit = Cli::try_parse_from(["aliasmgr", "enable", "group", "tools"])
+            .expect("explicit enable group should parse");
+        assert!(matches!(
+            explicit.command,
+            Commands::Enable(EnableCommand {
+                target: Some(EnableTarget::Group(args)),
+                ..
+            }) if args.name == "tools"
+        ));
+    }
+
+    #[test]
+    fn parses_shorthand_and_explicit_disable() {
+        let shorthand = Cli::try_parse_from(["aliasmgr", "disable", "ll"])
+            .expect("shorthand disable should parse");
+        assert!(matches!(
+            shorthand.command,
+            Commands::Disable(DisableCommand {
+                target: None,
+                name: Some(name),
+            }) if name == "ll"
+        ));
+
+        let explicit = Cli::try_parse_from(["aliasmgr", "disable", "alias", "group"])
+            .expect("explicit disable alias should parse");
+        assert!(matches!(
+            explicit.command,
+            Commands::Disable(DisableCommand {
+                target: Some(DisableTarget::Alias(args)),
+                ..
+            }) if args.name == "group"
+        ));
+    }
+
+    #[test]
+    fn parses_shorthand_and_explicit_rename() {
+        let shorthand = Cli::try_parse_from(["aliasmgr", "rename", "ll", "list"])
+            .expect("shorthand rename should parse");
+        assert!(matches!(
+            shorthand.command,
+            Commands::Rename(RenameCommand {
+                target: None,
+                old_name: Some(old_name),
+                new_name: Some(new_name),
+            }) if old_name == "ll" && new_name == "list"
+        ));
+
+        let explicit = Cli::try_parse_from(["aliasmgr", "rename", "group", "tools", "commands"])
+            .expect("explicit rename group should parse");
+        assert!(matches!(
+            explicit.command,
+            Commands::Rename(RenameCommand {
+                target: Some(RenameTarget::Group(args)),
+                ..
+            }) if args.old_name == "tools" && args.new_name == "commands"
         ));
     }
 }

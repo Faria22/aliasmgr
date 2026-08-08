@@ -1,10 +1,24 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args)]
+#[command(
+    args_conflicts_with_subcommands = true,
+    subcommand_negates_reqs = true,
+    subcommand_help_heading = "Explicit resources",
+    subcommand_value_name = "RESOURCE"
+)]
 pub struct RenameCommand {
-    /// What to rename
+    /// Explicit resource type to rename
     #[command(subcommand)]
-    pub target: RenameTarget,
+    pub target: Option<RenameTarget>,
+
+    /// Current alias or group name
+    #[arg(required = true)]
+    pub old_name: Option<String>,
+
+    /// New alias or group name
+    #[arg(required = true)]
+    pub new_name: Option<String>,
 }
 
 #[derive(Subcommand)]

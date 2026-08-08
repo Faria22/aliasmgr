@@ -1,10 +1,20 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args)]
+#[command(
+    args_conflicts_with_subcommands = true,
+    subcommand_negates_reqs = true,
+    subcommand_help_heading = "Explicit resources",
+    subcommand_value_name = "RESOURCE"
+)]
 pub struct DisableCommand {
-    /// What to disable
+    /// Explicit resource type to disable
     #[command(subcommand)]
-    pub target: DisableTarget,
+    pub target: Option<DisableTarget>,
+
+    /// Name of the alias or group to disable
+    #[arg(required = true)]
+    pub name: Option<String>,
 }
 
 #[derive(Subcommand)]

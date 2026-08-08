@@ -58,15 +58,15 @@ pub fn prompt_confirm_remove_all() -> bool {
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn prompt_remove_alias_or_group(name: &str) -> bool {
-    remove_alias_or_group_select(name).interact().unwrap() == 0
+pub fn prompt_alias_or_group(name: &str, action: &str) -> bool {
+    alias_or_group_select(name, action).interact().unwrap() == 0
 }
 
-fn remove_alias_or_group_select(name: &str) -> Select<'static> {
+fn alias_or_group_select(name: &str, action: &str) -> Select<'static> {
     Select::new()
         .with_prompt(format!(
-            "An alias and a group named '{}' both exist. Which should be removed?",
-            name
+            "An alias and a group named '{}' both exist. Which should be {}?",
+            name, action
         ))
         .items(["Alias", "Group"])
         .default(0)
@@ -91,8 +91,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn builds_remove_alias_or_group_select() {
-        drop(remove_alias_or_group_select("tools"));
+    fn builds_alias_or_group_select() {
+        drop(alias_or_group_select("tools", "enabled"));
     }
 
     #[test]

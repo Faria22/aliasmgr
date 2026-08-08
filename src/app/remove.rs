@@ -8,10 +8,12 @@ use crate::core::{Failure, Outcome};
 use super::shell::ShellType;
 
 use crate::cli::interaction::{
-    prompt_confirm_remove_all, prompt_reassign_group_aliases, prompt_remove_alias_or_group,
+    prompt_alias_or_group, prompt_confirm_remove_all, prompt_reassign_group_aliases,
 };
 
 use crate::cli::remove::{RemoveCommand, RemoveTarget};
+
+use super::resource::{ResourceType, resolve_resource_type};
 
 pub fn handle_remove_all(
     catalog: &mut AliasCatalog,
@@ -55,15 +57,11 @@ fn handle_remove_shorthand(
     choose_alias: impl FnOnce(&str) -> bool,
     reassign_group: impl FnOnce(&str) -> bool,
 ) -> Result<Outcome, Failure> {
-    let alias_exists = catalog.aliases.contains_key(name);
-    let group_exists = catalog.groups.contains_key(name);
-
-    match (alias_exists, group_exists) {
-        (true, true) if choose_alias(name) => remove_alias(catalog, name),
-        (true, true) | (false, true) => {
+    match resolve_resource_type(catalog, name, choose_alias) {
+        ResourceType::Alias => remove_alias(catalog, name),
+        ResourceType::Group => {
             handle_remove_group(catalog, Some(name), reassign_group(name), shell)
         }
-        (true, false) | (false, false) => remove_alias(catalog, name),
     }
 }
 
@@ -84,7 +82,7 @@ pub fn handle_remove(
                 .as_deref()
                 .expect("clap requires a name when no subcommand is used"),
             shell,
-            prompt_remove_alias_or_group,
+            |name| prompt_alias_or_group(name, "removed"),
             prompt_reassign_group_aliases,
         ),
     }

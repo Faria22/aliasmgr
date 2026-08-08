@@ -57,15 +57,18 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr remove alias <name>` (explicit form)
 - `aliasmgr remove group <name> [--reassign]`
 - `aliasmgr remove all`
-- `aliasmgr rename alias <old_name> <new_name>`
+- `aliasmgr rename <old_name> <new_name>` (renames the matching alias or group; prompts if both exist)
+- `aliasmgr rename alias <old_name> <new_name>` (explicit form)
 - `aliasmgr rename group <old_name> <new_name>`
 - `aliasmgr edit <name> <new_command> [--group [group]] [--toggle_enabled] [--toggle_global]`
 - `aliasmgr sync`
 - `aliasmgr sort aliases [--group [group]]`
 - `aliasmgr sort groups`
-- `aliasmgr enable alias <name>`
+- `aliasmgr enable <name>` (enables the matching alias or group; prompts if both exist)
+- `aliasmgr enable alias <name>` (explicit form)
 - `aliasmgr enable group <name>`
-- `aliasmgr disable alias <name>`
+- `aliasmgr disable <name>` (disables the matching alias or group; prompts if both exist)
+- `aliasmgr disable alias <name>` (explicit form)
 - `aliasmgr disable group <name>`
 
 For more details, use the `-h` or `--help` flags.
