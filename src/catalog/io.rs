@@ -7,7 +7,7 @@ use log::{debug, info, warn};
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use indexmap::IndexMap;
 use toml_edit::{DocumentMut, InlineTable, Item, Table};
 
@@ -97,14 +97,11 @@ fn insert_aliases(
     doc: &mut DocumentMut,
     aliases: &IndexMap<String, Alias>,
     groups: &IndexMap<String, bool>,
-) {
+) -> Result<()> {
     for (alias_name, alias) in aliases {
         if let Some(group) = &alias.group {
             if !groups.contains_key(group) {
-                warn!(
-                    "Alias '{}' references unknown '{}' group",
-                    alias_name, group
-                );
+                bail!("Alias '{alias_name}' references unknown group '{group}'");
             }
             let table = ensure_group_table(doc, group);
             table[alias_name] = build_alias_item(alias);
@@ -115,13 +112,15 @@ fn insert_aliases(
             doc[alias_name] = build_alias_item(alias);
         }
     }
+
+    Ok(())
 }
 
-fn build_toml_document(catalog: &AliasCatalog) -> DocumentMut {
+fn build_toml_document(catalog: &AliasCatalog) -> Result<DocumentMut> {
     let mut doc = DocumentMut::new();
     insert_groups(&mut doc, &catalog.groups);
-    insert_aliases(&mut doc, &catalog.aliases, &catalog.groups);
-    doc
+    insert_aliases(&mut doc, &catalog.aliases, &catalog.groups)?;
+    Ok(doc)
 }
 
 /// Save the catalog to the specified path.
@@ -134,6 +133,8 @@ fn build_toml_document(catalog: &AliasCatalog) -> DocumentMut {
 /// # Returns
 /// A `Result` indicating success or failure.
 pub fn save_catalog(catalog: &AliasCatalog, path: &PathBuf) -> Result<()> {
+    let content = build_toml_document(catalog)?.to_string();
+
     if !path.exists() {
         warn!("alias catalog file {:?} does not exist, creating it", path);
     }
@@ -148,8 +149,6 @@ pub fn save_catalog(catalog: &AliasCatalog, path: &PathBuf) -> Result<()> {
         debug!("Saving content into new catalog at {:?}", path);
     }
 
-    let doc = build_toml_document(catalog);
-    let content = doc.to_string();
     fs::write(path, content)?;
 
     Ok(())
@@ -201,7 +200,7 @@ mod tests {
             Alias::new("foo".into(), Some("group".into()), false, false),
         );
 
-        let doc = build_toml_document(&catalog);
+        let doc = build_toml_document(&catalog).unwrap();
         let rendered = doc.to_string();
 
         assert!(rendered.contains("[group]"));
@@ -218,7 +217,7 @@ mod tests {
             .aliases
             .insert("ls".into(), Alias::new("ls -la".into(), None, true, false));
 
-        let doc = build_toml_document(&catalog);
+        let doc = build_toml_document(&catalog).unwrap();
         let rendered = doc.to_string();
         assert!(rendered.contains("ls = \"ls -la\""));
     }
@@ -303,7 +302,7 @@ mod tests {
     // }
 
     #[test]
-    fn test_insert_alias_to_unknown_group() {
+    fn insert_alias_to_unknown_group_fails() {
         let mut doc = DocumentMut::new();
         let mut catalog = AliasCatalog::new();
         catalog.aliases.insert(
@@ -311,9 +310,52 @@ mod tests {
             Alias::new("foo".into(), Some("unknown_group".into()), true, false),
         );
 
-        insert_aliases(&mut doc, &catalog.aliases, &catalog.groups);
-        let rendered = doc.to_string();
-        assert!(rendered.contains("alias = \"foo\""));
+        let error = insert_aliases(&mut doc, &catalog.aliases, &catalog.groups).unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "Alias 'alias' references unknown group 'unknown_group'"
+        );
+        assert!(doc.is_empty());
+    }
+
+    #[test]
+    fn invalid_catalog_does_not_overwrite_existing_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_conf = temp_dir.path().join("aliases.toml");
+        fs::write(&temp_conf, "original = \"content\"\n").unwrap();
+
+        let mut catalog = AliasCatalog::new();
+        catalog.aliases.insert(
+            "alias".into(),
+            Alias::new("foo".into(), Some("removed_group".into()), true, false),
+        );
+
+        let error = save_catalog(&catalog, &temp_conf).unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "Alias 'alias' references unknown group 'removed_group'"
+        );
+        assert_eq!(
+            fs::read_to_string(&temp_conf).unwrap(),
+            "original = \"content\"\n"
+        );
+    }
+
+    #[test]
+    fn invalid_catalog_does_not_create_file_or_parent_directories() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_conf = temp_dir.path().join("nested/aliases.toml");
+        let mut catalog = AliasCatalog::new();
+        catalog.aliases.insert(
+            "alias".into(),
+            Alias::new("foo".into(), Some("missing_group".into()), true, false),
+        );
+
+        assert!(save_catalog(&catalog, &temp_conf).is_err());
+        assert!(!temp_conf.exists());
+        assert!(!temp_conf.parent().unwrap().exists());
     }
 
     #[test]
