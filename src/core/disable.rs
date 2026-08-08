@@ -1,4 +1,3 @@
-use super::list::get_aliases_from_single_group;
 use super::{Failure, Outcome};
 
 use crate::catalog::types::AliasCatalog;
@@ -21,21 +20,13 @@ pub fn disable_alias(catalog: &mut AliasCatalog, name: &str) -> Result<Outcome, 
 
     alias.enabled = false;
 
-    // Checks if the group the alias is in is disabled
-    // If it is, then the alias will not be removed from the shell
-    if let Some(group) = &alias.group
-        && !catalog.groups[group]
-    {
-        return Ok(Outcome::CatalogChanged);
-    }
-
-    Ok(Outcome::Command(format!("unalias '{}'", name)))
+    Ok(Outcome::CatalogChanged)
 }
 
 pub fn disable_group(
     catalog: &mut AliasCatalog,
     name: &str,
-    shell: &ShellType,
+    _shell: &ShellType,
 ) -> Result<Outcome, Failure> {
     if !catalog.groups.contains_key(name) {
         error!("Group {} does not exist.", name);
@@ -48,22 +39,7 @@ pub fn disable_group(
     }
 
     *catalog.groups.get_mut(name).unwrap() = false;
-
-    // Get all aliases in the group that are enabled and remove them from the shell
-    let mut aliases_in_group = get_aliases_from_single_group(catalog, Some(name), shell)?;
-    aliases_in_group.retain(|alias_name| catalog.aliases[alias_name].enabled);
-
-    if aliases_in_group.is_empty() {
-        return Ok(Outcome::CatalogChanged);
-    }
-
-    let mut command = String::new();
-    for alias_name in aliases_in_group {
-        command.push_str(&format!("unalias '{}'\n", alias_name));
-        command.push('\n');
-    }
-
-    Ok(Outcome::Command(command))
+    Ok(Outcome::CatalogChanged)
 }
 
 #[cfg(test)]
@@ -97,7 +73,7 @@ mod test {
         let result = disable_alias(&mut catalog, "alias1");
         assert!(result.is_ok());
         assert!(!catalog.aliases["alias1"].enabled);
-        assert_matches!(result.unwrap(), Outcome::Command(_));
+        assert_matches!(result.unwrap(), Outcome::CatalogChanged);
     }
 
     #[test]
@@ -161,7 +137,7 @@ mod test {
         let result = disable_group(&mut catalog, "enabled_group", &ShellType::Bash);
         assert!(result.is_ok());
         assert!(!catalog.groups["enabled_group"]);
-        assert_matches!(result.unwrap(), Outcome::Command(_));
+        assert_matches!(result.unwrap(), Outcome::CatalogChanged);
     }
 
     #[test]

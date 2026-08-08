@@ -6,14 +6,10 @@ mod cli;
 mod core;
 
 use clap::Parser;
-use std::path::PathBuf;
 
 use cli::{Cli, Commands};
 
-use catalog::io::{
-    catalog_path as resolve_catalog_path,
-    last_synced_catalog_path as resolve_last_synced_catalog_path, load_catalog, save_catalogs,
-};
+use catalog::io::{catalog_path as resolve_catalog_path, load_catalog, save_catalog};
 
 use catalog::types::AliasCatalog;
 use core::Outcome;
@@ -22,16 +18,16 @@ use app::add::handle_add;
 use app::disable::handle_disable;
 use app::edit::handle_edit;
 use app::enable::handle_enable;
-use app::file_path::{determine_catalog_path, determine_last_synced_catalog_path};
+use app::file_path::determine_catalog_path;
 use app::init::handle_init;
 use app::list::handle_list;
 use app::r#move::handle_move;
 use app::remove::handle_remove;
 use app::rename::handle_rename;
 use app::sort::handle_sort;
-use app::sync::handle_sync;
+use app::sync::{handle_shell_sync, handle_sync};
 
-use app::shell::{DEFAULT_SHELL, determine_shell, send_alias_deltas_to_shell};
+use app::shell::{DEFAULT_SHELL, determine_shell};
 
 use log::{LevelFilter, debug};
 
@@ -58,8 +54,7 @@ fn main() {
         .init();
 
     let mut catalog = AliasCatalog::new();
-    let mut catalog_path: Option<PathBuf> = None;
-    let mut last_synced_catalog_path: Option<PathBuf> = None;
+    let mut catalog_path = None;
     let mut shell = DEFAULT_SHELL;
 
     if !matches!(cli.command, Commands::Init(_)) {
@@ -73,13 +68,6 @@ fn main() {
         catalog = load_catalog(&resolve_catalog_path(catalog_path.as_ref()))
             .expect("Failed to load catalog");
         debug!("Loaded catalog: {:?}", catalog);
-
-        last_synced_catalog_path = determine_last_synced_catalog_path()
-            .expect("Custom last synced catalog path did not exist and user chose not to use it.");
-        debug!(
-            "Using last synced catalog path: {:?}",
-            last_synced_catalog_path
-        );
     }
 
     let result = match cli.command {
@@ -93,12 +81,11 @@ fn main() {
         Commands::Sort(cmd) => handle_sort(&mut catalog, cmd),
         Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell),
         Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell),
-        Commands::Sync(cmd) => handle_sync(
-            &mut catalog,
-            &shell,
-            cmd,
-            &resolve_last_synced_catalog_path(last_synced_catalog_path.as_ref()),
-        ),
+        Commands::Sync(cmd) => handle_sync(cmd),
+        Commands::ShellSync(cmd) => {
+            print!("{}", handle_shell_sync(&catalog, &shell, cmd));
+            Ok(Outcome::NoChanges)
+        }
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
             debug!("Generated init script content");
@@ -108,27 +95,11 @@ fn main() {
     };
 
     match result {
-        Ok(Outcome::Command(msg)) => {
-            debug!("Generated command output: {}", msg);
-            save_catalogs(
-                &catalog,
-                catalog_path.as_ref(),
-                last_synced_catalog_path.as_ref(),
-            )
-            .expect("Failed to save catalog");
-            send_alias_deltas_to_shell(&msg);
-        }
         Ok(Outcome::NoChanges) => {
             debug!("No changes made to catalog or shell.");
         }
         Ok(Outcome::CatalogChanged) => {
-            if save_catalogs(
-                &catalog,
-                catalog_path.as_ref(),
-                last_synced_catalog_path.as_ref(),
-            )
-            .is_err()
-            {
+            if save_catalog(&catalog, &resolve_catalog_path(catalog_path.as_ref())).is_err() {
                 eprintln!("Failed to save updated catalog.");
                 return;
             }

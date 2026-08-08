@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+### Added
+- Synchronize aliases automatically before each Bash or Zsh prompt when the effective catalog changes.
+- Track managed alias names and the applied catalog revision independently in each terminal.
+- Add `aliasmgr init --no-auto-sync` for manual synchronization workflows.
+
+### Changed
+- Generate reconciliation code through a dedicated stdout command instead of sending alias deltas over file descriptor 3.
+- Make `aliasmgr sync` force a complete reconciliation of the current terminal.
+
+### Removed
+- Remove the shared last-synced catalog snapshot, `ALIASMGR_LAST_SYNCED_CATALOG_PATH`, and hidden startup sync mode.
+
 ## 1.1.1 - 2026-05-05
 ### Fixed
 - Use `sync --startup` from generated shell init scripts so a new shell only adds active aliases and does not remove aliases from the last synced catalog snapshot before they are active.
