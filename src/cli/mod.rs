@@ -116,6 +116,176 @@ pub enum Commands {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cli::add::AddTarget;
+    use crate::cli::disable::DisableTarget;
+    use crate::cli::enable::EnableTarget;
+    use crate::cli::remove::RemoveTarget;
+    use crate::cli::rename::RenameTarget;
+
+    #[test]
+    fn parses_shorthand_add_alias() {
+        let cli = Cli::try_parse_from(["aliasmgr", "add", "ll", "ls -l", "--disabled"])
+            .expect("shorthand add should parse");
+
+        assert!(matches!(
+            cli.command,
+            Commands::Add(AddCommand {
+                target: None,
+                alias,
+            }) if alias.name.as_deref() == Some("ll")
+                && alias.command.as_deref() == Some("ls -l")
+                && alias.disabled
+        ));
+    }
+
+    #[test]
+    fn parses_explicit_add_alias_with_reserved_name() {
+        let cli = Cli::try_parse_from(["aliasmgr", "add", "alias", "group", "echo group"])
+            .expect("explicit add alias should parse");
+
+        assert!(matches!(
+            cli.command,
+            Commands::Add(AddCommand {
+                target: Some(AddTarget::Alias(args)),
+                ..
+            }) if args.name == "group" && args.command == "echo group"
+        ));
+    }
+
+    #[test]
+    fn parses_explicit_add_group() {
+        let cli = Cli::try_parse_from(["aliasmgr", "add", "group", "tools", "--disabled"])
+            .expect("explicit add group should parse");
+
+        assert!(matches!(
+            cli.command,
+            Commands::Add(AddCommand {
+                target: Some(AddTarget::Group(args)),
+                ..
+            }) if args.name == "tools" && args.disabled
+        ));
+    }
+
+    #[test]
+    fn parses_shorthand_remove() {
+        let cli = Cli::try_parse_from(["aliasmgr", "remove", "ll"])
+            .expect("shorthand remove should parse");
+
+        assert!(matches!(
+            cli.command,
+            Commands::Remove(RemoveCommand {
+                target: None,
+                name: Some(name),
+            }) if name == "ll"
+        ));
+    }
+
+    #[test]
+    fn parses_explicit_remove_alias_with_reserved_name() {
+        let cli = Cli::try_parse_from(["aliasmgr", "remove", "alias", "all"])
+            .expect("explicit remove alias should parse");
+
+        assert!(matches!(
+            cli.command,
+            Commands::Remove(RemoveCommand {
+                target: Some(RemoveTarget::Alias(args)),
+                ..
+            }) if args.name == "all"
+        ));
+    }
+
+    #[test]
+    fn parses_explicit_remove_group_and_all() {
+        let group = Cli::try_parse_from(["aliasmgr", "remove", "group", "tools"])
+            .expect("explicit remove group should parse");
+        assert!(matches!(
+            group.command,
+            Commands::Remove(RemoveCommand {
+                target: Some(RemoveTarget::Group(_)),
+                ..
+            })
+        ));
+
+        let all = Cli::try_parse_from(["aliasmgr", "remove", "all"])
+            .expect("remove all should continue to parse");
+        assert!(matches!(
+            all.command,
+            Commands::Remove(RemoveCommand {
+                target: Some(RemoveTarget::All),
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn parses_shorthand_and_explicit_enable() {
+        let shorthand = Cli::try_parse_from(["aliasmgr", "enable", "ll"])
+            .expect("shorthand enable should parse");
+        assert!(matches!(
+            shorthand.command,
+            Commands::Enable(EnableCommand {
+                target: None,
+                name: Some(name),
+            }) if name == "ll"
+        ));
+
+        let explicit = Cli::try_parse_from(["aliasmgr", "enable", "group", "tools"])
+            .expect("explicit enable group should parse");
+        assert!(matches!(
+            explicit.command,
+            Commands::Enable(EnableCommand {
+                target: Some(EnableTarget::Group(args)),
+                ..
+            }) if args.name == "tools"
+        ));
+    }
+
+    #[test]
+    fn parses_shorthand_and_explicit_disable() {
+        let shorthand = Cli::try_parse_from(["aliasmgr", "disable", "ll"])
+            .expect("shorthand disable should parse");
+        assert!(matches!(
+            shorthand.command,
+            Commands::Disable(DisableCommand {
+                target: None,
+                name: Some(name),
+            }) if name == "ll"
+        ));
+
+        let explicit = Cli::try_parse_from(["aliasmgr", "disable", "alias", "group"])
+            .expect("explicit disable alias should parse");
+        assert!(matches!(
+            explicit.command,
+            Commands::Disable(DisableCommand {
+                target: Some(DisableTarget::Alias(args)),
+                ..
+            }) if args.name == "group"
+        ));
+    }
+
+    #[test]
+    fn parses_shorthand_and_explicit_rename() {
+        let shorthand = Cli::try_parse_from(["aliasmgr", "rename", "ll", "list"])
+            .expect("shorthand rename should parse");
+        assert!(matches!(
+            shorthand.command,
+            Commands::Rename(RenameCommand {
+                target: None,
+                old_name: Some(old_name),
+                new_name: Some(new_name),
+            }) if old_name == "ll" && new_name == "list"
+        ));
+
+        let explicit = Cli::try_parse_from(["aliasmgr", "rename", "group", "tools", "commands"])
+            .expect("explicit rename group should parse");
+        assert!(matches!(
+            explicit.command,
+            Commands::Rename(RenameCommand {
+                target: Some(RenameTarget::Group(args)),
+                ..
+            }) if args.old_name == "tools" && args.new_name == "commands"
+        ));
+    }
 
     #[test]
     fn parses_init_without_automatic_sync() {

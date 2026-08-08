@@ -1,10 +1,20 @@
 use clap::{Args, Subcommand};
 
 #[derive(Args)]
+#[command(
+    args_conflicts_with_subcommands = true,
+    subcommand_negates_reqs = true,
+    subcommand_help_heading = "Explicit resources",
+    subcommand_value_name = "RESOURCE"
+)]
 pub struct RemoveCommand {
-    /// What to remove
+    /// Explicit resource type to remove
     #[command(subcommand)]
-    pub target: RemoveTarget,
+    pub target: Option<RemoveTarget>,
+
+    /// Name of the alias or group to remove
+    #[arg(required = true)]
+    pub name: Option<String>,
 }
 
 #[derive(Subcommand)]
