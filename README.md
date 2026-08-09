@@ -72,12 +72,16 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr disable alias <name>` (explicit form)
 - `aliasmgr disable group <name>`
 - `aliasmgr disable all`
+- `aliasmgr doctor` (also available as `aliasmgr validate`)
 
 For more details, use the `-h` or `--help` flags.
 
 Notes:
 - Alias names cannot be empty or contain whitespace or `=`.
 - Global aliases (`--global`) only work on zsh; they are skipped on other shells.
+- `aliasmgr doctor` checks the catalog without modifying it. Invalid alias names,
+  missing group references, and malformed structures are errors; shell-incompatible
+  global aliases are warnings. Errors produce a non-zero exit status for scripts.
 - `list --format json` emits an array of aliases with `name`, `command`, `group`, `enabled`, and `global` fields. Ungrouped aliases have a `null` group.
 
 ## Sync Behavior

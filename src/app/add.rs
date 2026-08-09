@@ -3,6 +3,7 @@ use crate::core::{Failure, Outcome};
 use crate::core::add::{add_alias, add_group};
 use crate::core::edit::edit_alias;
 use crate::core::r#move::move_alias;
+use crate::core::validation::is_valid_alias_name;
 
 use crate::catalog::types::{Alias, AliasCatalog};
 
@@ -130,11 +131,6 @@ fn handle_add_alias(
             }
         }
     }
-}
-
-pub fn is_valid_alias_name(name: &str) -> bool {
-    // Alias name must not contain white space or '='
-    !name.is_empty() && !name.chars().any(|c| c.is_whitespace()) && !name.contains('=')
 }
 
 /// Handle the 'add' command

@@ -8,6 +8,7 @@ pub(crate) mod remove;
 pub(crate) mod rename;
 pub(crate) mod sort;
 pub(crate) mod sync;
+pub(crate) mod validation;
 
 /// Represents possible failure cases in core operations.
 #[derive(Debug, PartialEq, Eq)]
@@ -18,6 +19,7 @@ pub enum Failure {
     GroupDoesNotExist,
     AliasAlreadyExists,
     GroupAlreadyExists,
+    InvalidCatalog,
 }
 
 /// Represents the outcome of core operations.
