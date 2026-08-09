@@ -79,9 +79,12 @@ For more details, use the `-h` or `--help` flags.
 Notes:
 - Alias names cannot be empty or contain whitespace or `=`.
 - Global aliases (`--global`) only work on zsh; they are skipped on other shells.
+- Adding or editing an alias warns without blocking when its name conflicts with a
+  builtin in the active Bash/Zsh shell or an executable found on `PATH`.
 - `aliasmgr doctor` checks the catalog without modifying it. Invalid alias names,
   missing group references, and malformed structures are errors; shell-incompatible
-  global aliases are warnings. Errors produce a non-zero exit status for scripts.
+  global aliases and command conflicts are warnings. Errors produce a non-zero exit
+  status for scripts.
 - `list --format json` emits an array of aliases with `name`, `command`, `group`, `enabled`, and `global` fields. Ungrouped aliases have a `null` group.
 
 ## Sync Behavior

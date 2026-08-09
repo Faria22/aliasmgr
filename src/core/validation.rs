@@ -1,5 +1,6 @@
 use crate::app::shell::ShellType;
 use crate::catalog::types::AliasCatalog;
+use crate::core::conflict::conflict_warnings;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ValidationReport {
@@ -23,6 +24,13 @@ pub fn validate_catalog(catalog: &AliasCatalog, shell: &ShellType) -> Validation
         warnings: Vec::new(),
     };
 
+    let valid_names = catalog
+        .aliases
+        .keys()
+        .filter(|name| is_valid_alias_name(name))
+        .map(String::as_str);
+    let conflicts = conflict_warnings(valid_names, shell);
+
     for (name, alias) in &catalog.aliases {
         if !is_valid_alias_name(name) {
             report.errors.push(format!(
@@ -42,6 +50,10 @@ pub fn validate_catalog(catalog: &AliasCatalog, shell: &ShellType) -> Validation
             report.warnings.push(format!(
                 "Global alias '{name}' is unsupported in {shell} and will be skipped."
             ));
+        }
+
+        if let Some(conflict_warnings) = conflicts.get(name) {
+            report.warnings.extend(conflict_warnings.iter().cloned());
         }
     }
 

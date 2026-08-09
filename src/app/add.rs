@@ -1,6 +1,7 @@
 use crate::core::{Failure, Outcome};
 
 use crate::core::add::{add_alias, add_group};
+use crate::core::conflict::conflict_warnings;
 use crate::core::edit::edit_alias;
 use crate::core::r#move::move_alias;
 use crate::core::validation::is_valid_alias_name;
@@ -14,7 +15,7 @@ use super::list::format_alias_info;
 
 use super::shell::ShellType;
 
-use log::{error, info};
+use log::{error, info, warn};
 
 /// Handle overwriting an existing alias
 fn handle_overwrite_existing_alias(
@@ -133,6 +134,24 @@ fn handle_add_alias(
     }
 }
 
+fn warn_conflicts_after_change(
+    result: Result<Outcome, Failure>,
+    name: &str,
+    shell: &ShellType,
+) -> Result<Outcome, Failure> {
+    if result == Ok(Outcome::CatalogChanged) {
+        for warning in conflict_warnings([name], shell)
+            .get(name)
+            .into_iter()
+            .flatten()
+        {
+            warn!("{warning}");
+        }
+    }
+
+    result
+}
+
 /// Handle the 'add' command
 pub fn handle_add(
     catalog: &mut AliasCatalog,
@@ -160,12 +179,16 @@ pub fn handle_add(
             }
 
             let new_alias = Alias::new(args.command, args.group, !args.disabled, args.global);
-            handle_add_alias(
-                catalog,
+            warn_conflicts_after_change(
+                handle_add_alias(
+                    catalog,
+                    &args.name,
+                    &new_alias,
+                    prompt_overwrite_existing_alias,
+                    prompt_create_non_existent_group,
+                ),
                 &args.name,
-                &new_alias,
-                prompt_overwrite_existing_alias,
-                prompt_create_non_existent_group,
+                shell,
             )
         }
 
@@ -208,6 +231,18 @@ mod tests {
         assert_eq!(
             catalog.aliases.get(SAMPLE_ALIAS_NAME),
             Some(&sample_alias())
+        );
+    }
+
+    #[test]
+    fn test_conflict_warnings_only_follow_catalog_changes() {
+        assert_eq!(
+            warn_conflicts_after_change(Ok(Outcome::NoChanges), "cd", &ShellType::Bash),
+            Ok(Outcome::NoChanges)
+        );
+        assert_eq!(
+            warn_conflicts_after_change(Err(Failure::GroupDoesNotExist), "cd", &ShellType::Bash),
+            Err(Failure::GroupDoesNotExist)
         );
     }
 

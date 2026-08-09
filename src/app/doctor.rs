@@ -8,18 +8,22 @@ fn plural<'a>(count: usize, singular: &'a str, plural: &'a str) -> &'a str {
     if count == 1 { singular } else { plural }
 }
 
-fn format_report(report: &ValidationReport, shell: &ShellType) -> (String, String) {
+fn format_report(report: &ValidationReport, shell: &ShellType, quiet: bool) -> (String, String) {
     let mut standard = String::new();
     let mut diagnostics = String::new();
 
     for error in &report.errors {
         diagnostics.push_str(&format!("ERROR: {error}\n"));
     }
-    for warning in &report.warnings {
-        diagnostics.push_str(&format!("WARNING: {warning}\n"));
+    if !quiet {
+        for warning in &report.warnings {
+            diagnostics.push_str(&format!("WARNING: {warning}\n"));
+        }
     }
 
-    if report.errors.is_empty() && report.warnings.is_empty() {
+    if quiet {
+        return (standard, diagnostics);
+    } else if report.errors.is_empty() && report.warnings.is_empty() {
         standard.push_str(&format!("OK: Catalog is valid for {shell}.\n"));
     } else {
         standard.push_str(&format!(
@@ -38,9 +42,10 @@ pub fn handle_doctor(
     catalog: &AliasCatalog,
     _cmd: DoctorCommand,
     shell: &ShellType,
+    quiet: bool,
 ) -> Result<Outcome, Failure> {
     let report = validate_catalog(catalog, shell);
-    let (standard, diagnostics) = format_report(&report, shell);
+    let (standard, diagnostics) = format_report(&report, shell, quiet);
     print!("{standard}");
     eprint!("{diagnostics}");
 
@@ -63,7 +68,7 @@ mod tests {
             warnings: vec!["shell mismatch".into()],
         };
 
-        let (standard, diagnostics) = format_report(&report, &ShellType::Bash);
+        let (standard, diagnostics) = format_report(&report, &ShellType::Bash, false);
 
         assert_eq!(standard, "Validation found 1 error and 1 warning.\n");
         assert!(diagnostics.contains("ERROR: bad alias"));
@@ -77,9 +82,22 @@ mod tests {
             warnings: Vec::new(),
         };
 
-        let (standard, diagnostics) = format_report(&report, &ShellType::Zsh);
+        let (standard, diagnostics) = format_report(&report, &ShellType::Zsh, false);
 
         assert_eq!(standard, "OK: Catalog is valid for ZSH.\n");
         assert!(diagnostics.is_empty());
+    }
+
+    #[test]
+    fn quiet_report_only_prints_errors() {
+        let report = ValidationReport {
+            errors: vec!["bad alias".into()],
+            warnings: vec!["shell mismatch".into()],
+        };
+
+        let (standard, diagnostics) = format_report(&report, &ShellType::Bash, true);
+
+        assert!(standard.is_empty());
+        assert_eq!(diagnostics, "ERROR: bad alias\n");
     }
 }
