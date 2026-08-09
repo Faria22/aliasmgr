@@ -26,6 +26,9 @@ pub enum DisableTarget {
     /// Disable a group
     #[command(visible_alias = "g")]
     Group(DisableArgs),
+
+    /// Disable all aliases and groups
+    All,
 }
 
 #[derive(Args)]

@@ -42,6 +42,24 @@ pub fn disable_group(
     Ok(Outcome::CatalogChanged)
 }
 
+pub fn disable_all(catalog: &mut AliasCatalog) -> Result<Outcome, Failure> {
+    let aliases_changed = catalog.aliases.values().any(|alias| alias.enabled);
+    let groups_changed = catalog.groups.values().any(|enabled| *enabled);
+
+    if !aliases_changed && !groups_changed {
+        return Ok(Outcome::NoChanges);
+    }
+
+    for alias in catalog.aliases.values_mut() {
+        alias.enabled = false;
+    }
+    for enabled in catalog.groups.values_mut() {
+        *enabled = false;
+    }
+
+    Ok(Outcome::CatalogChanged)
+}
+
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
@@ -149,5 +167,28 @@ mod test {
         let result = disable_group(&mut catalog, "enabled_group", &ShellType::Bash);
         assert!(!catalog.groups["enabled_group"]);
         assert_eq!(result.unwrap(), Outcome::CatalogChanged);
+    }
+
+    #[test]
+    fn disable_all_updates_mixed_alias_and_group_state() {
+        let mut catalog = sample_catalog();
+
+        let result = disable_all(&mut catalog);
+
+        assert_eq!(result, Ok(Outcome::CatalogChanged));
+        assert!(catalog.aliases.values().all(|alias| !alias.enabled));
+        assert!(catalog.groups.values().all(|enabled| !*enabled));
+    }
+
+    #[test]
+    fn disable_all_is_idempotent_and_handles_empty_catalogs() {
+        let mut catalog = AliasCatalog::new();
+        assert_eq!(disable_all(&mut catalog), Ok(Outcome::NoChanges));
+
+        catalog
+            .aliases
+            .insert("alias".into(), Alias::new("cmd".into(), None, true, false));
+        assert_eq!(disable_all(&mut catalog), Ok(Outcome::CatalogChanged));
+        assert_eq!(disable_all(&mut catalog), Ok(Outcome::NoChanges));
     }
 }

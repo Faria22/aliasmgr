@@ -42,6 +42,24 @@ pub fn enable_group(
     Ok(Outcome::CatalogChanged)
 }
 
+pub fn enable_all(catalog: &mut AliasCatalog) -> Result<Outcome, Failure> {
+    let aliases_changed = catalog.aliases.values().any(|alias| !alias.enabled);
+    let groups_changed = catalog.groups.values().any(|enabled| !enabled);
+
+    if !aliases_changed && !groups_changed {
+        return Ok(Outcome::NoChanges);
+    }
+
+    for alias in catalog.aliases.values_mut() {
+        alias.enabled = true;
+    }
+    for enabled in catalog.groups.values_mut() {
+        *enabled = true;
+    }
+
+    Ok(Outcome::CatalogChanged)
+}
+
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
@@ -150,5 +168,28 @@ mod test {
         assert!(result.is_ok());
         assert!(catalog.groups["disabled_group"]);
         assert_matches!(result.unwrap(), Outcome::CatalogChanged);
+    }
+
+    #[test]
+    fn enable_all_updates_mixed_alias_and_group_state() {
+        let mut catalog = sample_catalog();
+
+        let result = enable_all(&mut catalog);
+
+        assert_eq!(result, Ok(Outcome::CatalogChanged));
+        assert!(catalog.aliases.values().all(|alias| alias.enabled));
+        assert!(catalog.groups.values().all(|enabled| *enabled));
+    }
+
+    #[test]
+    fn enable_all_is_idempotent_and_handles_empty_catalogs() {
+        let mut catalog = AliasCatalog::new();
+        assert_eq!(enable_all(&mut catalog), Ok(Outcome::NoChanges));
+
+        catalog
+            .aliases
+            .insert("alias".into(), Alias::new("cmd".into(), None, false, false));
+        assert_eq!(enable_all(&mut catalog), Ok(Outcome::CatalogChanged));
+        assert_eq!(enable_all(&mut catalog), Ok(Outcome::NoChanges));
     }
 }
