@@ -5,21 +5,24 @@ use crate::core::r#move::move_alias;
 
 use crate::catalog::types::AliasCatalog;
 
-use crate::cli::interaction::prompt_create_non_existent_group;
+use crate::cli::interaction::{InteractionMode, prompt_create_non_existent_group};
 use crate::cli::r#move::MoveCommand;
 
 use log::{debug, error, info};
 
-pub fn handle_move(catalog: &mut AliasCatalog, cmd: MoveCommand) -> Result<Outcome, Failure> {
+pub fn handle_move(
+    catalog: &mut AliasCatalog,
+    cmd: MoveCommand,
+    interaction_mode: InteractionMode,
+) -> Result<Outcome, Failure> {
     match move_alias(catalog, &cmd.name, &cmd.new_group) {
         Ok(outcome) => Ok(outcome),
         Err(e) => match e {
-            Failure::GroupDoesNotExist => handle_non_existing_group(
-                catalog,
-                &cmd.name,
-                &cmd.new_group.unwrap(),
-                prompt_create_non_existent_group,
-            ),
+            Failure::GroupDoesNotExist => {
+                handle_non_existing_group(catalog, &cmd.name, &cmd.new_group.unwrap(), |group| {
+                    prompt_create_non_existent_group(interaction_mode, group)
+                })
+            }
             Failure::AliasDoesNotExist => {
                 error!("Alias '{}' does not exist", cmd.name);
                 Err(e)
@@ -96,7 +99,7 @@ mod tests {
             name: "ll".into(),
             new_group: Some("utilities".into()),
         };
-        let outcome = handle_move(&mut catalog, cmd).unwrap();
+        let outcome = handle_move(&mut catalog, cmd, InteractionMode::Interactive).unwrap();
         assert_matches!(outcome, Outcome::CatalogChanged);
         assert_eq!(
             catalog.aliases.get("ll"),
@@ -116,7 +119,7 @@ mod tests {
             name: "nonexistent".into(),
             new_group: Some("utilities".into()),
         };
-        let result = handle_move(&mut catalog, cmd);
+        let result = handle_move(&mut catalog, cmd, InteractionMode::Interactive);
         assert_matches!(result, Err(Failure::AliasDoesNotExist));
         assert!(!catalog.aliases.contains_key("nonexistent"));
         assert!(!catalog.groups.contains_key("utilities"));

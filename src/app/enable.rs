@@ -3,7 +3,7 @@ use crate::core::enable::{enable_alias, enable_all, enable_group};
 use crate::core::{Failure, Outcome};
 
 use crate::cli::enable::{EnableCommand, EnableTarget};
-use crate::cli::interaction::prompt_alias_or_group;
+use crate::cli::interaction::{InteractionMode, prompt_alias_or_group};
 
 use super::CommandOutcome;
 use super::resource::{ResourceType, resolve_resource_type};
@@ -25,6 +25,7 @@ pub fn handle_enable(
     catalog: &mut AliasCatalog,
     cmd: EnableCommand,
     shell: &ShellType,
+    interaction_mode: InteractionMode,
 ) -> Result<CommandOutcome, Failure> {
     match cmd.target {
         Some(EnableTarget::Alias(args)) => {
@@ -46,7 +47,7 @@ pub fn handle_enable(
                 .as_deref()
                 .expect("clap requires a name when no subcommand is used"),
             shell,
-            |name| prompt_alias_or_group(name, "enabled"),
+            |name| prompt_alias_or_group(interaction_mode, name, "enabled"),
         )
         .map(CommandOutcome::from),
     }
@@ -78,6 +79,7 @@ mod tests {
                 name: Some("ll".to_string()),
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
 
         assert!(result.is_ok());
@@ -95,6 +97,7 @@ mod tests {
                 name: Some("tools".to_string()),
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
 
         assert!(result.is_ok());
@@ -114,6 +117,7 @@ mod tests {
                 name: None,
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         let group_result = handle_enable(
             &mut catalog,
@@ -124,6 +128,7 @@ mod tests {
                 name: None,
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
 
         assert!(alias_result.is_ok());
@@ -143,6 +148,7 @@ mod tests {
                 name: None,
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
 
         assert_eq!(

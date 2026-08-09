@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand, error::ErrorKind};
 
 pub(crate) mod add;
 pub(crate) mod disable;
@@ -36,6 +36,14 @@ use sync::{ShellSyncCommand, SyncCommand};
     disable_help_subcommand = true
 )]
 pub struct Cli {
+    /// Accept every prompt and force applicable operations
+    #[arg(long, global = true, conflicts_with = "no_input")]
+    pub force: bool,
+
+    /// Fail instead of requesting interactive input
+    #[arg(long, global = true, conflicts_with = "force")]
+    pub no_input: bool,
+
     /// Increase output verbosity
     #[arg(
         short,
@@ -65,6 +73,24 @@ pub struct Cli {
     /// Subcommands
     #[command(subcommand)]
     pub command: Commands,
+}
+
+impl Cli {
+    pub fn validate_prompt_controls(&self) -> Result<(), clap::Error> {
+        if self.force && self.no_input {
+            return Err(Self::command().error(
+                ErrorKind::ArgumentConflict,
+                "--force cannot be used with --no-input",
+            ));
+        }
+        if self.force && matches!(&self.command, Commands::ShellSync(cmd) if cmd.if_changed) {
+            return Err(Self::command().error(
+                ErrorKind::ArgumentConflict,
+                "--force cannot be used with --if-changed",
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Subcommand)]
@@ -432,11 +458,49 @@ mod tests {
     fn parses_internal_conditional_shell_sync() {
         let cli = Cli::try_parse_from(["aliasmgr", "shell-sync", "--if-changed"])
             .expect("internal shell sync should parse");
+        assert!(!cli.force);
         let Commands::ShellSync(cmd) = cli.command else {
             panic!("expected shell sync command");
         };
         assert!(cmd.if_changed);
-        assert!(!cmd.force);
+    }
+
+    #[test]
+    fn parses_global_prompt_controls() {
+        let force = Cli::try_parse_from(["aliasmgr", "add", "ll", "ls -l", "--force"])
+            .expect("force should parse after a subcommand");
+        assert!(force.force);
+        assert!(!force.no_input);
+
+        let no_input = Cli::try_parse_from(["aliasmgr", "--no-input", "remove", "all"])
+            .expect("no-input should parse before a subcommand");
+        assert!(!no_input.force);
+        assert!(no_input.no_input);
+    }
+
+    #[test]
+    fn prompt_controls_conflict() {
+        let cli = Cli::try_parse_from(["aliasmgr", "--force", "remove", "all", "--no-input"])
+            .expect("global options in different command scopes should parse before validation");
+        assert!(cli.validate_prompt_controls().is_err());
+    }
+
+    #[test]
+    fn global_force_preserves_forced_shell_sync() {
+        let cli = Cli::try_parse_from(["aliasmgr", "shell-sync", "--force"])
+            .expect("forced internal shell sync should parse");
+        assert!(cli.force);
+        let Commands::ShellSync(cmd) = cli.command else {
+            panic!("expected shell sync command");
+        };
+        assert!(!cmd.if_changed);
+    }
+
+    #[test]
+    fn global_force_conflicts_with_conditional_shell_sync() {
+        let cli = Cli::try_parse_from(["aliasmgr", "--force", "shell-sync", "--if-changed"])
+            .expect("global options in different command scopes should parse before validation");
+        assert!(cli.validate_prompt_controls().is_err());
     }
 
     #[test]

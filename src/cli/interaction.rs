@@ -1,7 +1,30 @@
 use dialoguer::{Confirm, Select};
 
+const INPUT_REQUIRED_EXIT_CODE: i32 = 2;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InteractionMode {
+    Interactive,
+    Force,
+    NoInput,
+}
+
+fn non_interactive_answer(mode: InteractionMode, prompt: &str) -> Option<bool> {
+    match mode {
+        InteractionMode::Force => Some(true),
+        InteractionMode::NoInput => {
+            eprintln!("ERROR: Input required to {prompt}; --no-input was supplied.");
+            std::process::exit(INPUT_REQUIRED_EXIT_CODE);
+        }
+        InteractionMode::Interactive => None,
+    }
+}
+
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn prompt_overwrite_existing_alias(alias: &str) -> bool {
+pub fn prompt_overwrite_existing_alias(mode: InteractionMode, alias: &str) -> bool {
+    if let Some(answer) = non_interactive_answer(mode, "overwrite an existing alias") {
+        return answer;
+    }
     Confirm::new()
         .with_prompt(format!(
             "Alias \"{}\" already exists. Do you want to overwrite it?",
@@ -13,7 +36,10 @@ pub fn prompt_overwrite_existing_alias(alias: &str) -> bool {
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn prompt_create_non_existent_group(group: &str) -> bool {
+pub fn prompt_create_non_existent_group(mode: InteractionMode, group: &str) -> bool {
+    if let Some(answer) = non_interactive_answer(mode, &format!("create missing group '{group}'")) {
+        return answer;
+    }
     Confirm::new()
         .with_prompt(format!(
             "Group '{}' does not exist. Do you want to create it?",
@@ -25,7 +51,12 @@ pub fn prompt_create_non_existent_group(group: &str) -> bool {
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn prompt_use_non_existing_catalog_file(path: &str) -> bool {
+pub fn prompt_use_non_existing_catalog_file(mode: InteractionMode, path: &str) -> bool {
+    if let Some(answer) =
+        non_interactive_answer(mode, &format!("use missing catalog path '{path}'"))
+    {
+        return answer;
+    }
     Confirm::new()
         .with_prompt(format!(
             "Catalog file '{}' does not exist. Do you want to use this path anyway?",
@@ -37,7 +68,10 @@ pub fn prompt_use_non_existing_catalog_file(path: &str) -> bool {
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn prompt_confirm_remove_all() -> bool {
+pub fn prompt_confirm_remove_all(mode: InteractionMode) -> bool {
+    if let Some(answer) = non_interactive_answer(mode, "remove all aliases and groups") {
+        return answer;
+    }
     Confirm::new()
         .with_prompt("Are you sure you want to remove all aliases and groups?")
         .default(false)
@@ -46,7 +80,13 @@ pub fn prompt_confirm_remove_all() -> bool {
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn prompt_alias_or_group(name: &str, action: &str) -> bool {
+pub fn prompt_alias_or_group(mode: InteractionMode, name: &str, action: &str) -> bool {
+    if let Some(answer) = non_interactive_answer(
+        mode,
+        &format!("choose whether alias or group '{name}' should be {action}"),
+    ) {
+        return answer;
+    }
     alias_or_group_select(name, action).interact().unwrap() == 0
 }
 
@@ -61,12 +101,27 @@ fn alias_or_group_select(name: &str, action: &str) -> Select<'static> {
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn prompt_reassign_group_aliases(name: &str) -> bool {
+pub fn prompt_reassign_group_aliases(mode: InteractionMode, name: &str) -> bool {
+    if let Some(answer) =
+        non_interactive_answer(mode, &format!("reassign aliases from group '{name}'"))
+    {
+        return answer;
+    }
     reassign_group_confirm(name).interact().unwrap()
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn prompt_enable_reassigned_aliases(name: &str, alias_count: usize) -> bool {
+pub fn prompt_enable_reassigned_aliases(
+    mode: InteractionMode,
+    name: &str,
+    alias_count: usize,
+) -> bool {
+    if let Some(answer) = non_interactive_answer(
+        mode,
+        &format!("enable aliases reassigned from disabled group '{name}'"),
+    ) {
+        return answer;
+    }
     enable_reassigned_aliases_confirm(name, alias_count)
         .interact()
         .unwrap()
@@ -96,6 +151,14 @@ fn enable_reassigned_aliases_confirm(name: &str, alias_count: usize) -> Confirm<
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interactive_mode_does_not_supply_an_answer() {
+        assert_eq!(
+            non_interactive_answer(InteractionMode::Interactive, "continue"),
+            None
+        );
+    }
 
     #[test]
     fn builds_alias_or_group_select() {

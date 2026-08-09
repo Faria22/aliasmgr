@@ -1,6 +1,6 @@
 use crate::catalog::types::{Alias, AliasCatalog};
 use crate::cli::edit::EditCommand;
-use crate::cli::interaction::prompt_create_non_existent_group;
+use crate::cli::interaction::{InteractionMode, prompt_create_non_existent_group};
 use crate::core::conflict::conflict_warnings;
 use crate::core::edit::edit_alias;
 use crate::core::{Failure, Outcome};
@@ -25,6 +25,7 @@ pub fn handle_edit(
     catalog: &mut AliasCatalog,
     cmd: EditCommand,
     shell: &ShellType,
+    interaction_mode: InteractionMode,
 ) -> Result<Outcome, Failure> {
     let mut new_alias = Alias::new("".into(), None, true, false); // Default initialization
 
@@ -45,7 +46,9 @@ pub fn handle_edit(
             if let Some(group_name) = &group
                 && !catalog.groups.contains_key(group_name)
             {
-                handle_nonexistent_group(catalog, group_name, prompt_create_non_existent_group)?;
+                handle_nonexistent_group(catalog, group_name, |group| {
+                    prompt_create_non_existent_group(interaction_mode, group)
+                })?;
             }
             new_alias.group = group;
         }
@@ -91,7 +94,12 @@ mod tests {
             toggle_global: false,
             group: None,
         };
-        let result = handle_edit(&mut catalog, cmd, &ShellType::Bash);
+        let result = handle_edit(
+            &mut catalog,
+            cmd,
+            &ShellType::Bash,
+            InteractionMode::Interactive,
+        );
         assert!(result.is_ok());
         let edited_alias = catalog.aliases.get("test").unwrap();
         assert_eq!(edited_alias.command, "edited_command");
@@ -107,7 +115,12 @@ mod tests {
             toggle_global: false,
             group: None,
         };
-        let result = handle_edit(&mut catalog, cmd, &ShellType::Bash);
+        let result = handle_edit(
+            &mut catalog,
+            cmd,
+            &ShellType::Bash,
+            InteractionMode::Interactive,
+        );
         assert!(result.is_err());
         assert_eq!(result.err(), Some(Failure::AliasDoesNotExist));
     }
@@ -122,7 +135,12 @@ mod tests {
             toggle_global: false,
             group: None,
         };
-        let result = handle_edit(&mut catalog, cmd, &ShellType::Bash);
+        let result = handle_edit(
+            &mut catalog,
+            cmd,
+            &ShellType::Bash,
+            InteractionMode::Interactive,
+        );
         assert!(result.is_ok());
         let edited_alias = catalog.aliases.get("test").unwrap();
         assert_eq!(edited_alias.command, "edit_command");
@@ -139,7 +157,12 @@ mod tests {
             toggle_global: true,
             group: None,
         };
-        let result = handle_edit(&mut catalog, cmd, &ShellType::Bash);
+        let result = handle_edit(
+            &mut catalog,
+            cmd,
+            &ShellType::Bash,
+            InteractionMode::Interactive,
+        );
         assert!(result.is_ok());
         let edited_alias = catalog.aliases.get("test").unwrap();
         assert_eq!(edited_alias.command, "edit_command");
@@ -157,7 +180,12 @@ mod tests {
             toggle_global: false,
             group: Some(Some("dev".into())),
         };
-        let result = handle_edit(&mut catalog, cmd, &ShellType::Bash);
+        let result = handle_edit(
+            &mut catalog,
+            cmd,
+            &ShellType::Bash,
+            InteractionMode::Interactive,
+        );
         assert!(result.is_ok());
         let edited_alias = catalog.aliases.get("test").unwrap();
         assert_eq!(edited_alias.command, "edit_command");
