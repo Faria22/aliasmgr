@@ -153,6 +153,12 @@ mod tests {
     use super::*;
 
     #[test]
+    fn interactive_mode_does_not_supply_an_answer() {
+        configure_interaction(false, false);
+        assert_eq!(non_interactive_answer("continue"), None);
+    }
+
+    #[test]
     fn builds_alias_or_group_select() {
         drop(alias_or_group_select("tools", "enabled"));
     }
