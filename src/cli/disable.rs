@@ -1,5 +1,7 @@
 use clap::{Args, Subcommand};
 
+use super::selector::AliasSelectorArgs;
+
 #[derive(Args)]
 #[command(
     args_conflicts_with_subcommands = true,
@@ -21,7 +23,7 @@ pub struct DisableCommand {
 pub enum DisableTarget {
     /// Disable an alias
     #[command(visible_alias = "a")]
-    Alias(DisableArgs),
+    Alias(AliasSelectorArgs),
 
     /// Disable a group
     #[command(visible_alias = "g")]

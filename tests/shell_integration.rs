@@ -157,6 +157,44 @@ disable_output="$(aliasmgr disable all)"
 }
 
 #[test]
+fn filtered_bulk_operations_reconcile_managed_aliases_once() {
+    let catalog = tempfile::NamedTempFile::new().unwrap();
+    let script = r#"
+eval "$("$1" init bash --catalog "$2")"
+aliasmgr add group dev
+aliasmgr add alias build 'cargo build' --group dev
+aliasmgr add alias bench 'cargo bench' --group dev --disabled
+aliasmgr add alias deploy 'deploy' --group dev
+__aliasmgr_prompt_sync
+alias build >/dev/null || exit 52
+! alias bench 2>/dev/null || exit 53
+
+disable_output="$(aliasmgr disable alias --pattern 'b*' --group dev)"
+[ "$disable_output" = 'Disabled 1 of 2 matching aliases.' ] || exit 54
+__aliasmgr_prompt_sync
+! alias build 2>/dev/null || exit 55
+! alias bench 2>/dev/null || exit 56
+alias deploy >/dev/null || exit 57
+
+enable_output="$(aliasmgr enable alias --group dev)"
+[ "$enable_output" = 'Enabled 2 of 3 matching aliases.' ] || exit 58
+__aliasmgr_prompt_sync
+alias build >/dev/null || exit 59
+alias bench >/dev/null || exit 60
+
+remove_output="$(aliasmgr remove alias --pattern 'b*' --group dev --force)"
+[ "$remove_output" = 'Removed 2 of 2 matching aliases.' ] || exit 61
+__aliasmgr_prompt_sync
+! alias build 2>/dev/null || exit 62
+! alias bench 2>/dev/null || exit 63
+alias deploy >/dev/null || exit 64
+command grep -q '^\[dev\]$' "$2" || exit 65
+"#;
+
+    assert_success(run_shell("bash", script, catalog.path()).unwrap());
+}
+
+#[test]
 fn removing_enabled_group_with_reassign_preserves_enabled_alias() {
     let catalog = tempfile::NamedTempFile::new().unwrap();
     let script = r#"

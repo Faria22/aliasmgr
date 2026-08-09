@@ -3,17 +3,20 @@ use crate::catalog::types::AliasCatalog;
 use crate::core::list::get_aliases_from_single_group;
 use crate::core::r#move::move_alias;
 use crate::core::remove::{remove_alias, remove_aliases, remove_all, remove_group};
+use crate::core::selector::select_aliases;
 use crate::core::{Failure, Outcome};
 
 use super::shell::ShellType;
 
 use crate::cli::interaction::{
-    InteractionMode, prompt_alias_or_group, prompt_confirm_remove_all,
-    prompt_enable_reassigned_aliases, prompt_reassign_group_aliases,
+    InteractionMode, prompt_alias_or_group, prompt_confirm_remove_aliases,
+    prompt_confirm_remove_all, prompt_enable_reassigned_aliases, prompt_reassign_group_aliases,
 };
 
 use crate::cli::remove::{RemoveCommand, RemoveTarget};
+use crate::cli::selector::AliasSelectorArgs;
 
+use super::CommandOutcome;
 use super::resource::{ResourceType, resolve_resource_type};
 
 #[derive(Clone, Copy)]
@@ -21,6 +24,38 @@ enum ReassignedAliasAction {
     Prompt,
     Enable,
     Disable,
+}
+
+fn handle_remove_filter(
+    catalog: &mut AliasCatalog,
+    args: AliasSelectorArgs,
+    confirmation: impl FnOnce(usize) -> bool,
+) -> Result<CommandOutcome, Failure> {
+    let names = select_aliases(
+        catalog,
+        args.pattern.as_deref(),
+        args.group.as_ref().map(|group| group.as_deref()),
+    )?;
+    let matched = names.len();
+    if matched == 0 {
+        return Ok(CommandOutcome::with_message(
+            Outcome::NoChanges,
+            "No aliases matched the selector.",
+        ));
+    }
+
+    if confirmation(matched) {
+        remove_aliases(catalog, &names)?;
+        Ok(CommandOutcome::with_message(
+            Outcome::CatalogChanged,
+            format!("Removed {matched} of {matched} matching aliases."),
+        ))
+    } else {
+        Ok(CommandOutcome::with_message(
+            Outcome::NoChanges,
+            format!("Removed 0 of {matched} matching aliases."),
+        ))
+    }
 }
 
 pub fn handle_remove_all(
@@ -114,9 +149,20 @@ pub fn handle_remove(
     cmd: RemoveCommand,
     shell: &ShellType,
     interaction_mode: InteractionMode,
-) -> Result<Outcome, Failure> {
+) -> Result<CommandOutcome, Failure> {
     match cmd.target {
-        Some(RemoveTarget::Alias(args)) => remove_alias(catalog, &args.name),
+        Some(RemoveTarget::Alias(args)) if args.is_filter() => {
+            handle_remove_filter(catalog, args, |count| {
+                prompt_confirm_remove_aliases(interaction_mode, count)
+            })
+        }
+        Some(RemoveTarget::Alias(args)) => remove_alias(
+            catalog,
+            args.name
+                .as_deref()
+                .expect("clap requires an exact name or a filter"),
+        )
+        .map(CommandOutcome::from),
         Some(RemoveTarget::Group(args)) => {
             let reassigned_alias_action = if args.enable_reassigned {
                 ReassignedAliasAction::Enable
@@ -133,10 +179,12 @@ pub fn handle_remove(
                 reassigned_alias_action,
                 |name, count| prompt_enable_reassigned_aliases(interaction_mode, name, count),
             )
+            .map(CommandOutcome::from)
         }
         Some(RemoveTarget::All) => handle_remove_all(catalog, shell, || {
             prompt_confirm_remove_all(interaction_mode)
-        }),
+        })
+        .map(CommandOutcome::from),
         None => handle_remove_shorthand(
             catalog,
             cmd.name
@@ -146,7 +194,8 @@ pub fn handle_remove(
             |name| prompt_alias_or_group(interaction_mode, name, "removed"),
             |name| prompt_reassign_group_aliases(interaction_mode, name),
             |name, count| prompt_enable_reassigned_aliases(interaction_mode, name, count),
-        ),
+        )
+        .map(CommandOutcome::from),
     }
 }
 
@@ -177,8 +226,10 @@ mod tests {
         let result = handle_remove(
             &mut catalog,
             RemoveCommand {
-                target: Some(RemoveTarget::Alias(crate::cli::remove::RemoveAliasArgs {
-                    name: "ls".to_string(),
+                target: Some(RemoveTarget::Alias(AliasSelectorArgs {
+                    name: Some("ls".to_string()),
+                    pattern: None,
+                    group: None,
                 })),
                 name: None,
             },
@@ -197,8 +248,10 @@ mod tests {
         let result = handle_remove(
             &mut catalog,
             RemoveCommand {
-                target: Some(RemoveTarget::Alias(crate::cli::remove::RemoveAliasArgs {
-                    name: "nonexistent".to_string(),
+                target: Some(RemoveTarget::Alias(AliasSelectorArgs {
+                    name: Some("nonexistent".to_string()),
+                    pattern: None,
+                    group: None,
                 })),
                 name: None,
             },
@@ -206,6 +259,32 @@ mod tests {
             InteractionMode::Interactive,
         );
         assert_matches!(result.err(), Some(Failure::AliasDoesNotExist));
+    }
+
+    #[test]
+    fn declining_filtered_removal_preserves_matches() {
+        let mut catalog = sample_catalog();
+        let result = handle_remove_filter(
+            &mut catalog,
+            AliasSelectorArgs {
+                name: None,
+                pattern: Some("*".to_string()),
+                group: Some(Some("files".to_string())),
+            },
+            |count| {
+                assert_eq!(count, 1);
+                false
+            },
+        );
+
+        assert_eq!(
+            result,
+            Ok(CommandOutcome::with_message(
+                Outcome::NoChanges,
+                "Removed 0 of 1 matching aliases."
+            ))
+        );
+        assert!(catalog.aliases.contains_key("ls"));
     }
 
     #[test]
@@ -225,7 +304,10 @@ mod tests {
             &ShellType::Bash,
             InteractionMode::Interactive,
         );
-        assert_eq!(result.unwrap(), Outcome::CatalogChanged);
+        assert_eq!(
+            result.unwrap(),
+            CommandOutcome::from(Outcome::CatalogChanged)
+        );
         assert!(!catalog.groups.contains_key("files"));
     }
 

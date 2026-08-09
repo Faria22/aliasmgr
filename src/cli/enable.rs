@@ -1,5 +1,7 @@
 use clap::{Args, Subcommand};
 
+use super::selector::AliasSelectorArgs;
+
 #[derive(Args)]
 #[command(
     args_conflicts_with_subcommands = true,
@@ -21,7 +23,7 @@ pub struct EnableCommand {
 pub enum EnableTarget {
     /// Enable an alias
     #[command(visible_alias = "a")]
-    Alias(EnableArgs),
+    Alias(AliasSelectorArgs),
 
     /// Enable a group
     #[command(visible_alias = "g")]

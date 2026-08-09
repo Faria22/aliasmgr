@@ -80,6 +80,26 @@ pub fn prompt_confirm_remove_all(mode: InteractionMode) -> bool {
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
+pub fn prompt_confirm_remove_aliases(mode: InteractionMode, alias_count: usize) -> bool {
+    if let Some(answer) = non_interactive_answer(
+        mode,
+        &format!("remove {alias_count} aliases matching the selector"),
+    ) {
+        return answer;
+    }
+    remove_aliases_confirm(alias_count).interact().unwrap()
+}
+
+fn remove_aliases_confirm(alias_count: usize) -> Confirm<'static> {
+    Confirm::new()
+        .with_prompt(format!(
+            "Remove {alias_count} alias{} matching the selector?",
+            if alias_count == 1 { "" } else { "es" }
+        ))
+        .default(false)
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn prompt_alias_or_group(mode: InteractionMode, name: &str, action: &str) -> bool {
     if let Some(answer) = non_interactive_answer(
         mode,
@@ -163,6 +183,11 @@ mod tests {
     #[test]
     fn builds_alias_or_group_select() {
         drop(alias_or_group_select("tools", "enabled"));
+    }
+
+    #[test]
+    fn builds_remove_aliases_confirm() {
+        drop(remove_aliases_confirm(2));
     }
 
     #[test]

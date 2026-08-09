@@ -19,14 +19,14 @@ use crate::core::Outcome;
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct CommandOutcome {
     pub outcome: Outcome,
-    pub message: Option<&'static str>,
+    pub message: Option<String>,
 }
 
 impl CommandOutcome {
-    pub fn with_message(outcome: Outcome, message: &'static str) -> Self {
+    pub fn with_message(outcome: Outcome, message: impl Into<String>) -> Self {
         Self {
             outcome,
-            message: Some(message),
+            message: Some(message.into()),
         }
     }
 }

@@ -60,6 +60,27 @@ pub fn disable_all(catalog: &mut AliasCatalog) -> Result<Outcome, Failure> {
     Ok(Outcome::CatalogChanged)
 }
 
+pub fn disable_aliases(catalog: &mut AliasCatalog, names: &[String]) -> (Outcome, usize) {
+    let mut changed = 0;
+    for name in names {
+        let alias = catalog
+            .aliases
+            .get_mut(name)
+            .expect("selected aliases exist in the catalog");
+        if alias.enabled {
+            alias.enabled = false;
+            changed += 1;
+        }
+    }
+
+    let outcome = if changed == 0 {
+        Outcome::NoChanges
+    } else {
+        Outcome::CatalogChanged
+    };
+    (outcome, changed)
+}
+
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {

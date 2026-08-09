@@ -10,6 +10,7 @@ pub(crate) mod list;
 pub(crate) mod r#move;
 pub(crate) mod remove;
 pub(crate) mod rename;
+pub(crate) mod selector;
 pub(crate) mod sort;
 pub(crate) mod sync;
 
@@ -223,7 +224,7 @@ mod tests {
             Commands::Remove(RemoveCommand {
                 target: Some(RemoveTarget::Alias(args)),
                 ..
-            }) if args.name == "all"
+            }) if args.name.as_deref() == Some("all")
         ));
     }
 
@@ -352,8 +353,47 @@ mod tests {
             Commands::Enable(EnableCommand {
                 target: Some(EnableTarget::Alias(args)),
                 ..
-            }) if args.name == "all"
+            }) if args.name.as_deref() == Some("all")
         ));
+    }
+
+    #[test]
+    fn parses_alias_selector_flags_and_rejects_ambiguous_selectors() {
+        let filtered = Cli::try_parse_from([
+            "aliasmgr",
+            "disable",
+            "alias",
+            "--pattern",
+            "b*",
+            "--group",
+            "dev",
+        ])
+        .expect("pattern and group selectors should combine");
+        assert!(matches!(
+            filtered.command,
+            Commands::Disable(DisableCommand {
+                target: Some(DisableTarget::Alias(args)),
+                ..
+            }) if args.name.is_none()
+                && args.pattern.as_deref() == Some("b*")
+                && args.group == Some(Some("dev".to_string()))
+        ));
+
+        let ungrouped = Cli::try_parse_from(["aliasmgr", "remove", "alias", "--group"])
+            .expect("an empty group selector should select ungrouped aliases");
+        assert!(matches!(
+            ungrouped.command,
+            Commands::Remove(RemoveCommand {
+                target: Some(RemoveTarget::Alias(args)),
+                ..
+            }) if args.group == Some(None)
+        ));
+
+        assert!(Cli::try_parse_from(["aliasmgr", "enable", "alias"]).is_err());
+        assert!(
+            Cli::try_parse_from(["aliasmgr", "enable", "alias", "ll", "--pattern", "l*",]).is_err()
+        );
+        assert!(Cli::try_parse_from(["aliasmgr", "enable", "alias", "--pattern", "["]).is_err());
     }
 
     #[test]
@@ -375,7 +415,7 @@ mod tests {
             Commands::Disable(DisableCommand {
                 target: Some(DisableTarget::Alias(args)),
                 ..
-            }) if args.name == "group"
+            }) if args.name.as_deref() == Some("group")
         ));
 
         let all =
@@ -395,7 +435,7 @@ mod tests {
             Commands::Disable(DisableCommand {
                 target: Some(DisableTarget::Alias(args)),
                 ..
-            }) if args.name == "all"
+            }) if args.name.as_deref() == Some("all")
         ));
     }
 
