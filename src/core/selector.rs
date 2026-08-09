@@ -28,7 +28,7 @@ pub fn select_aliases(
         })
         .transpose()?;
 
-    Ok(catalog
+    let mut aliases = catalog
         .aliases
         .iter()
         .filter(|(name, _)| {
@@ -38,7 +38,9 @@ pub fn select_aliases(
         })
         .filter(|(_, alias)| group.is_none_or(|group| alias.group.as_deref() == group))
         .map(|(name, _)| name.clone())
-        .collect())
+        .collect::<Vec<_>>();
+    aliases.sort_unstable();
+    Ok(aliases)
 }
 
 #[cfg(test)]
@@ -73,7 +75,7 @@ mod tests {
     #[test]
     fn combines_pattern_and_group_filters() {
         let selected = select_aliases(&sample_catalog(), Some("b*"), Some(Some("dev"))).unwrap();
-        assert_eq!(selected, ["build", "bench"]);
+        assert_eq!(selected, ["bench", "build"]);
     }
 
     #[test]

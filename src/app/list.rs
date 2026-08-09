@@ -1,78 +1,149 @@
-use owo_colors::OwoColorize;
 use serde::Serialize;
+use std::collections::BTreeMap;
 
 use super::shell::ShellType;
 use crate::catalog::types::AliasCatalog;
 use crate::cli::list::{ListCommand, OutputFormat};
+use crate::config::UserConfig;
 use crate::core::list::{get_aliases_from_single_group, get_all_aliases_grouped};
 use crate::core::{Failure, Outcome};
 
 use globset::Glob;
 
 /// Returns a colored symbol representing the enabled status.
-fn enabled_symbol(enabled: bool) -> String {
-    if enabled {
-        "✔".green().bold().to_string()
-    } else {
-        "✘".red().bold().to_string()
-    }
+struct HumanFormatter<'a> {
+    config: &'a UserConfig,
+    colors_enabled: bool,
 }
 
-fn globe_symbol(global: bool) -> String {
-    if global {
-        // " 🌐 ".to_string()
-        " ⦾".blue().bold().to_string()
-    } else {
-        String::new()
-    }
-}
-
-/// Formats the information of a single alias.
-pub fn format_alias_info(catalog: &AliasCatalog, alias: &str) -> Result<String, Failure> {
-    if let Some(alias_info) = catalog.aliases.get(alias) {
-        Ok(format!(
-            "{}{} {} -> {}",
-            enabled_symbol(alias_info.enabled),
-            globe_symbol(alias_info.global),
-            alias,
-            alias_info.command
-        ))
-    } else {
-        eprintln!("Alias '{}' not found in catalog.", alias);
-        Err(Failure::AliasDoesNotExist)
-    }
-}
-
-/// Generates a header string for a group of aliases.
-fn group_header(catalog: &AliasCatalog, group: &Option<String>) -> Result<String, Failure> {
-    let group_enabled;
-    let group_name;
-    if let Some(g) = group {
-        match catalog.groups.get(g) {
-            Some(enabled) => {
-                group_enabled = enabled;
-                group_name = g.clone();
-            }
-            None => {
-                eprintln!("Group '{}' does not exist in catalog.", g);
-                return Err(Failure::GroupDoesNotExist);
-            }
+impl HumanFormatter<'_> {
+    fn enabled_symbol(&self, enabled: bool) -> String {
+        if enabled {
+            self.config
+                .styles
+                .enabled
+                .render(&self.config.symbols.enabled, self.colors_enabled)
+        } else {
+            self.config
+                .styles
+                .disabled
+                .render(&self.config.symbols.disabled, self.colors_enabled)
         }
-    } else {
-        // Ungrouped aliases are always considered enabled
-        group_enabled = &true;
-        group_name = "ungrouped".to_string();
     }
 
-    let header_message = format!(" Group: {} {} ", group_name, enabled_symbol(*group_enabled));
-    Ok(format!("{:=^width$}", header_message, width = 50))
+    fn globe_symbol(&self, global: bool) -> String {
+        if global {
+            format!(
+                " {}",
+                self.config
+                    .styles
+                    .global
+                    .render(&self.config.symbols.global, self.colors_enabled)
+            )
+        } else {
+            String::new()
+        }
+    }
+
+    fn format_alias_info(&self, catalog: &AliasCatalog, alias: &str) -> Result<String, Failure> {
+        if let Some(alias_info) = catalog.aliases.get(alias) {
+            Ok(format!(
+                "{}{} {} -> {}",
+                self.enabled_symbol(alias_info.enabled),
+                self.globe_symbol(alias_info.global),
+                alias,
+                alias_info.command
+            ))
+        } else {
+            eprintln!("Alias '{}' not found in catalog.", alias);
+            Err(Failure::AliasDoesNotExist)
+        }
+    }
+
+    fn group_header(
+        &self,
+        catalog: &AliasCatalog,
+        group: &Option<String>,
+    ) -> Result<String, Failure> {
+        let group_enabled;
+        let group_name;
+        if let Some(g) = group {
+            match catalog.groups.get(g) {
+                Some(enabled) => {
+                    group_enabled = enabled;
+                    group_name = g.clone();
+                }
+                None => {
+                    eprintln!("Group '{}' does not exist in catalog.", g);
+                    return Err(Failure::GroupDoesNotExist);
+                }
+            }
+        } else {
+            group_enabled = &true;
+            group_name = "ungrouped".to_string();
+        }
+
+        let header_message = format!(
+            " Group: {} {} ",
+            group_name,
+            self.enabled_symbol(*group_enabled)
+        );
+        Ok(format!("{:=^width$}", header_message, width = 50))
+    }
+
+    fn format_aliases_list(
+        &self,
+        catalog: &AliasCatalog,
+        aliases: &[String],
+    ) -> Result<String, Failure> {
+        let mut content = String::new();
+        for alias in aliases {
+            content += &(self.format_alias_info(catalog, alias)? + "\n");
+        }
+        Ok(content)
+    }
 }
 
-/// Formats a group header along with its aliases.
+#[cfg(test)]
+fn enabled_symbol(enabled: bool) -> String {
+    HumanFormatter {
+        config: &UserConfig::default(),
+        colors_enabled: true,
+    }
+    .enabled_symbol(enabled)
+}
+
+#[cfg(test)]
+fn globe_symbol(global: bool) -> String {
+    HumanFormatter {
+        config: &UserConfig::default(),
+        colors_enabled: true,
+    }
+    .globe_symbol(global)
+}
+
+pub fn format_alias_info(catalog: &AliasCatalog, alias: &str) -> Result<String, Failure> {
+    HumanFormatter {
+        config: &UserConfig::default(),
+        colors_enabled: true,
+    }
+    .format_alias_info(catalog, alias)
+}
+
+#[cfg(test)]
+fn group_header(catalog: &AliasCatalog, group: &Option<String>) -> Result<String, Failure> {
+    HumanFormatter {
+        config: &UserConfig::default(),
+        colors_enabled: true,
+    }
+    .group_header(catalog, group)
+}
+
+#[cfg(test)]
 fn format_group_and_aliases(
     catalog: &AliasCatalog,
     group_id: &Option<String>,
-    aliases: &Vec<String>,
+    aliases: &[String],
 ) -> Result<String, Failure> {
     let mut content = String::new();
     content += &(group_header(catalog, group_id)? + "\n");
@@ -81,19 +152,21 @@ fn format_group_and_aliases(
 }
 
 /// Formats a list of aliases without a group header.
-fn format_aliases_list(catalog: &AliasCatalog, aliases: &Vec<String>) -> Result<String, Failure> {
-    let mut content = String::new();
-    for alias in aliases {
-        content += &(format_alias_info(catalog, alias)? + "\n");
+#[cfg(test)]
+fn format_aliases_list(catalog: &AliasCatalog, aliases: &[String]) -> Result<String, Failure> {
+    HumanFormatter {
+        config: &UserConfig::default(),
+        colors_enabled: true,
     }
-    Ok(content)
+    .format_aliases_list(catalog, aliases)
 }
 
 /// If ungrouped, will remove the group header
+#[cfg(test)]
 fn format_group_and_aliases_single_group(
     catalog: &AliasCatalog,
     group_id: &Option<String>,
-    aliases: &Vec<String>,
+    aliases: &[String],
 ) -> Result<String, Failure> {
     let mut content = String::new();
     if group_id.is_some() {
@@ -123,11 +196,11 @@ fn select_aliases(
     catalog: &AliasCatalog,
     cmd: &ListCommand,
     shell: &ShellType,
-) -> Result<indexmap::IndexMap<Option<String>, Vec<String>>, Failure> {
+) -> Result<BTreeMap<Option<String>, Vec<String>>, Failure> {
     let mut groups = if let Some(group) = &cmd.group {
         let group_id = group.clone();
         let aliases = get_aliases_from_single_group(catalog, group_id.as_deref(), shell)?;
-        indexmap::IndexMap::from([(group_id, aliases)])
+        BTreeMap::from([(group_id, aliases)])
     } else {
         get_all_aliases_grouped(catalog, shell)
     };
@@ -148,10 +221,7 @@ struct JsonAlias<'a> {
     global: bool,
 }
 
-fn format_json(
-    catalog: &AliasCatalog,
-    groups: &indexmap::IndexMap<Option<String>, Vec<String>>,
-) -> String {
+fn format_json(catalog: &AliasCatalog, groups: &BTreeMap<Option<String>, Vec<String>>) -> String {
     let aliases = groups
         .values()
         .flatten()
@@ -172,30 +242,57 @@ fn format_json(
 
 fn format_human(
     catalog: &AliasCatalog,
-    groups: &indexmap::IndexMap<Option<String>, Vec<String>>,
+    groups: &BTreeMap<Option<String>, Vec<String>>,
     focused_group: bool,
+    config: &UserConfig,
+    colors_enabled: bool,
 ) -> Result<String, Failure> {
+    let formatter = HumanFormatter {
+        config,
+        colors_enabled,
+    };
     let mut content = String::new();
     for (group_id, aliases) in groups {
         if focused_group {
-            content += &format_group_and_aliases_single_group(catalog, group_id, aliases)?;
+            if group_id.is_some() {
+                content += &(formatter.group_header(catalog, group_id)? + "\n");
+            }
+            content += &formatter.format_aliases_list(catalog, aliases)?;
         } else {
-            content += &format_group_and_aliases(catalog, group_id, aliases)?;
+            content += &(formatter.group_header(catalog, group_id)? + "\n");
+            content += &formatter.format_aliases_list(catalog, aliases)?;
         }
     }
     Ok(content)
 }
 
+fn format_list_with_config(
+    catalog: &AliasCatalog,
+    cmd: &ListCommand,
+    shell: &ShellType,
+    config: &UserConfig,
+    colors_enabled: bool,
+) -> Result<String, Failure> {
+    let groups = select_aliases(catalog, cmd, shell)?;
+    match cmd.format {
+        OutputFormat::Human => format_human(
+            catalog,
+            &groups,
+            cmd.group.is_some(),
+            config,
+            colors_enabled,
+        ),
+        OutputFormat::Json => Ok(format_json(catalog, &groups)),
+    }
+}
+
+#[cfg(test)]
 fn format_list(
     catalog: &AliasCatalog,
     cmd: &ListCommand,
     shell: &ShellType,
 ) -> Result<String, Failure> {
-    let groups = select_aliases(catalog, cmd, shell)?;
-    match cmd.format {
-        OutputFormat::Human => format_human(catalog, &groups, cmd.group.is_some()),
-        OutputFormat::Json => Ok(format_json(catalog, &groups)),
-    }
+    format_list_with_config(catalog, cmd, shell, &UserConfig::default(), true)
 }
 
 /// Handle the 'list' command based on the provided options.
@@ -217,8 +314,13 @@ pub fn handle_list(
     catalog: &AliasCatalog,
     cmd: ListCommand,
     shell: &ShellType,
+    config: &UserConfig,
+    colors_enabled: bool,
 ) -> Result<Outcome, Failure> {
-    print!("{}", format_list(catalog, &cmd, shell)?);
+    print!(
+        "{}",
+        format_list_with_config(catalog, &cmd, shell, config, colors_enabled)?
+    );
     Ok(Outcome::NoChanges)
 }
 
@@ -276,9 +378,32 @@ mod tests {
     }
 
     #[test]
+    fn configured_symbols_and_styles_are_used() {
+        let catalog = create_test_catalog();
+        let cmd = ListCommand {
+            pattern: None,
+            group: Some(None),
+            enabled: false,
+            disabled: false,
+            global: false,
+            format: OutputFormat::Human,
+        };
+        let mut config = UserConfig::default();
+        config.symbols.enabled = "+".into();
+        config.styles.enabled.foreground = "magenta".into();
+
+        let plain =
+            format_list_with_config(&catalog, &cmd, &ShellType::Bash, &config, false).unwrap();
+        let colored =
+            format_list_with_config(&catalog, &cmd, &ShellType::Bash, &config, true).unwrap();
+        assert!(plain.starts_with("+ test"));
+        assert!(colored.starts_with("\u{1b}[35;1m+\u{1b}[0m test"));
+    }
+
+    #[test]
     fn test_enabled_symbol() {
-        assert_eq!(enabled_symbol(true), "✔".green().bold().to_string());
-        assert_eq!(enabled_symbol(false), "✘".red().bold().to_string());
+        assert_eq!(enabled_symbol(true), "\u{1b}[32;1m✔\u{1b}[0m");
+        assert_eq!(enabled_symbol(false), "\u{1b}[31;1m✘\u{1b}[0m");
     }
 
     #[test]
@@ -316,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    fn list_omits_empty_groups_and_preserves_nonempty_group_order() {
+    fn list_omits_empty_groups_and_sorts_nonempty_groups() {
         let catalog = create_filtered_catalog();
         let cmd = ListCommand {
             pattern: None,
@@ -543,7 +668,13 @@ mod tests {
             global: false,
             format: OutputFormat::Human,
         };
-        let result = handle_list(&catalog, cmd, &ShellType::Bash);
+        let result = handle_list(
+            &catalog,
+            cmd,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            true,
+        );
         assert!(result.is_ok());
     }
 
@@ -558,7 +689,13 @@ mod tests {
             global: false,
             format: OutputFormat::Human,
         };
-        let result = handle_list(&catalog, cmd, &ShellType::Bash);
+        let result = handle_list(
+            &catalog,
+            cmd,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            true,
+        );
         assert_matches!(result, Err(Failure::GroupDoesNotExist));
     }
 
@@ -573,7 +710,13 @@ mod tests {
             global: false,
             format: OutputFormat::Human,
         };
-        let result = handle_list(&catalog, cmd, &ShellType::Bash);
+        let result = handle_list(
+            &catalog,
+            cmd,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            true,
+        );
         assert!(result.is_ok());
     }
 
@@ -588,7 +731,13 @@ mod tests {
             global: false,
             format: OutputFormat::Human,
         };
-        let result = handle_list(&catalog, cmd, &ShellType::Bash);
+        let result = handle_list(
+            &catalog,
+            cmd,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            true,
+        );
         assert!(result.is_ok());
     }
 
@@ -603,7 +752,13 @@ mod tests {
             global: false,
             format: OutputFormat::Human,
         };
-        let result = handle_list(&catalog, cmd, &ShellType::Bash);
+        let result = handle_list(
+            &catalog,
+            cmd,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            true,
+        );
         assert!(result.is_ok());
     }
 
@@ -618,7 +773,13 @@ mod tests {
             global: false,
             format: OutputFormat::Human,
         };
-        let result = handle_list(&catalog, cmd, &ShellType::Bash);
+        let result = handle_list(
+            &catalog,
+            cmd,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            true,
+        );
         assert!(result.is_ok());
     }
 
@@ -633,7 +794,13 @@ mod tests {
             global: false,
             format: OutputFormat::Human,
         };
-        let result = handle_list(&catalog, cmd, &ShellType::Bash);
+        let result = handle_list(
+            &catalog,
+            cmd,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            true,
+        );
         assert!(result.is_ok());
     }
 
@@ -648,7 +815,13 @@ mod tests {
             global: true,
             format: OutputFormat::Human,
         };
-        let result = handle_list(&catalog, cmd, &ShellType::Bash);
+        let result = handle_list(
+            &catalog,
+            cmd,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            true,
+        );
         assert!(result.is_ok());
     }
 
@@ -692,7 +865,7 @@ mod tests {
 
     #[test]
     fn test_global_symbol() {
-        assert_eq!(globe_symbol(true), " ⦾".blue().bold().to_string());
+        assert_eq!(globe_symbol(true), " \u{1b}[34;1m⦾\u{1b}[0m");
         assert_eq!(globe_symbol(false), "".to_string());
     }
 

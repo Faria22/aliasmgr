@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
-use indexmap::IndexMap;
+use std::collections::HashMap;
 use toml_edit::{DocumentMut, InlineTable, Item, Table};
 
 use super::spec::{AliasCatalogSpec, COLLIDING_ALIAS_KEY, convert_spec_to_catalog};
@@ -84,21 +84,27 @@ fn build_alias_item(alias: &Alias) -> Item {
     }
 }
 
-fn insert_groups(doc: &mut DocumentMut, groups: &IndexMap<String, bool>) {
-    for (group_name, enabled) in groups {
+fn insert_groups(doc: &mut DocumentMut, groups: &HashMap<String, bool>) {
+    let mut group_names = groups.keys().collect::<Vec<_>>();
+    group_names.sort_unstable();
+    for group_name in group_names {
+        let enabled = groups[group_name];
         let table = ensure_group_table(doc, group_name);
-        if !*enabled {
-            table["enabled"] = Item::Value((*enabled).into());
+        if !enabled {
+            table["enabled"] = Item::Value(enabled.into());
         }
     }
 }
 
 fn insert_aliases(
     doc: &mut DocumentMut,
-    aliases: &IndexMap<String, Alias>,
-    groups: &IndexMap<String, bool>,
+    aliases: &HashMap<String, Alias>,
+    groups: &HashMap<String, bool>,
 ) -> Result<()> {
-    for (alias_name, alias) in aliases {
+    let mut alias_names = aliases.keys().collect::<Vec<_>>();
+    alias_names.sort_unstable();
+    for alias_name in alias_names {
+        let alias = &aliases[alias_name];
         if let Some(group) = &alias.group {
             if !groups.contains_key(group) {
                 bail!("Alias '{alias_name}' references unknown group '{group}'");
@@ -266,6 +272,35 @@ mod tests {
 
         let saved_content = fs::read_to_string(&temp_conf).unwrap();
         assert_eq!(saved_content, SAMPLE_TOML);
+    }
+
+    #[test]
+    fn save_catalog_sorts_groups_and_aliases() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_conf = temp_dir.path().join("aliases.toml");
+        let mut catalog = AliasCatalog::new();
+        catalog.groups.insert("zeta".into(), true);
+        catalog.groups.insert("alpha".into(), true);
+        catalog.aliases.insert(
+            "zulu".into(),
+            Alias::new("z".into(), Some("alpha".into()), true, false),
+        );
+        catalog.aliases.insert(
+            "alpha".into(),
+            Alias::new("a".into(), Some("alpha".into()), true, false),
+        );
+        catalog
+            .aliases
+            .insert("beta".into(), Alias::new("b".into(), None, true, false));
+        catalog
+            .aliases
+            .insert("aardvark".into(), Alias::new("a".into(), None, true, false));
+
+        save_catalog(&catalog, &temp_conf).unwrap();
+        assert_eq!(
+            fs::read_to_string(&temp_conf).unwrap(),
+            "aardvark = \"a\"\nbeta = \"b\"\n\n[alpha]\nalpha = \"a\"\nzulu = \"z\"\n\n[zeta]\n"
+        );
     }
 
     #[test]

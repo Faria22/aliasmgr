@@ -4,8 +4,8 @@
 //! representation and the specification representation.
 
 use anyhow::{Result, bail};
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use super::types::{Alias, AliasCatalog};
 
@@ -37,7 +37,7 @@ pub struct GroupSpec {
     pub ungrouped_alias: Option<Box<AliasSpecTypes>>,
 
     #[serde(flatten)]
-    pub aliases: IndexMap<String, AliasSpecTypes>,
+    pub aliases: HashMap<String, AliasSpecTypes>,
 }
 
 /// Different types of alias specifications.
@@ -61,7 +61,7 @@ pub enum AliasSpecTypes {
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct AliasCatalogSpec {
     #[serde(flatten)]
-    pub entries: IndexMap<String, AliasSpecTypes>,
+    pub entries: HashMap<String, AliasSpecTypes>,
 }
 
 /// Convert an AliasSpecTypes to its corresponding Alias representation.
@@ -94,8 +94,8 @@ fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Result<
 /// # Returns
 /// * An AliasCatalog representation of the given AliasCatalogSpec.
 pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> Result<AliasCatalog> {
-    let mut aliases = IndexMap::new();
-    let mut groups = IndexMap::new();
+    let mut aliases = HashMap::new();
+    let mut groups = HashMap::new();
 
     for (name, entry) in spec.entries {
         match entry {
@@ -104,17 +104,23 @@ pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> Result<AliasCatalog> {
 
                 if let Some(alias_entry) = group_spec.ungrouped_alias {
                     let alias = convert_spec_to_alias(*alias_entry, None)?;
-                    aliases.insert(name.clone(), alias);
+                    if aliases.insert(name.clone(), alias).is_some() {
+                        bail!("alias '{name}' is defined more than once");
+                    }
                 }
 
                 for (alias_name, alias_entry) in group_spec.aliases {
                     let alias = convert_spec_to_alias(alias_entry, Some(name.clone()))?;
-                    aliases.insert(alias_name, alias);
+                    if aliases.insert(alias_name.clone(), alias).is_some() {
+                        bail!("alias '{alias_name}' is defined more than once");
+                    }
                 }
             }
             alias => {
                 let alias_cfg = convert_spec_to_alias(alias, None)?;
-                aliases.insert(name, alias_cfg);
+                if aliases.insert(name.clone(), alias_cfg).is_some() {
+                    bail!("alias '{name}' is defined more than once");
+                }
             }
         }
     }
@@ -153,6 +159,23 @@ mod tests {
             error
                 .to_string()
                 .contains("nested groups are not supported")
+        );
+    }
+
+    #[test]
+    fn duplicate_alias_names_across_groups_are_rejected() {
+        let toml_data = r#"
+        [group1]
+        shared = "first"
+
+        [group2]
+        shared = "second"
+        "#;
+        let spec: AliasCatalogSpec = toml::from_str(toml_data).unwrap();
+        let error = convert_spec_to_catalog(spec).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "alias 'shared' is defined more than once"
         );
     }
 }

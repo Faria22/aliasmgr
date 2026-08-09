@@ -1,7 +1,6 @@
 use crate::app::shell::ShellType;
-use indexmap::IndexMap;
 use log::debug;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::env;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -90,8 +89,8 @@ fn conflict_warnings_with(
     shell: &ShellType,
     builtin_names: &HashSet<String>,
     path: Option<&OsStr>,
-) -> IndexMap<String, Vec<String>> {
-    let mut warnings = IndexMap::new();
+) -> BTreeMap<String, Vec<String>> {
+    let mut warnings = BTreeMap::new();
 
     for name in names {
         let mut alias_warnings = Vec::new();
@@ -120,7 +119,7 @@ fn conflict_warnings_with(
 pub fn conflict_warnings<'a>(
     names: impl IntoIterator<Item = &'a str>,
     shell: &ShellType,
-) -> IndexMap<String, Vec<String>> {
+) -> BTreeMap<String, Vec<String>> {
     let names = names.into_iter().map(str::to_owned).collect::<Vec<_>>();
     let builtin_names = shell_builtin_names(&names, shell);
     let path = env::var_os("PATH");

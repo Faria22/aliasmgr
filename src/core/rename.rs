@@ -43,7 +43,7 @@ pub fn rename_group(
 
     let enabled = catalog
         .groups
-        .shift_remove(old_group)
+        .remove(old_group)
         .expect("the group has been checked to exist already");
 
     catalog.groups.insert(new_group.into(), enabled);

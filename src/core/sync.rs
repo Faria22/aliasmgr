@@ -12,7 +12,7 @@ struct ActiveAlias<'a> {
 }
 
 fn active_aliases<'a>(catalog: &'a AliasCatalog, shell: &ShellType) -> Vec<ActiveAlias<'a>> {
-    catalog
+    let mut aliases = catalog
         .aliases
         .iter()
         .filter(|(name, alias)| {
@@ -25,7 +25,9 @@ fn active_aliases<'a>(catalog: &'a AliasCatalog, shell: &ShellType) -> Vec<Activ
                     .is_none_or(|group| catalog.groups.get(group) == Some(&true))
         })
         .map(|(name, alias)| ActiveAlias { name, alias })
-        .collect()
+        .collect::<Vec<_>>();
+    aliases.sort_unstable_by_key(|entry| entry.name);
+    aliases
 }
 
 fn catalog_revision(active: &[ActiveAlias<'_>]) -> String {

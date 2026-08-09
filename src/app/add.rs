@@ -456,7 +456,7 @@ mod tests {
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::UnsupportedGlobalAlias);
-        assert!(catalog.aliases.get("ll").is_none());
+        assert!(!catalog.aliases.contains_key("ll"));
     }
 
     #[test]
@@ -518,7 +518,7 @@ mod tests {
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::InvalidAliasName);
-        assert!(catalog.aliases.get("invalid alias").is_none());
+        assert!(!catalog.aliases.contains_key("invalid alias"));
     }
 
     #[test]
@@ -541,6 +541,6 @@ mod tests {
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::InvalidAliasName);
-        assert!(catalog.aliases.get("invalid=alias").is_none());
+        assert!(!catalog.aliases.contains_key("invalid=alias"));
     }
 }

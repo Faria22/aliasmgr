@@ -31,7 +31,10 @@ pub fn validate_catalog(catalog: &AliasCatalog, shell: &ShellType) -> Validation
         .map(String::as_str);
     let conflicts = conflict_warnings(valid_names, shell);
 
-    for (name, alias) in &catalog.aliases {
+    let mut names = catalog.aliases.keys().collect::<Vec<_>>();
+    names.sort_unstable();
+    for name in names {
+        let alias = &catalog.aliases[name];
         if !is_valid_alias_name(name) {
             report.errors.push(format!(
                 "Alias '{name}' has an invalid name; names must not be empty or contain whitespace or '='."

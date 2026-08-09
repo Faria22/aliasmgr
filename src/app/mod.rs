@@ -11,7 +11,6 @@ pub(crate) mod remove;
 pub(crate) mod rename;
 pub(crate) mod resource;
 pub(crate) mod shell;
-pub(crate) mod sort;
 pub(crate) mod sync;
 
 use crate::core::Outcome;

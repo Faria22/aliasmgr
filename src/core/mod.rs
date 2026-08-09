@@ -8,7 +8,6 @@ pub(crate) mod r#move;
 pub(crate) mod remove;
 pub(crate) mod rename;
 pub(crate) mod selector;
-pub(crate) mod sort;
 pub(crate) mod sync;
 pub(crate) mod validation;
 
