@@ -115,5 +115,13 @@ fn empty_match_is_a_no_op_and_invalid_selectors_do_not_modify_the_catalog() {
     let invalid = run_aliasmgr(&catalog, &["disable", "alias", "--pattern", "["]);
     assert_eq!(invalid.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&invalid.stderr).contains("invalid glob pattern"));
+
+    for command in ["enable", "disable", "remove"] {
+        let missing_group = run_aliasmgr(&catalog, &[command, "alias", "--group", "missing"]);
+        assert!(
+            String::from_utf8_lossy(&missing_group.stderr)
+                .contains("Group 'missing' does not exist")
+        );
+    }
     assert_eq!(fs::read_to_string(&catalog).unwrap(), original);
 }
