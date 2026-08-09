@@ -7,6 +7,8 @@ mod core;
 
 use clap::Parser;
 
+use cli::disable::DisableTarget;
+use cli::enable::EnableTarget;
 use cli::{Cli, Commands};
 
 use catalog::io::{catalog_path as resolve_catalog_path, load_catalog, save_catalog};
@@ -34,6 +36,14 @@ use log::{LevelFilter, debug};
 #[cfg_attr(coverage_nightly, coverage(off))]
 fn main() {
     let cli = Cli::parse();
+    let quiet = cli.quiet;
+    let bulk_action = match &cli.command {
+        Commands::Enable(cmd) if matches!(cmd.target, Some(EnableTarget::All)) => Some("enabled"),
+        Commands::Disable(cmd) if matches!(cmd.target, Some(DisableTarget::All)) => {
+            Some("disabled")
+        }
+        _ => None,
+    };
 
     // Determine log level based on CLI flags
     let level = if cli.quiet {
@@ -97,6 +107,11 @@ fn main() {
     match result {
         Ok(Outcome::NoChanges) => {
             debug!("No changes made to catalog or shell.");
+            if let Some(action) = bulk_action
+                && !quiet
+            {
+                println!("All aliases and groups are already {action}.");
+            }
         }
         Ok(Outcome::CatalogChanged) => {
             if save_catalog(&catalog, &resolve_catalog_path(catalog_path.as_ref())).is_err() {
@@ -104,6 +119,11 @@ fn main() {
                 return;
             }
             debug!("New catalog saved.");
+            if let Some(action) = bulk_action
+                && !quiet
+            {
+                println!("All aliases and groups are now {action}.");
+            }
         }
         Err(_) => debug!("An error occurred during command execution."),
     }

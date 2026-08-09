@@ -1,5 +1,5 @@
 use crate::catalog::types::AliasCatalog;
-use crate::core::disable::{disable_alias, disable_group};
+use crate::core::disable::{disable_alias, disable_all, disable_group};
 use crate::core::{Failure, Outcome};
 
 use crate::cli::disable::{DisableCommand, DisableTarget};
@@ -28,6 +28,7 @@ pub fn handle_disable(
     match cmd.target {
         Some(DisableTarget::Alias(args)) => disable_alias(catalog, &args.name),
         Some(DisableTarget::Group(args)) => disable_group(catalog, &args.name, shell),
+        Some(DisableTarget::All) => disable_all(catalog),
         None => handle_disable_shorthand(
             catalog,
             cmd.name
@@ -115,6 +116,24 @@ mod tests {
 
         assert!(alias_result.is_ok());
         assert!(group_result.is_ok());
+        assert!(!catalog.aliases["ll"].enabled);
+        assert!(!catalog.groups["tools"]);
+    }
+
+    #[test]
+    fn disables_all_aliases_and_groups() {
+        let mut catalog = sample_catalog();
+
+        let result = handle_disable(
+            &mut catalog,
+            DisableCommand {
+                target: Some(DisableTarget::All),
+                name: None,
+            },
+            &ShellType::Bash,
+        );
+
+        assert_eq!(result, Ok(Outcome::CatalogChanged));
         assert!(!catalog.aliases["ll"].enabled);
         assert!(!catalog.groups["tools"]);
     }

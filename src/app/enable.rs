@@ -1,5 +1,5 @@
 use crate::catalog::types::AliasCatalog;
-use crate::core::enable::{enable_alias, enable_group};
+use crate::core::enable::{enable_alias, enable_all, enable_group};
 use crate::core::{Failure, Outcome};
 
 use crate::cli::enable::{EnableCommand, EnableTarget};
@@ -28,6 +28,7 @@ pub fn handle_enable(
     match cmd.target {
         Some(EnableTarget::Alias(args)) => enable_alias(catalog, &args.name),
         Some(EnableTarget::Group(args)) => enable_group(catalog, &args.name, shell),
+        Some(EnableTarget::All) => enable_all(catalog),
         None => handle_enable_shorthand(
             catalog,
             cmd.name
@@ -115,6 +116,24 @@ mod tests {
 
         assert!(alias_result.is_ok());
         assert!(group_result.is_ok());
+        assert!(catalog.aliases["ll"].enabled);
+        assert!(catalog.groups["tools"]);
+    }
+
+    #[test]
+    fn enables_all_aliases_and_groups() {
+        let mut catalog = sample_catalog();
+
+        let result = handle_enable(
+            &mut catalog,
+            EnableCommand {
+                target: Some(EnableTarget::All),
+                name: None,
+            },
+            &ShellType::Bash,
+        );
+
+        assert_eq!(result, Ok(Outcome::CatalogChanged));
         assert!(catalog.aliases["ll"].enabled);
         assert!(catalog.groups["tools"]);
     }
