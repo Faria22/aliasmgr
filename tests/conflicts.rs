@@ -137,6 +137,25 @@ fn non_conflicting_add_is_quiet() {
 }
 
 #[test]
+fn unavailable_builtin_result_and_slash_name_remain_non_blocking() {
+    let directory = tempfile::tempdir().unwrap();
+    let catalog = directory.path().join("aliases.toml");
+    let fake_bash = directory.path().join("bash");
+    fs::write(&catalog, "").unwrap();
+    make_executable(&fake_bash, "#!/bin/sh\nexit 1\n");
+
+    let output = run_aliasmgr(
+        &catalog,
+        "bash",
+        directory.path(),
+        &["add", "path/tool", "echo unique"],
+    );
+
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
 fn quiet_suppresses_conflict_warnings() {
     let directory = tempfile::tempdir().unwrap();
     let catalog = directory.path().join("aliases.toml");
