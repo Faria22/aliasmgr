@@ -52,7 +52,7 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr add alias <name> <command> [--group <group>] [--disabled] [--global]` (explicit form)
 - `aliasmgr add group <name> [--disabled]`
 - `aliasmgr move <name> [group]`
-- `aliasmgr list [<pattern>] [--group [group]] [--enabled] [--disabled] [--global]`
+- `aliasmgr list [<pattern>] [--group [group]] [--enabled] [--disabled] [--global] [--format <human|json>]`
 - `aliasmgr remove <name>` (removes the matching alias or group; prompts if both exist)
 - `aliasmgr remove alias <name>` (explicit form)
 - `aliasmgr remove group <name> [--reassign [--enable-reassigned | --disable-reassigned]]`
@@ -76,6 +76,7 @@ For more details, use the `-h` or `--help` flags.
 Notes:
 - Alias names cannot be empty or contain whitespace or `=`.
 - Global aliases (`--global`) only work on zsh; they are skipped on other shells.
+- `list --format json` emits an array of aliases with `name`, `command`, `group`, `enabled`, and `global` fields. Ungrouped aliases have a `null` group.
 
 ## Sync Behavior
 - Each initialized terminal tracks the alias names and effective catalog revision that it last applied.
