@@ -92,11 +92,13 @@ fn main() {
         Commands::Move(cmd) => handle_move(&mut catalog, cmd).map(CommandOutcome::from),
         Commands::List(cmd) => handle_list(&catalog, cmd, &shell).map(CommandOutcome::from),
         Commands::Rename(cmd) => handle_rename(&mut catalog, cmd).map(CommandOutcome::from),
-        Commands::Edit(cmd) => handle_edit(&mut catalog, cmd).map(CommandOutcome::from),
+        Commands::Edit(cmd) => handle_edit(&mut catalog, cmd, &shell).map(CommandOutcome::from),
         Commands::Sort(cmd) => handle_sort(&mut catalog, cmd).map(CommandOutcome::from),
         Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell),
         Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell),
-        Commands::Doctor(cmd) => handle_doctor(&catalog, cmd, &shell).map(CommandOutcome::from),
+        Commands::Doctor(cmd) => {
+            handle_doctor(&catalog, cmd, &shell, quiet).map(CommandOutcome::from)
+        }
         Commands::Sync(cmd) => handle_sync(cmd).map(CommandOutcome::from),
         Commands::ShellSync(cmd) => {
             print!("{}", handle_shell_sync(&catalog, &shell, cmd));

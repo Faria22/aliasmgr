@@ -1,6 +1,7 @@
 use crate::core::{Failure, Outcome};
 
 use crate::core::add::{add_alias, add_group};
+use crate::core::conflict::conflict_warnings;
 use crate::core::edit::edit_alias;
 use crate::core::r#move::move_alias;
 use crate::core::validation::is_valid_alias_name;
@@ -14,7 +15,7 @@ use super::list::format_alias_info;
 
 use super::shell::ShellType;
 
-use log::{error, info};
+use log::{error, info, warn};
 
 /// Handle overwriting an existing alias
 fn handle_overwrite_existing_alias(
@@ -160,13 +161,25 @@ pub fn handle_add(
             }
 
             let new_alias = Alias::new(args.command, args.group, !args.disabled, args.global);
-            handle_add_alias(
+            let outcome = handle_add_alias(
                 catalog,
                 &args.name,
                 &new_alias,
                 prompt_overwrite_existing_alias,
                 prompt_create_non_existent_group,
-            )
+            )?;
+
+            if outcome == Outcome::CatalogChanged {
+                for warning in conflict_warnings([args.name.as_str()], shell)
+                    .get(&args.name)
+                    .into_iter()
+                    .flatten()
+                {
+                    warn!("{warning}");
+                }
+            }
+
+            Ok(outcome)
         }
 
         // Add group
