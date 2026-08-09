@@ -271,17 +271,19 @@ mod tests {
             mode = "never"
             [symbols]
             enabled = "+"
+            disabled = "-"
             [styles.disabled]
             foreground = "#ff00aa"
+            bold = false
             "##,
         )
         .unwrap();
 
         assert_eq!(config.color, ColorMode::Never);
         assert_eq!(config.symbols.enabled, "+");
-        assert_eq!(config.symbols.disabled, "✘");
+        assert_eq!(config.symbols.disabled, "-");
         assert_eq!(config.styles.disabled.foreground, "#ff00aa");
-        assert!(config.styles.disabled.bold);
+        assert!(!config.styles.disabled.bold);
     }
 
     #[test]

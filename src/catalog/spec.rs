@@ -86,6 +86,13 @@ fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Result<
     })
 }
 
+fn insert_alias(aliases: &mut HashMap<String, Alias>, name: String, alias: Alias) -> Result<()> {
+    if aliases.insert(name.clone(), alias).is_some() {
+        bail!("alias '{name}' is defined more than once");
+    }
+    Ok(())
+}
+
 /// Convert an AliasCatalogSpec to its corresponding AliasCatalog representation.
 ///
 /// # Arguments
@@ -104,23 +111,17 @@ pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> Result<AliasCatalog> {
 
                 if let Some(alias_entry) = group_spec.ungrouped_alias {
                     let alias = convert_spec_to_alias(*alias_entry, None)?;
-                    if aliases.insert(name.clone(), alias).is_some() {
-                        bail!("alias '{name}' is defined more than once");
-                    }
+                    insert_alias(&mut aliases, name.clone(), alias)?;
                 }
 
                 for (alias_name, alias_entry) in group_spec.aliases {
                     let alias = convert_spec_to_alias(alias_entry, Some(name.clone()))?;
-                    if aliases.insert(alias_name.clone(), alias).is_some() {
-                        bail!("alias '{alias_name}' is defined more than once");
-                    }
+                    insert_alias(&mut aliases, alias_name, alias)?;
                 }
             }
             alias => {
                 let alias_cfg = convert_spec_to_alias(alias, None)?;
-                if aliases.insert(name.clone(), alias_cfg).is_some() {
-                    bail!("alias '{name}' is defined more than once");
-                }
+                insert_alias(&mut aliases, name, alias_cfg)?;
             }
         }
     }
