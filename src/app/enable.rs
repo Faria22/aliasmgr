@@ -5,6 +5,7 @@ use crate::core::{Failure, Outcome};
 use crate::cli::enable::{EnableCommand, EnableTarget};
 use crate::cli::interaction::prompt_alias_or_group;
 
+use super::CommandOutcome;
 use super::resource::{ResourceType, resolve_resource_type};
 use super::shell::ShellType;
 
@@ -24,11 +25,21 @@ pub fn handle_enable(
     catalog: &mut AliasCatalog,
     cmd: EnableCommand,
     shell: &ShellType,
-) -> Result<Outcome, Failure> {
+) -> Result<CommandOutcome, Failure> {
     match cmd.target {
-        Some(EnableTarget::Alias(args)) => enable_alias(catalog, &args.name),
-        Some(EnableTarget::Group(args)) => enable_group(catalog, &args.name, shell),
-        Some(EnableTarget::All) => enable_all(catalog),
+        Some(EnableTarget::Alias(args)) => {
+            enable_alias(catalog, &args.name).map(CommandOutcome::from)
+        }
+        Some(EnableTarget::Group(args)) => {
+            enable_group(catalog, &args.name, shell).map(CommandOutcome::from)
+        }
+        Some(EnableTarget::All) => enable_all(catalog).map(|outcome| {
+            let message = match outcome {
+                Outcome::CatalogChanged => "All aliases and groups are now enabled.",
+                Outcome::NoChanges => "All aliases and groups are already enabled.",
+            };
+            CommandOutcome::with_message(outcome, message)
+        }),
         None => handle_enable_shorthand(
             catalog,
             cmd.name
@@ -36,7 +47,8 @@ pub fn handle_enable(
                 .expect("clap requires a name when no subcommand is used"),
             shell,
             |name| prompt_alias_or_group(name, "enabled"),
-        ),
+        )
+        .map(CommandOutcome::from),
     }
 }
 
@@ -133,7 +145,13 @@ mod tests {
             &ShellType::Bash,
         );
 
-        assert_eq!(result, Ok(Outcome::CatalogChanged));
+        assert_eq!(
+            result,
+            Ok(CommandOutcome::with_message(
+                Outcome::CatalogChanged,
+                "All aliases and groups are now enabled."
+            ))
+        );
         assert!(catalog.aliases["ll"].enabled);
         assert!(catalog.groups["tools"]);
     }
