@@ -362,6 +362,27 @@ mod tests {
     }
 
     #[test]
+    fn parses_list_output_format_and_defaults_to_human() {
+        let default = Cli::try_parse_from(["aliasmgr", "list"]).unwrap();
+        assert!(matches!(
+            default.command,
+            Commands::List(ListCommand {
+                format: list::OutputFormat::Human,
+                ..
+            })
+        ));
+
+        let json = Cli::try_parse_from(["aliasmgr", "list", "--format", "json"]).unwrap();
+        assert!(matches!(
+            json.command,
+            Commands::List(ListCommand {
+                format: list::OutputFormat::Json,
+                ..
+            })
+        ));
+    }
+
+    #[test]
     fn parses_internal_conditional_shell_sync() {
         let cli = Cli::try_parse_from(["aliasmgr", "shell-sync", "--if-changed"])
             .expect("internal shell sync should parse");

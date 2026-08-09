@@ -1,8 +1,9 @@
 use owo_colors::OwoColorize;
+use serde::Serialize;
 
 use super::shell::ShellType;
 use crate::catalog::types::AliasCatalog;
-use crate::cli::list::ListCommand;
+use crate::cli::list::{ListCommand, OutputFormat};
 use crate::core::list::{get_aliases_from_single_group, get_all_aliases_grouped};
 use crate::core::{Failure, Outcome};
 
@@ -118,29 +119,82 @@ fn retain_aliases(catalog: &AliasCatalog, aliases: &mut Vec<String>, cmd: &ListC
     }
 }
 
+fn select_aliases(
+    catalog: &AliasCatalog,
+    cmd: &ListCommand,
+    shell: &ShellType,
+) -> Result<indexmap::IndexMap<Option<String>, Vec<String>>, Failure> {
+    let mut groups = if let Some(group) = &cmd.group {
+        let group_id = group.clone();
+        let aliases = get_aliases_from_single_group(catalog, group_id.as_deref(), shell)?;
+        indexmap::IndexMap::from([(group_id, aliases)])
+    } else {
+        get_all_aliases_grouped(catalog, shell)
+    };
+
+    for aliases in groups.values_mut() {
+        retain_aliases(catalog, aliases, cmd);
+    }
+    groups.retain(|_, aliases| !aliases.is_empty());
+    Ok(groups)
+}
+
+#[derive(Serialize)]
+struct JsonAlias<'a> {
+    name: &'a str,
+    command: &'a str,
+    group: Option<&'a str>,
+    enabled: bool,
+    global: bool,
+}
+
+fn format_json(
+    catalog: &AliasCatalog,
+    groups: &indexmap::IndexMap<Option<String>, Vec<String>>,
+) -> String {
+    let aliases = groups
+        .values()
+        .flatten()
+        .map(|name| {
+            let alias = &catalog.aliases[name];
+            JsonAlias {
+                name,
+                command: &alias.command,
+                group: alias.group.as_deref(),
+                enabled: alias.enabled,
+                global: alias.global,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    serde_json::to_string_pretty(&aliases).expect("alias list is JSON serializable") + "\n"
+}
+
+fn format_human(
+    catalog: &AliasCatalog,
+    groups: &indexmap::IndexMap<Option<String>, Vec<String>>,
+    focused_group: bool,
+) -> Result<String, Failure> {
+    let mut content = String::new();
+    for (group_id, aliases) in groups {
+        if focused_group {
+            content += &format_group_and_aliases_single_group(catalog, group_id, aliases)?;
+        } else {
+            content += &format_group_and_aliases(catalog, group_id, aliases)?;
+        }
+    }
+    Ok(content)
+}
+
 fn format_list(
     catalog: &AliasCatalog,
     cmd: &ListCommand,
     shell: &ShellType,
 ) -> Result<String, Failure> {
-    if let Some(group) = &cmd.group {
-        let group_id = group.clone();
-        let mut aliases = get_aliases_from_single_group(catalog, group_id.as_deref(), shell)?;
-        retain_aliases(catalog, &mut aliases, cmd);
-        if aliases.is_empty() {
-            return Ok(String::new());
-        }
-        format_group_and_aliases_single_group(catalog, &group_id, &aliases)
-    } else {
-        let mut content = String::new();
-        for (group_id, mut aliases) in get_all_aliases_grouped(catalog, shell) {
-            retain_aliases(catalog, &mut aliases, cmd);
-            if aliases.is_empty() {
-                continue;
-            }
-            content += &format_group_and_aliases(catalog, &group_id, &aliases)?;
-        }
-        Ok(content)
+    let groups = select_aliases(catalog, cmd, shell)?;
+    match cmd.format {
+        OutputFormat::Human => format_human(catalog, &groups, cmd.group.is_some()),
+        OutputFormat::Json => Ok(format_json(catalog, &groups)),
     }
 }
 
@@ -270,6 +324,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
 
         let output = format_list(&catalog, &cmd, &ShellType::Bash).unwrap();
@@ -288,6 +343,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
 
         let output = format_list(&catalog, &cmd, &ShellType::Zsh).unwrap();
@@ -306,6 +362,7 @@ mod tests {
             enabled: true,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         let disabled = ListCommand {
             pattern: None,
@@ -313,6 +370,7 @@ mod tests {
             enabled: false,
             disabled: true,
             global: false,
+            format: OutputFormat::Human,
         };
 
         let enabled_output = format_list(&catalog, &enabled, &ShellType::Bash).unwrap();
@@ -335,6 +393,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: true,
+            format: OutputFormat::Human,
         };
 
         assert_eq!(format_list(&catalog, &cmd, &ShellType::Bash).unwrap(), "");
@@ -346,6 +405,103 @@ mod tests {
     }
 
     #[test]
+    fn json_lists_ungrouped_and_grouped_aliases() {
+        let catalog = create_test_catalog();
+        let cmd = ListCommand {
+            pattern: None,
+            group: None,
+            enabled: false,
+            disabled: false,
+            global: false,
+            format: OutputFormat::Json,
+        };
+
+        let output = format_list(&catalog, &cmd, &ShellType::Bash).unwrap();
+        let aliases: serde_json::Value = serde_json::from_str(&output).unwrap();
+
+        assert_eq!(
+            aliases,
+            serde_json::json!([
+                {
+                    "name": "test",
+                    "command": "echo test",
+                    "group": null,
+                    "enabled": true,
+                    "global": false
+                },
+                {
+                    "name": "build",
+                    "command": "cargo build",
+                    "group": "dev",
+                    "enabled": true,
+                    "global": false
+                }
+            ])
+        );
+    }
+
+    #[test]
+    fn json_respects_pattern_group_and_status_filters() {
+        let catalog = create_filtered_catalog();
+        let cmd = ListCommand {
+            pattern: Some("d*".to_string()),
+            group: Some(Some("ops".to_string())),
+            enabled: false,
+            disabled: true,
+            global: false,
+            format: OutputFormat::Json,
+        };
+
+        let output = format_list(&catalog, &cmd, &ShellType::Zsh).unwrap();
+        let aliases: serde_json::Value = serde_json::from_str(&output).unwrap();
+
+        assert_eq!(
+            aliases,
+            serde_json::json!([{
+                "name": "deploy",
+                "command": "deploy",
+                "group": "ops",
+                "enabled": false,
+                "global": false
+            }])
+        );
+    }
+
+    #[test]
+    fn json_only_includes_global_aliases_for_zsh() {
+        let catalog = create_filtered_catalog();
+        let cmd = ListCommand {
+            pattern: None,
+            group: None,
+            enabled: false,
+            disabled: false,
+            global: true,
+            format: OutputFormat::Json,
+        };
+
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(
+                &format_list(&catalog, &cmd, &ShellType::Bash).unwrap()
+            )
+            .unwrap(),
+            serde_json::json!([])
+        );
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(
+                &format_list(&catalog, &cmd, &ShellType::Zsh).unwrap()
+            )
+            .unwrap(),
+            serde_json::json!([{
+                "name": "glob",
+                "command": "*.rs",
+                "group": "zsh",
+                "enabled": true,
+                "global": true
+            }])
+        );
+    }
+
+    #[test]
     fn no_matches_or_empty_focused_group_produce_no_output() {
         let catalog = create_filtered_catalog();
         let no_matches = ListCommand {
@@ -354,6 +510,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         let empty_focused_group = ListCommand {
             pattern: Some("missing*".to_string()),
@@ -361,6 +518,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
 
         assert_eq!(
@@ -383,6 +541,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         let result = handle_list(&catalog, cmd, &ShellType::Bash);
         assert!(result.is_ok());
@@ -397,6 +556,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         let result = handle_list(&catalog, cmd, &ShellType::Bash);
         assert_matches!(result, Err(Failure::GroupDoesNotExist));
@@ -411,6 +571,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         let result = handle_list(&catalog, cmd, &ShellType::Bash);
         assert!(result.is_ok());
@@ -425,6 +586,7 @@ mod tests {
             enabled: true,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         let result = handle_list(&catalog, cmd, &ShellType::Bash);
         assert!(result.is_ok());
@@ -439,6 +601,7 @@ mod tests {
             enabled: false,
             disabled: true,
             global: false,
+            format: OutputFormat::Human,
         };
         let result = handle_list(&catalog, cmd, &ShellType::Bash);
         assert!(result.is_ok());
@@ -453,6 +616,7 @@ mod tests {
             enabled: true,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         let result = handle_list(&catalog, cmd, &ShellType::Bash);
         assert!(result.is_ok());
@@ -467,6 +631,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         let result = handle_list(&catalog, cmd, &ShellType::Bash);
         assert!(result.is_ok());
@@ -481,6 +646,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: true,
+            format: OutputFormat::Human,
         };
         let result = handle_list(&catalog, cmd, &ShellType::Bash);
         assert!(result.is_ok());
@@ -563,6 +729,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         retain_aliases(&catalog, &mut aliases, &cmd);
         assert!(!aliases.is_empty());
@@ -582,6 +749,7 @@ mod tests {
             enabled: true,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         retain_aliases(&catalog, &mut aliases, &cmd);
         assert!(!aliases.is_empty());
@@ -601,6 +769,7 @@ mod tests {
             enabled: false,
             disabled: true,
             global: false,
+            format: OutputFormat::Human,
         };
         retain_aliases(&catalog, &mut aliases, &cmd);
         assert!(!aliases.is_empty());
@@ -619,6 +788,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: false,
+            format: OutputFormat::Human,
         };
         retain_aliases(&catalog, &mut aliases, &cmd);
         assert!(!aliases.is_empty());
@@ -638,6 +808,7 @@ mod tests {
             enabled: false,
             disabled: false,
             global: true,
+            format: OutputFormat::Human,
         };
         retain_aliases(&catalog, &mut aliases, &cmd);
         assert!(!aliases.is_empty());

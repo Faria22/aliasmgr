@@ -1,4 +1,11 @@
-use clap::{ArgGroup, Args};
+use clap::{ArgGroup, Args, ValueEnum};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+pub enum OutputFormat {
+    #[default]
+    Human,
+    Json,
+}
 
 #[derive(Args)]
 #[command(
@@ -27,4 +34,8 @@ pub struct ListCommand {
     /// Show only global aliases
     #[arg(long)]
     pub global: bool,
+
+    /// Select the output format
+    #[arg(long, value_enum, default_value = "human")]
+    pub format: OutputFormat,
 }
