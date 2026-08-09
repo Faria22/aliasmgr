@@ -140,6 +140,67 @@ fn force_accepts_reassignment_and_enabling_prompts() {
 }
 
 #[test]
+fn force_propagates_through_prompting_command_handlers() {
+    let directory = tempfile::tempdir().unwrap();
+    let catalog = directory.path().join("aliases.toml");
+
+    for (args, expected_alias) in [
+        (
+            vec!["edit", "ll", "ls -la", "--group", "tools", "--force"],
+            "ll = \"ls -la\"",
+        ),
+        (vec!["move", "ll", "tools", "--force"], "ll = \"ls\""),
+    ] {
+        fs::write(&catalog, "ll = \"ls\"\n").unwrap();
+        let output = run_aliasmgr(&catalog, &args);
+        assert!(output.status.success(), "command failed: {output:?}");
+        let content = fs::read_to_string(&catalog).unwrap();
+        assert!(content.contains("[tools]"));
+        assert!(
+            content.contains(expected_alias),
+            "catalog {content:?} did not contain {expected_alias:?}"
+        );
+    }
+
+    for (enabled, command) in [(false, "enable"), (true, "disable")] {
+        fs::write(
+            &catalog,
+            format!(
+                "[tools]\nenabled = false\n\"aliasmgr ungrouped alias\" = \
+                 {{ command = \"echo tools\", enabled = {enabled} }}\n"
+            ),
+        )
+        .unwrap();
+        let output = run_aliasmgr(&catalog, &[command, "tools", "--force"]);
+        assert!(output.status.success(), "command failed: {output:?}");
+        let content = fs::read_to_string(&catalog).unwrap();
+        let expected_alias = format!(
+            "\"aliasmgr ungrouped alias\" = {{ command = \"echo tools\", enabled = {}, global = false }}",
+            command == "enable"
+        );
+        assert!(
+            content.contains(&expected_alias),
+            "catalog {content:?} did not contain {expected_alias:?}"
+        );
+    }
+
+    fs::write(
+        &catalog,
+        "[tools]\nenabled = false\nbuild = \"cargo build\"\n",
+    )
+    .unwrap();
+    let output = run_aliasmgr(
+        &catalog,
+        &["remove", "group", "tools", "--reassign", "--force"],
+    );
+    assert!(output.status.success(), "command failed: {output:?}");
+    assert_eq!(
+        fs::read_to_string(&catalog).unwrap(),
+        "build = \"cargo build\"\n"
+    );
+}
+
+#[test]
 fn force_and_no_input_conflict_across_command_scopes() {
     let directory = tempfile::tempdir().unwrap();
     let catalog = directory.path().join("aliases.toml");
