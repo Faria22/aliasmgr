@@ -77,6 +77,10 @@ ll = { command = "ls -la", enabled = true }
 For more details, use the `-h` or `--help` flags.
 
 Notes:
+- `--force` and `--no-input` are mutually exclusive global automation flags.
+  `--force` accepts every prompt and selects aliases when an alias and group have
+  the same name. `--no-input` exits with status 2 if a command would prompt.
+  Without either flag, prompt behavior remains interactive.
 - Alias names cannot be empty or contain whitespace or `=`.
 - Global aliases (`--global`) only work on zsh; they are skipped on other shells.
 - Adding or editing an alias warns without blocking when its name conflicts with a

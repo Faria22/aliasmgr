@@ -16,6 +16,7 @@ pub fn handle_shell_sync(
     catalog: &AliasCatalog,
     shell: &ShellType,
     cmd: ShellSyncCommand,
+    force: bool,
 ) -> String {
     let managed_aliases = std::env::var(MANAGED_ALIASES_ENV_VAR).unwrap_or_default();
     let applied_revision = std::env::var(CATALOG_REVISION_ENV_VAR).unwrap_or_default();
@@ -25,7 +26,7 @@ pub fn handle_shell_sync(
         shell,
         &managed_aliases,
         &applied_revision,
-        cmd.if_changed && !cmd.force,
+        cmd.if_changed && !force,
     )
 }
 
@@ -53,10 +54,8 @@ mod tests {
                 let script = handle_shell_sync(
                     &catalog,
                     &ShellType::Bash,
-                    ShellSyncCommand {
-                        if_changed: true,
-                        force: false,
-                    },
+                    ShellSyncCommand { if_changed: true },
+                    false,
                 );
                 assert!(script.contains("unalias -- 'old'"));
                 assert!(script.contains("alias -- 'current=echo current'"));

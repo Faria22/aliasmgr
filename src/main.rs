@@ -7,6 +7,7 @@ mod core;
 
 use clap::Parser;
 
+use cli::interaction::configure_interaction;
 use cli::{Cli, Commands};
 
 use catalog::io::{catalog_path as resolve_catalog_path, load_catalog, save_catalog};
@@ -36,7 +37,12 @@ use log::{LevelFilter, debug};
 #[cfg_attr(coverage_nightly, coverage(off))]
 fn main() {
     let cli = Cli::parse();
+    if let Err(error) = cli.validate_prompt_controls() {
+        error.exit();
+    }
     let quiet = cli.quiet;
+    let force = cli.force;
+    configure_interaction(force, cli.no_input);
 
     // Determine log level based on CLI flags
     let level = if cli.quiet {
@@ -101,7 +107,7 @@ fn main() {
         }
         Commands::Sync(cmd) => handle_sync(cmd).map(CommandOutcome::from),
         Commands::ShellSync(cmd) => {
-            print!("{}", handle_shell_sync(&catalog, &shell, cmd));
+            print!("{}", handle_shell_sync(&catalog, &shell, cmd, force));
             Ok(CommandOutcome::from(Outcome::NoChanges))
         }
         Commands::Init(cmd) => {
