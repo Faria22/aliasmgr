@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0 - 2026-08-09
+### Added
+- Add `list --format json` for machine-readable alias output using the same pattern, group, status, global, and shell-compatibility filters as the human-readable view.
+- Add `enable all` and `disable all` to update every alias and group in one operation.
+- Add `doctor`, with `validate` as an alias, for non-mutating catalog and shell-compatibility diagnostics.
+- Warn when alias names conflict with Bash or Zsh builtins or executables on `PATH`; warnings remain non-blocking and can be suppressed with `--quiet`.
+- Add global `--force` and `--no-input` controls for scripted commands that would otherwise prompt. `--force` accepts prompts, while `--no-input` exits with status 2 without changing the catalog when input is required.
+- Add `--pattern <glob>` and `--group [group]` selectors to explicit alias enable, disable, and remove commands, including combined filters and single-confirmation bulk removal.
+
+### Changed
+- Omit group headers from `list` output when no aliases remain after filtering.
+
 ## 1.2.0 - 2026-08-08
 ### Added
 - Allow aliases to be managed without spelling out the `alias` resource for `add`, `remove`, `rename`, `enable`, and `disable`, while retaining explicit alias and group forms.
