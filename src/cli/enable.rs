@@ -26,6 +26,9 @@ pub enum EnableTarget {
     /// Enable a group
     #[command(visible_alias = "g")]
     Group(EnableArgs),
+
+    /// Enable all aliases and groups
+    All,
 }
 
 #[derive(Args)]

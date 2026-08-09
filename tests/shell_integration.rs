@@ -106,6 +106,57 @@ __aliasmgr_prompt_sync
 }
 
 #[test]
+fn bulk_disable_and_enable_reconcile_all_managed_aliases() {
+    let catalog = tempfile::NamedTempFile::new().unwrap();
+    let script = r#"
+eval "$("$1" init bash --catalog "$2")"
+aliasmgr add alias top 'echo top'
+aliasmgr add group tools --disabled
+aliasmgr add alias grouped 'echo grouped' --group tools --disabled
+__aliasmgr_prompt_sync
+alias top | command grep -q 'echo top' || exit 40
+! alias grouped 2>/dev/null || exit 41
+
+disable_output="$(aliasmgr disable all)"
+[ "$disable_output" = 'All aliases and groups are now disabled.' ] || exit 42
+__aliasmgr_prompt_sync
+! alias top 2>/dev/null || exit 43
+
+disable_output="$(aliasmgr disable all)"
+[ "$disable_output" = 'All aliases and groups are already disabled.' ] || exit 44
+
+enable_output="$(aliasmgr enable all)"
+[ "$enable_output" = 'All aliases and groups are now enabled.' ] || exit 45
+__aliasmgr_prompt_sync
+alias top | command grep -q 'echo top' || exit 46
+alias grouped | command grep -q 'echo grouped' || exit 47
+
+enable_output="$(aliasmgr enable all)"
+[ "$enable_output" = 'All aliases and groups are already enabled.' ] || exit 48
+"#;
+
+    assert_success(run_shell("bash", script, catalog.path()).unwrap());
+}
+
+#[test]
+fn bulk_enable_and_disable_handle_an_empty_catalog() {
+    let catalog = tempfile::NamedTempFile::new().unwrap();
+    let script = r#"
+eval "$("$1" init bash --catalog "$2")"
+
+enable_output="$(aliasmgr enable all)"
+[ "$enable_output" = 'All aliases and groups are already enabled.' ] || exit 49
+
+disable_output="$(aliasmgr disable all)"
+[ "$disable_output" = 'All aliases and groups are already disabled.' ] || exit 50
+
+[ -z "$(aliasmgr --quiet enable all)" ] || exit 51
+"#;
+
+    assert_success(run_shell("bash", script, catalog.path()).unwrap());
+}
+
+#[test]
 fn removing_enabled_group_with_reassign_preserves_enabled_alias() {
     let catalog = tempfile::NamedTempFile::new().unwrap();
     let script = r#"

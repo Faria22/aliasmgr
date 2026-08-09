@@ -308,6 +308,26 @@ mod tests {
                 ..
             }) if args.name == "tools"
         ));
+
+        let all =
+            Cli::try_parse_from(["aliasmgr", "enable", "all"]).expect("enable all should parse");
+        assert!(matches!(
+            all.command,
+            Commands::Enable(EnableCommand {
+                target: Some(EnableTarget::All),
+                ..
+            })
+        ));
+
+        let reserved = Cli::try_parse_from(["aliasmgr", "enable", "alias", "all"])
+            .expect("an alias named all should remain addressable explicitly");
+        assert!(matches!(
+            reserved.command,
+            Commands::Enable(EnableCommand {
+                target: Some(EnableTarget::Alias(args)),
+                ..
+            }) if args.name == "all"
+        ));
     }
 
     #[test]
@@ -330,6 +350,26 @@ mod tests {
                 target: Some(DisableTarget::Alias(args)),
                 ..
             }) if args.name == "group"
+        ));
+
+        let all =
+            Cli::try_parse_from(["aliasmgr", "disable", "all"]).expect("disable all should parse");
+        assert!(matches!(
+            all.command,
+            Commands::Disable(DisableCommand {
+                target: Some(DisableTarget::All),
+                ..
+            })
+        ));
+
+        let reserved = Cli::try_parse_from(["aliasmgr", "disable", "alias", "all"])
+            .expect("an alias named all should remain addressable explicitly");
+        assert!(matches!(
+            reserved.command,
+            Commands::Disable(DisableCommand {
+                target: Some(DisableTarget::Alias(args)),
+                ..
+            }) if args.name == "all"
         ));
     }
 

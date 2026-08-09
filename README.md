@@ -67,9 +67,11 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr enable <name>` (enables the matching alias or group; prompts if both exist)
 - `aliasmgr enable alias <name>` (explicit form)
 - `aliasmgr enable group <name>`
+- `aliasmgr enable all`
 - `aliasmgr disable <name>` (disables the matching alias or group; prompts if both exist)
 - `aliasmgr disable alias <name>` (explicit form)
 - `aliasmgr disable group <name>`
+- `aliasmgr disable all`
 - `aliasmgr doctor` (also available as `aliasmgr validate`)
 
 For more details, use the `-h` or `--help` flags.

@@ -14,6 +14,7 @@ use catalog::io::{catalog_path as resolve_catalog_path, load_catalog, save_catal
 use catalog::types::AliasCatalog;
 use core::Outcome;
 
+use app::CommandOutcome;
 use app::add::handle_add;
 use app::disable::handle_disable;
 use app::doctor::handle_doctor;
@@ -35,6 +36,7 @@ use log::{LevelFilter, debug};
 #[cfg_attr(coverage_nightly, coverage(off))]
 fn main() {
     let cli = Cli::parse();
+    let quiet = cli.quiet;
 
     // Determine log level based on CLI flags
     let level = if cli.quiet {
@@ -85,39 +87,48 @@ fn main() {
 
     let result = match cli.command {
         // Add new alias or group
-        Commands::Add(cmd) => handle_add(&mut catalog, cmd, &shell),
-        Commands::Remove(cmd) => handle_remove(&mut catalog, cmd, &shell),
-        Commands::Move(cmd) => handle_move(&mut catalog, cmd),
-        Commands::List(cmd) => handle_list(&catalog, cmd, &shell),
-        Commands::Rename(cmd) => handle_rename(&mut catalog, cmd),
-        Commands::Edit(cmd) => handle_edit(&mut catalog, cmd),
-        Commands::Sort(cmd) => handle_sort(&mut catalog, cmd),
+        Commands::Add(cmd) => handle_add(&mut catalog, cmd, &shell).map(CommandOutcome::from),
+        Commands::Remove(cmd) => handle_remove(&mut catalog, cmd, &shell).map(CommandOutcome::from),
+        Commands::Move(cmd) => handle_move(&mut catalog, cmd).map(CommandOutcome::from),
+        Commands::List(cmd) => handle_list(&catalog, cmd, &shell).map(CommandOutcome::from),
+        Commands::Rename(cmd) => handle_rename(&mut catalog, cmd).map(CommandOutcome::from),
+        Commands::Edit(cmd) => handle_edit(&mut catalog, cmd).map(CommandOutcome::from),
+        Commands::Sort(cmd) => handle_sort(&mut catalog, cmd).map(CommandOutcome::from),
         Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell),
         Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell),
-        Commands::Doctor(cmd) => handle_doctor(&catalog, cmd, &shell),
-        Commands::Sync(cmd) => handle_sync(cmd),
+        Commands::Doctor(cmd) => handle_doctor(&catalog, cmd, &shell).map(CommandOutcome::from),
+        Commands::Sync(cmd) => handle_sync(cmd).map(CommandOutcome::from),
         Commands::ShellSync(cmd) => {
             print!("{}", handle_shell_sync(&catalog, &shell, cmd));
-            Ok(Outcome::NoChanges)
+            Ok(CommandOutcome::from(Outcome::NoChanges))
         }
         Commands::Init(cmd) => {
             let content = handle_init(cmd);
             debug!("Generated init script content");
             println!("{}", content);
-            Ok(Outcome::NoChanges)
+            Ok(CommandOutcome::from(Outcome::NoChanges))
         }
     };
 
     match result {
-        Ok(Outcome::NoChanges) => {
-            debug!("No changes made to catalog or shell.");
-        }
-        Ok(Outcome::CatalogChanged) => {
-            if save_catalog(&catalog, &resolve_catalog_path(catalog_path.as_ref())).is_err() {
-                eprintln!("Failed to save updated catalog.");
-                return;
+        Ok(CommandOutcome { outcome, message }) => {
+            match outcome {
+                Outcome::NoChanges => debug!("No changes made to catalog or shell."),
+                Outcome::CatalogChanged => {
+                    if save_catalog(&catalog, &resolve_catalog_path(catalog_path.as_ref())).is_err()
+                    {
+                        eprintln!("Failed to save updated catalog.");
+                        return;
+                    }
+                    debug!("New catalog saved.");
+                }
             }
-            debug!("New catalog saved.");
+
+            if let Some(message) = message
+                && !quiet
+            {
+                println!("{message}");
+            }
         }
         Err(_) => {
             debug!("An error occurred during command execution.");
