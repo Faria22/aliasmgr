@@ -118,6 +118,32 @@ fn retain_aliases(catalog: &AliasCatalog, aliases: &mut Vec<String>, cmd: &ListC
     }
 }
 
+fn format_list(
+    catalog: &AliasCatalog,
+    cmd: &ListCommand,
+    shell: &ShellType,
+) -> Result<String, Failure> {
+    if let Some(group) = &cmd.group {
+        let group_id = group.clone();
+        let mut aliases = get_aliases_from_single_group(catalog, group_id.as_deref(), shell)?;
+        retain_aliases(catalog, &mut aliases, cmd);
+        if aliases.is_empty() {
+            return Ok(String::new());
+        }
+        format_group_and_aliases_single_group(catalog, &group_id, &aliases)
+    } else {
+        let mut content = String::new();
+        for (group_id, mut aliases) in get_all_aliases_grouped(catalog, shell) {
+            retain_aliases(catalog, &mut aliases, cmd);
+            if aliases.is_empty() {
+                continue;
+            }
+            content += &format_group_and_aliases(catalog, &group_id, &aliases)?;
+        }
+        Ok(content)
+    }
+}
+
 /// Handle the 'list' command based on the provided options.
 /// This function lists aliases according to the specified criteria:
 /// - If a specific group is provided, it lists aliases in that group.
@@ -138,35 +164,8 @@ pub fn handle_list(
     cmd: ListCommand,
     shell: &ShellType,
 ) -> Result<Outcome, Failure> {
-    // List aliases in a specific group
-    if let Some(group) = &cmd.group {
-        // User provided a group name
-        let group_id;
-        if let Some(group_name) = group {
-            group_id = Some(group_name.clone())
-        } else {
-            // User wants ungrouped aliases
-            group_id = None;
-        };
-
-        let mut aliases = get_aliases_from_single_group(catalog, group_id.as_deref(), shell)?;
-        retain_aliases(catalog, &mut aliases, &cmd);
-        print!(
-            "{}",
-            format_group_and_aliases_single_group(catalog, &group_id, &aliases)?
-        );
-        Ok(Outcome::NoChanges)
-    } else {
-        // Default: list enabled aliases
-        for (group_id, mut aliases) in get_all_aliases_grouped(catalog, shell) {
-            retain_aliases(catalog, &mut aliases, &cmd);
-            print!(
-                "{}",
-                format_group_and_aliases(catalog, &group_id, &aliases)?
-            );
-        }
-        Ok(Outcome::NoChanges)
-    }
+    print!("{}", format_list(catalog, &cmd, shell)?);
+    Ok(Outcome::NoChanges)
 }
 
 #[cfg(test)]
@@ -194,6 +193,31 @@ mod tests {
             ),
         );
         catalog.groups.insert("dev".to_string(), true);
+        catalog
+    }
+
+    fn create_filtered_catalog() -> AliasCatalog {
+        let mut catalog = AliasCatalog::new();
+        catalog.groups.insert("dev".to_string(), true);
+        catalog.groups.insert("ops".to_string(), true);
+        catalog.groups.insert("zsh".to_string(), true);
+        catalog.aliases.insert(
+            "build".to_string(),
+            Alias::new(
+                "cargo build".to_string(),
+                Some("dev".to_string()),
+                true,
+                false,
+            ),
+        );
+        catalog.aliases.insert(
+            "deploy".to_string(),
+            Alias::new("deploy".to_string(), Some("ops".to_string()), false, false),
+        );
+        catalog.aliases.insert(
+            "glob".to_string(),
+            Alias::new("*.rs".to_string(), Some("zsh".to_string()), true, true),
+        );
         catalog
     }
 
@@ -235,6 +259,118 @@ mod tests {
         let output = result.unwrap();
         assert!(output.contains("Group: dev"));
         assert!(output.contains("test -> echo test"));
+    }
+
+    #[test]
+    fn list_omits_empty_groups_and_preserves_nonempty_group_order() {
+        let catalog = create_filtered_catalog();
+        let cmd = ListCommand {
+            pattern: None,
+            group: None,
+            enabled: false,
+            disabled: false,
+            global: false,
+        };
+
+        let output = format_list(&catalog, &cmd, &ShellType::Bash).unwrap();
+
+        assert!(!output.contains("Group: ungrouped"));
+        assert!(!output.contains("Group: zsh"));
+        assert!(output.find("Group: dev").unwrap() < output.find("Group: ops").unwrap());
+    }
+
+    #[test]
+    fn pattern_filter_only_formats_groups_with_matches() {
+        let catalog = create_filtered_catalog();
+        let cmd = ListCommand {
+            pattern: Some("b*".to_string()),
+            group: None,
+            enabled: false,
+            disabled: false,
+            global: false,
+        };
+
+        let output = format_list(&catalog, &cmd, &ShellType::Zsh).unwrap();
+
+        assert!(output.contains("Group: dev"));
+        assert!(!output.contains("Group: ops"));
+        assert!(!output.contains("Group: zsh"));
+    }
+
+    #[test]
+    fn enabled_and_disabled_filters_omit_empty_groups() {
+        let catalog = create_filtered_catalog();
+        let enabled = ListCommand {
+            pattern: None,
+            group: None,
+            enabled: true,
+            disabled: false,
+            global: false,
+        };
+        let disabled = ListCommand {
+            pattern: None,
+            group: None,
+            enabled: false,
+            disabled: true,
+            global: false,
+        };
+
+        let enabled_output = format_list(&catalog, &enabled, &ShellType::Bash).unwrap();
+        let disabled_output = format_list(&catalog, &disabled, &ShellType::Bash).unwrap();
+
+        assert!(enabled_output.contains("Group: dev"));
+        assert!(!enabled_output.contains("Group: ops"));
+        assert!(!enabled_output.contains("Group: zsh"));
+        assert!(!disabled_output.contains("Group: dev"));
+        assert!(disabled_output.contains("Group: ops"));
+        assert!(!disabled_output.contains("Group: zsh"));
+    }
+
+    #[test]
+    fn global_filter_omits_shell_incompatible_and_nonmatching_groups() {
+        let catalog = create_filtered_catalog();
+        let cmd = ListCommand {
+            pattern: None,
+            group: None,
+            enabled: false,
+            disabled: false,
+            global: true,
+        };
+
+        assert_eq!(format_list(&catalog, &cmd, &ShellType::Bash).unwrap(), "");
+
+        let zsh_output = format_list(&catalog, &cmd, &ShellType::Zsh).unwrap();
+        assert!(!zsh_output.contains("Group: dev"));
+        assert!(!zsh_output.contains("Group: ops"));
+        assert!(zsh_output.contains("Group: zsh"));
+    }
+
+    #[test]
+    fn no_matches_or_empty_focused_group_produce_no_output() {
+        let catalog = create_filtered_catalog();
+        let no_matches = ListCommand {
+            pattern: Some("missing*".to_string()),
+            group: None,
+            enabled: false,
+            disabled: false,
+            global: false,
+        };
+        let empty_focused_group = ListCommand {
+            pattern: Some("missing*".to_string()),
+            group: Some(Some("dev".to_string())),
+            enabled: false,
+            disabled: false,
+            global: false,
+        };
+
+        assert_eq!(
+            format_list(&catalog, &no_matches, &ShellType::Zsh).unwrap(),
+            ""
+        );
+        assert_eq!(
+            format_list(&catalog, &empty_focused_group, &ShellType::Zsh).unwrap(),
+            ""
+        );
     }
 
     #[test]
