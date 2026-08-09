@@ -1,5 +1,6 @@
 use crate::catalog::types::AliasCatalog;
-use crate::core::disable::{disable_alias, disable_all, disable_group};
+use crate::core::disable::{disable_alias, disable_aliases, disable_all, disable_group};
+use crate::core::selector::select_aliases;
 use crate::core::{Failure, Outcome};
 
 use crate::cli::disable::{DisableCommand, DisableTarget};
@@ -28,9 +29,28 @@ pub fn handle_disable(
     interaction_mode: InteractionMode,
 ) -> Result<CommandOutcome, Failure> {
     match cmd.target {
-        Some(DisableTarget::Alias(args)) => {
-            disable_alias(catalog, &args.name).map(CommandOutcome::from)
+        Some(DisableTarget::Alias(args)) if args.is_filter() => {
+            let names = select_aliases(
+                catalog,
+                args.pattern.as_deref(),
+                args.group.as_ref().map(|group| group.as_deref()),
+            )?;
+            let matched = names.len();
+            let (outcome, changed) = disable_aliases(catalog, &names);
+            let message = if matched == 0 {
+                "No aliases matched the selector.".to_string()
+            } else {
+                format!("Disabled {changed} of {matched} matching aliases.")
+            };
+            Ok(CommandOutcome::with_message(outcome, message))
         }
+        Some(DisableTarget::Alias(args)) => disable_alias(
+            catalog,
+            args.name
+                .as_deref()
+                .expect("clap requires an exact name or a filter"),
+        )
+        .map(CommandOutcome::from),
         Some(DisableTarget::Group(args)) => {
             disable_group(catalog, &args.name, shell).map(CommandOutcome::from)
         }
@@ -58,6 +78,7 @@ pub fn handle_disable(
 mod tests {
     use super::*;
     use crate::catalog::types::Alias;
+    use crate::cli::selector::AliasSelectorArgs;
 
     fn sample_catalog() -> AliasCatalog {
         let mut catalog = AliasCatalog::new();
@@ -111,8 +132,10 @@ mod tests {
         let alias_result = handle_disable(
             &mut catalog,
             DisableCommand {
-                target: Some(DisableTarget::Alias(crate::cli::disable::DisableArgs {
-                    name: "ll".to_string(),
+                target: Some(DisableTarget::Alias(AliasSelectorArgs {
+                    name: Some("ll".to_string()),
+                    pattern: None,
+                    group: None,
                 })),
                 name: None,
             },

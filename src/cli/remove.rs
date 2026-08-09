@@ -1,5 +1,7 @@
 use clap::{Args, Subcommand};
 
+use super::selector::AliasSelectorArgs;
+
 #[derive(Args)]
 #[command(
     args_conflicts_with_subcommands = true,
@@ -21,7 +23,7 @@ pub struct RemoveCommand {
 pub enum RemoveTarget {
     /// Remove an alias
     #[command(visible_alias = "a")]
-    Alias(RemoveAliasArgs),
+    Alias(AliasSelectorArgs),
 
     /// Remove a group and all its aliases
     #[command(visible_alias = "g")]
@@ -29,13 +31,6 @@ pub enum RemoveTarget {
 
     /// Remove all aliases and groups
     All,
-}
-
-#[derive(Args)]
-pub struct RemoveAliasArgs {
-    /// Name of the alias to remove
-    #[arg()]
-    pub name: String,
 }
 
 #[derive(Args)]

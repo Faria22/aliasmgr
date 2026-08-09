@@ -55,6 +55,7 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr list [<pattern>] [--group [group]] [--enabled] [--disabled] [--global] [--format <human|json>]`
 - `aliasmgr remove <name>` (removes the matching alias or group; prompts if both exist)
 - `aliasmgr remove alias <name>` (explicit form)
+- `aliasmgr remove alias [--pattern <glob>] [--group [group]]` (bulk filter; prompts once)
 - `aliasmgr remove group <name> [--reassign [--enable-reassigned | --disable-reassigned]]`
 - `aliasmgr remove all`
 - `aliasmgr rename <old_name> <new_name>` (renames the matching alias or group; prompts if both exist)
@@ -66,10 +67,12 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr sort groups`
 - `aliasmgr enable <name>` (enables the matching alias or group; prompts if both exist)
 - `aliasmgr enable alias <name>` (explicit form)
+- `aliasmgr enable alias [--pattern <glob>] [--group [group]]` (bulk filter)
 - `aliasmgr enable group <name>`
 - `aliasmgr enable all`
 - `aliasmgr disable <name>` (disables the matching alias or group; prompts if both exist)
 - `aliasmgr disable alias <name>` (explicit form)
+- `aliasmgr disable alias [--pattern <glob>] [--group [group]]` (bulk filter)
 - `aliasmgr disable group <name>`
 - `aliasmgr disable all`
 - `aliasmgr doctor` (also available as `aliasmgr validate`)
@@ -90,6 +93,10 @@ Notes:
   global aliases and command conflicts are warnings. Errors produce a non-zero exit
   status for scripts.
 - `list --format json` emits an array of aliases with `name`, `command`, `group`, `enabled`, and `global` fields. Ungrouped aliases have a `null` group.
+- Alias filter operations match alias names with glob syntax. `--group <group>`
+  selects aliases in that exact group, while a bare `--group` selects ungrouped
+  aliases. Combining `--pattern` and `--group` selects their intersection and
+  never changes the group itself.
 
 ## Sync Behavior
 - Each initialized terminal tracks the alias names and effective catalog revision that it last applied.

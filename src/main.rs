@@ -101,9 +101,7 @@ fn main() {
         Commands::Add(cmd) => {
             handle_add(&mut catalog, cmd, &shell, interaction_mode).map(CommandOutcome::from)
         }
-        Commands::Remove(cmd) => {
-            handle_remove(&mut catalog, cmd, &shell, interaction_mode).map(CommandOutcome::from)
-        }
+        Commands::Remove(cmd) => handle_remove(&mut catalog, cmd, &shell, interaction_mode),
         Commands::Move(cmd) => {
             handle_move(&mut catalog, cmd, interaction_mode).map(CommandOutcome::from)
         }
