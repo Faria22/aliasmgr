@@ -56,7 +56,7 @@ pub fn load_catalog(path: &PathBuf) -> Result<AliasCatalog> {
 
     let content = fs::read_to_string(path)?;
     let cfg: AliasCatalogSpec = toml::from_str(&content)?;
-    Ok(convert_spec_to_catalog(cfg))
+    convert_spec_to_catalog(cfg)
 }
 
 fn ensure_group_table<'a>(doc: &'a mut DocumentMut, name: &str) -> &'a mut Table {

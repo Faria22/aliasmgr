@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 pub(crate) mod add;
 pub(crate) mod disable;
+pub(crate) mod doctor;
 pub(crate) mod edit;
 pub(crate) mod enable;
 pub(crate) mod init;
@@ -16,6 +17,7 @@ pub(crate) mod interaction;
 
 use add::AddCommand;
 use disable::DisableCommand;
+use doctor::DoctorCommand;
 use edit::EditCommand;
 use enable::EnableCommand;
 use init::InitCommand;
@@ -86,6 +88,10 @@ pub enum Commands {
     /// Disable an alias or alias group
     #[command(visible_alias = "ds")]
     Disable(DisableCommand),
+
+    /// Check catalog correctness and shell compatibility
+    #[command(visible_alias = "validate")]
+    Doctor(DoctorCommand),
 
     /// Rename an existing alias or alias group
     #[command(visible_alias = "rn")]
@@ -391,5 +397,14 @@ mod tests {
         };
         assert!(cmd.if_changed);
         assert!(!cmd.force);
+    }
+
+    #[test]
+    fn parses_doctor_and_validate_alias() {
+        let doctor = Cli::try_parse_from(["aliasmgr", "doctor"]).unwrap();
+        assert!(matches!(doctor.command, Commands::Doctor(_)));
+
+        let validate = Cli::try_parse_from(["aliasmgr", "validate"]).unwrap();
+        assert!(matches!(validate.command, Commands::Doctor(_)));
     }
 }

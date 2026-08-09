@@ -1,6 +1,6 @@
-use crate::app::add::is_valid_alias_name;
 use crate::app::shell::{ShellType, shell_quote};
 use crate::catalog::types::{Alias, AliasCatalog};
+use crate::core::validation::is_valid_alias_name;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 pub const MANAGED_ALIASES_ENV_VAR: &str = "ALIASMGR_MANAGED_ALIASES";

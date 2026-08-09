@@ -16,6 +16,7 @@ use core::Outcome;
 
 use app::add::handle_add;
 use app::disable::handle_disable;
+use app::doctor::handle_doctor;
 use app::edit::handle_edit;
 use app::enable::handle_enable;
 use app::file_path::determine_catalog_path;
@@ -57,6 +58,8 @@ fn main() {
     let mut catalog_path = None;
     let mut shell = DEFAULT_SHELL;
 
+    let is_doctor = matches!(&cli.command, Commands::Doctor(_));
+
     if !matches!(cli.command, Commands::Init(_)) {
         shell = determine_shell();
         debug!("Determined shell: {}", shell);
@@ -65,8 +68,18 @@ fn main() {
             .expect("Custom catalog path did not exist and user chose not to use it.");
         debug!("Using catalog path: {:?}", catalog_path);
 
-        catalog = load_catalog(&resolve_catalog_path(catalog_path.as_ref()))
-            .expect("Failed to load catalog");
+        let resolved_catalog_path = resolve_catalog_path(catalog_path.as_ref());
+        catalog = match load_catalog(&resolved_catalog_path) {
+            Ok(catalog) => catalog,
+            Err(error) if is_doctor => {
+                eprintln!(
+                    "ERROR: Could not load catalog '{}': {error}",
+                    resolved_catalog_path.display()
+                );
+                std::process::exit(1);
+            }
+            Err(error) => panic!("Failed to load catalog: {error}"),
+        };
         debug!("Loaded catalog: {:?}", catalog);
     }
 
@@ -81,6 +94,7 @@ fn main() {
         Commands::Sort(cmd) => handle_sort(&mut catalog, cmd),
         Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell),
         Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell),
+        Commands::Doctor(cmd) => handle_doctor(&catalog, cmd, &shell),
         Commands::Sync(cmd) => handle_sync(cmd),
         Commands::ShellSync(cmd) => {
             print!("{}", handle_shell_sync(&catalog, &shell, cmd));
@@ -105,6 +119,11 @@ fn main() {
             }
             debug!("New catalog saved.");
         }
-        Err(_) => debug!("An error occurred during command execution."),
+        Err(_) => {
+            debug!("An error occurred during command execution.");
+            if is_doctor {
+                std::process::exit(1);
+            }
+        }
     }
 }

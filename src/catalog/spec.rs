@@ -3,6 +3,7 @@
 //! alias catalogs, as well as functions to convert between the internal
 //! representation and the specification representation.
 
+use anyhow::{Result, bail};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -71,8 +72,8 @@ pub struct AliasCatalogSpec {
 ///
 /// # Returns
 /// * An Alias representation of the given AliasSpecTypes.
-fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Alias {
-    match spec {
+fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Result<Alias> {
+    Ok(match spec {
         AliasSpecTypes::Simple(command) => Alias::new(command, group, true, false),
         AliasSpecTypes::Detailed(alias_spec) => Alias {
             command: alias_spec.command,
@@ -81,8 +82,8 @@ fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Alias {
             detailed: true,
             global: alias_spec.global,
         },
-        AliasSpecTypes::Group(_) => panic!("nested groups are not supported"),
-    }
+        AliasSpecTypes::Group(_) => bail!("nested groups are not supported"),
+    })
 }
 
 /// Convert an AliasCatalogSpec to its corresponding AliasCatalog representation.
@@ -92,7 +93,7 @@ fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Alias {
 ///
 /// # Returns
 /// * An AliasCatalog representation of the given AliasCatalogSpec.
-pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> AliasCatalog {
+pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> Result<AliasCatalog> {
     let mut aliases = IndexMap::new();
     let mut groups = IndexMap::new();
 
@@ -102,23 +103,23 @@ pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> AliasCatalog {
                 groups.insert(name.clone(), group_spec.enabled);
 
                 if let Some(alias_entry) = group_spec.ungrouped_alias {
-                    let alias = convert_spec_to_alias(*alias_entry, None);
+                    let alias = convert_spec_to_alias(*alias_entry, None)?;
                     aliases.insert(name.clone(), alias);
                 }
 
                 for (alias_name, alias_entry) in group_spec.aliases {
-                    let alias = convert_spec_to_alias(alias_entry, Some(name.clone()));
+                    let alias = convert_spec_to_alias(alias_entry, Some(name.clone()))?;
                     aliases.insert(alias_name, alias);
                 }
             }
             alias => {
-                let alias_cfg = convert_spec_to_alias(alias, None);
+                let alias_cfg = convert_spec_to_alias(alias, None)?;
                 aliases.insert(name, alias_cfg);
             }
         }
     }
 
-    AliasCatalog { aliases, groups }
+    Ok(AliasCatalog { aliases, groups })
 }
 
 #[cfg(test)]
@@ -130,12 +131,11 @@ mod tests {
     #[test]
     fn test_convert_spec_to_catalog() {
         let spec: AliasCatalogSpec = toml::from_str(SAMPLE_TOML).unwrap();
-        let catalog = convert_spec_to_catalog(spec);
+        let catalog = convert_spec_to_catalog(spec).unwrap();
         assert_eq!(catalog, expected_catalog());
     }
 
     #[test]
-    #[should_panic = "nested groups are not supported"]
     fn test_nested_group_handling() {
         let toml_data = r#"
         [group1]
@@ -148,6 +148,11 @@ mod tests {
         "#;
 
         let spec: AliasCatalogSpec = toml::from_str(toml_data).unwrap();
-        convert_spec_to_catalog(spec);
+        let error = convert_spec_to_catalog(spec).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("nested groups are not supported")
+        );
     }
 }
