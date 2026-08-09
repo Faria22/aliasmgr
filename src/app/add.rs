@@ -9,7 +9,9 @@ use crate::core::validation::is_valid_alias_name;
 use crate::catalog::types::{Alias, AliasCatalog};
 
 use crate::cli::add::{AddCommand, AddTarget};
-use crate::cli::interaction::{prompt_create_non_existent_group, prompt_overwrite_existing_alias};
+use crate::cli::interaction::{
+    InteractionMode, prompt_create_non_existent_group, prompt_overwrite_existing_alias,
+};
 
 use super::list::format_alias_info;
 
@@ -157,6 +159,7 @@ pub fn handle_add(
     catalog: &mut AliasCatalog,
     cmd: AddCommand,
     shell: &ShellType,
+    interaction_mode: InteractionMode,
 ) -> Result<Outcome, Failure> {
     let target = cmd
         .target
@@ -184,8 +187,8 @@ pub fn handle_add(
                     catalog,
                     &args.name,
                     &new_alias,
-                    prompt_overwrite_existing_alias,
-                    prompt_create_non_existent_group,
+                    |alias| prompt_overwrite_existing_alias(interaction_mode, alias),
+                    |group| prompt_create_non_existent_group(interaction_mode, group),
                 ),
                 &args.name,
                 shell,
@@ -262,6 +265,7 @@ mod tests {
                 },
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
 
         assert!(result.is_ok());
@@ -405,6 +409,7 @@ mod tests {
                 alias: Default::default(),
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert!(result.is_ok());
         assert!(catalog.groups.contains_key("dev"));
@@ -424,6 +429,7 @@ mod tests {
                 alias: Default::default(),
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::GroupAlreadyExists);
@@ -446,6 +452,7 @@ mod tests {
                 alias: Default::default(),
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::UnsupportedGlobalAlias);
@@ -468,6 +475,7 @@ mod tests {
                 alias: Default::default(),
             },
             &ShellType::Zsh,
+            InteractionMode::Interactive,
         );
         assert!(result.is_ok());
         assert_eq!(
@@ -506,6 +514,7 @@ mod tests {
                 alias: Default::default(),
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::InvalidAliasName);
@@ -528,6 +537,7 @@ mod tests {
                 alias: Default::default(),
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert!(result.is_err());
         assert_matches!(result.err().unwrap(), Failure::InvalidAliasName);

@@ -1,5 +1,5 @@
 use crate::catalog::types::AliasCatalog;
-use crate::cli::interaction::prompt_alias_or_group;
+use crate::cli::interaction::{InteractionMode, prompt_alias_or_group};
 use crate::cli::rename::{RenameCommand, RenameTarget};
 use crate::core::rename::{rename_alias, rename_group};
 use crate::core::{Failure, Outcome};
@@ -19,7 +19,11 @@ fn handle_rename_shorthand(
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub fn handle_rename(catalog: &mut AliasCatalog, cmd: RenameCommand) -> Result<Outcome, Failure> {
+pub fn handle_rename(
+    catalog: &mut AliasCatalog,
+    cmd: RenameCommand,
+    interaction_mode: InteractionMode,
+) -> Result<Outcome, Failure> {
     match cmd.target {
         Some(RenameTarget::Alias(args)) => rename_alias(catalog, &args.old_name, &args.new_name),
         Some(RenameTarget::Group(args)) => rename_group(catalog, &args.old_name, &args.new_name),
@@ -31,7 +35,7 @@ pub fn handle_rename(catalog: &mut AliasCatalog, cmd: RenameCommand) -> Result<O
             cmd.new_name
                 .as_deref()
                 .expect("clap requires a new name when no subcommand is used"),
-            |name| prompt_alias_or_group(name, "renamed"),
+            |name| prompt_alias_or_group(interaction_mode, name, "renamed"),
         ),
     }
 }
@@ -62,6 +66,7 @@ mod tests {
                 old_name: Some("ll".to_string()),
                 new_name: Some("list".to_string()),
             },
+            InteractionMode::Interactive,
         );
 
         assert!(result.is_ok());
@@ -80,6 +85,7 @@ mod tests {
                 old_name: Some("tools".to_string()),
                 new_name: Some("commands".to_string()),
             },
+            InteractionMode::Interactive,
         );
 
         assert!(result.is_ok());
@@ -101,6 +107,7 @@ mod tests {
                 old_name: None,
                 new_name: None,
             },
+            InteractionMode::Interactive,
         );
         let group_result = handle_rename(
             &mut catalog,
@@ -112,6 +119,7 @@ mod tests {
                 old_name: None,
                 new_name: None,
             },
+            InteractionMode::Interactive,
         );
 
         assert!(alias_result.is_ok());

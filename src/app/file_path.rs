@@ -1,4 +1,4 @@
-use crate::cli::interaction::prompt_use_non_existing_catalog_file;
+use crate::cli::interaction::{InteractionMode, prompt_use_non_existing_catalog_file};
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -25,8 +25,10 @@ impl FileType {
     }
 }
 
-pub fn determine_catalog_path() -> Result<Option<PathBuf>> {
-    determine_configured_file_path(FileType::Catalog, prompt_use_non_existing_catalog_file)
+pub fn determine_catalog_path(mode: InteractionMode) -> Result<Option<PathBuf>> {
+    determine_configured_file_path(FileType::Catalog, |path| {
+        prompt_use_non_existing_catalog_file(mode, path)
+    })
 }
 
 fn determine_configured_file_path(
@@ -74,7 +76,7 @@ mod tests {
             CATALOG_FILE_ENV_VAR,
             Some(temp_file.path().to_str().unwrap()),
             || {
-                let result = determine_catalog_path().unwrap();
+                let result = determine_catalog_path(InteractionMode::Interactive).unwrap();
                 assert_eq!(result, Some(temp_file.path().to_path_buf()));
             },
         );
@@ -113,7 +115,7 @@ mod tests {
     #[test]
     fn test_determine_catalog_path_env_var_not_set() {
         with_var(CATALOG_FILE_ENV_VAR, None as Option<&str>, || {
-            let result = determine_catalog_path().unwrap();
+            let result = determine_catalog_path(InteractionMode::Interactive).unwrap();
             assert_eq!(result, None);
         });
     }

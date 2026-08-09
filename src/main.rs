@@ -7,7 +7,7 @@ mod core;
 
 use clap::Parser;
 
-use cli::interaction::configure_interaction;
+use cli::interaction::InteractionMode;
 use cli::{Cli, Commands};
 
 use catalog::io::{catalog_path as resolve_catalog_path, load_catalog, save_catalog};
@@ -41,8 +41,13 @@ fn main() {
         error.exit();
     }
     let quiet = cli.quiet;
-    let force = cli.force;
-    configure_interaction(force, cli.no_input);
+    let interaction_mode = if cli.force {
+        InteractionMode::Force
+    } else if cli.no_input {
+        InteractionMode::NoInput
+    } else {
+        InteractionMode::Interactive
+    };
 
     // Determine log level based on CLI flags
     let level = if cli.quiet {
@@ -72,7 +77,7 @@ fn main() {
         shell = determine_shell();
         debug!("Determined shell: {}", shell);
 
-        catalog_path = determine_catalog_path()
+        catalog_path = determine_catalog_path(interaction_mode)
             .expect("Custom catalog path did not exist and user chose not to use it.");
         debug!("Using catalog path: {:?}", catalog_path);
 
@@ -93,21 +98,34 @@ fn main() {
 
     let result = match cli.command {
         // Add new alias or group
-        Commands::Add(cmd) => handle_add(&mut catalog, cmd, &shell).map(CommandOutcome::from),
-        Commands::Remove(cmd) => handle_remove(&mut catalog, cmd, &shell).map(CommandOutcome::from),
-        Commands::Move(cmd) => handle_move(&mut catalog, cmd).map(CommandOutcome::from),
+        Commands::Add(cmd) => {
+            handle_add(&mut catalog, cmd, &shell, interaction_mode).map(CommandOutcome::from)
+        }
+        Commands::Remove(cmd) => {
+            handle_remove(&mut catalog, cmd, &shell, interaction_mode).map(CommandOutcome::from)
+        }
+        Commands::Move(cmd) => {
+            handle_move(&mut catalog, cmd, interaction_mode).map(CommandOutcome::from)
+        }
         Commands::List(cmd) => handle_list(&catalog, cmd, &shell).map(CommandOutcome::from),
-        Commands::Rename(cmd) => handle_rename(&mut catalog, cmd).map(CommandOutcome::from),
-        Commands::Edit(cmd) => handle_edit(&mut catalog, cmd, &shell).map(CommandOutcome::from),
+        Commands::Rename(cmd) => {
+            handle_rename(&mut catalog, cmd, interaction_mode).map(CommandOutcome::from)
+        }
+        Commands::Edit(cmd) => {
+            handle_edit(&mut catalog, cmd, &shell, interaction_mode).map(CommandOutcome::from)
+        }
         Commands::Sort(cmd) => handle_sort(&mut catalog, cmd).map(CommandOutcome::from),
-        Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell),
-        Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell),
+        Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell, interaction_mode),
+        Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell, interaction_mode),
         Commands::Doctor(cmd) => {
             handle_doctor(&catalog, cmd, &shell, quiet).map(CommandOutcome::from)
         }
         Commands::Sync(cmd) => handle_sync(cmd).map(CommandOutcome::from),
         Commands::ShellSync(cmd) => {
-            print!("{}", handle_shell_sync(&catalog, &shell, cmd, force));
+            print!(
+                "{}",
+                handle_shell_sync(&catalog, &shell, cmd, interaction_mode)
+            );
             Ok(CommandOutcome::from(Outcome::NoChanges))
         }
         Commands::Init(cmd) => {

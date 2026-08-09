@@ -8,8 +8,8 @@ use crate::core::{Failure, Outcome};
 use super::shell::ShellType;
 
 use crate::cli::interaction::{
-    prompt_alias_or_group, prompt_confirm_remove_all, prompt_enable_reassigned_aliases,
-    prompt_reassign_group_aliases,
+    InteractionMode, prompt_alias_or_group, prompt_confirm_remove_all,
+    prompt_enable_reassigned_aliases, prompt_reassign_group_aliases,
 };
 
 use crate::cli::remove::{RemoveCommand, RemoveTarget};
@@ -113,6 +113,7 @@ pub fn handle_remove(
     catalog: &mut AliasCatalog,
     cmd: RemoveCommand,
     shell: &ShellType,
+    interaction_mode: InteractionMode,
 ) -> Result<Outcome, Failure> {
     match cmd.target {
         Some(RemoveTarget::Alias(args)) => remove_alias(catalog, &args.name),
@@ -130,19 +131,21 @@ pub fn handle_remove(
                 args.reassign,
                 shell,
                 reassigned_alias_action,
-                prompt_enable_reassigned_aliases,
+                |name, count| prompt_enable_reassigned_aliases(interaction_mode, name, count),
             )
         }
-        Some(RemoveTarget::All) => handle_remove_all(catalog, shell, prompt_confirm_remove_all),
+        Some(RemoveTarget::All) => handle_remove_all(catalog, shell, || {
+            prompt_confirm_remove_all(interaction_mode)
+        }),
         None => handle_remove_shorthand(
             catalog,
             cmd.name
                 .as_deref()
                 .expect("clap requires a name when no subcommand is used"),
             shell,
-            |name| prompt_alias_or_group(name, "removed"),
-            prompt_reassign_group_aliases,
-            prompt_enable_reassigned_aliases,
+            |name| prompt_alias_or_group(interaction_mode, name, "removed"),
+            |name| prompt_reassign_group_aliases(interaction_mode, name),
+            |name, count| prompt_enable_reassigned_aliases(interaction_mode, name, count),
         ),
     }
 }
@@ -180,6 +183,7 @@ mod tests {
                 name: None,
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert!(result.is_ok());
         assert!(!catalog.aliases.contains_key("ls"));
@@ -199,6 +203,7 @@ mod tests {
                 name: None,
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert_matches!(result.err(), Some(Failure::AliasDoesNotExist));
     }
@@ -218,6 +223,7 @@ mod tests {
                 name: None,
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert_eq!(result.unwrap(), Outcome::CatalogChanged);
         assert!(!catalog.groups.contains_key("files"));
@@ -238,6 +244,7 @@ mod tests {
                 name: None,
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert_matches!(result.err(), Some(Failure::GroupDoesNotExist));
     }
@@ -257,6 +264,7 @@ mod tests {
                 name: None,
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert!(result.is_ok());
         assert!(!catalog.aliases.contains_key("rm"));
@@ -278,6 +286,7 @@ mod tests {
                 name: None,
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
         assert!(result.is_ok());
         assert!(!catalog.groups.contains_key("files"));
@@ -339,6 +348,7 @@ mod tests {
                 name: Some("rm".to_string()),
             },
             &ShellType::Bash,
+            InteractionMode::Interactive,
         );
 
         assert!(result.is_ok());
