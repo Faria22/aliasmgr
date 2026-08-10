@@ -242,6 +242,7 @@ pub fn load_config() -> Result<UserConfig> {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
+    use temp_env::with_var;
 
     #[test]
     fn defaults_match_existing_presentation() {
@@ -336,6 +337,19 @@ mod tests {
     fn color_mode_respects_explicit_modes() {
         assert!(ColorMode::Always.enabled());
         assert!(!ColorMode::Never.enabled());
+    }
+
+    #[test]
+    fn auto_color_respects_terminal_detection_and_no_color() {
+        with_var("NO_COLOR", None as Option<&str>, || {
+            assert_eq!(ColorMode::Auto.enabled(), std::io::stdout().is_terminal());
+        });
+        with_var("NO_COLOR", Some(""), || {
+            assert!(!ColorMode::Auto.enabled());
+        });
+        with_var("NO_COLOR", Some("1"), || {
+            assert!(!ColorMode::Auto.enabled());
+        });
     }
 
     #[test]
