@@ -43,3 +43,32 @@ pub enum Outcome {
     CatalogChanged,
     NoChanges,
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_failure_has_a_human_readable_message() {
+        let cases = [
+            (Failure::InvalidAliasName, "invalid alias name"),
+            (
+                Failure::UnsupportedGlobalAlias,
+                "global aliases are only supported in zsh",
+            ),
+            (Failure::AliasDoesNotExist, "alias does not exist"),
+            (Failure::AliasAlreadyExists, "alias already exists"),
+            (Failure::TagDoesNotExist, "tag does not exist"),
+            (Failure::InvalidCatalog, "catalog is invalid"),
+            (Failure::InvalidPattern, "invalid glob pattern"),
+            (
+                Failure::InvalidColumns,
+                "list columns must not contain duplicates",
+            ),
+        ];
+        for (failure, message) in cases {
+            assert_eq!(failure.to_string(), message);
+        }
+    }
+}

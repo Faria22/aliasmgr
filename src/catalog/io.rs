@@ -148,4 +148,10 @@ mod tests {
             AliasCatalog::new()
         );
     }
+
+    #[test]
+    fn custom_catalog_path_is_used_verbatim() {
+        let path = PathBuf::from("custom-aliases.toml");
+        assert_eq!(catalog_path(Some(&path)), path);
+    }
 }

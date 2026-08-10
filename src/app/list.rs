@@ -305,6 +305,7 @@ pub fn handle_list(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::cli::list::ListCommand;
@@ -402,5 +403,66 @@ mod tests {
         )
         .unwrap();
         assert_eq!(output, "[]\n");
+    }
+
+    #[test]
+    fn invalid_patterns_and_empty_tables_are_handled() {
+        let mut cmd = command(OutputFormat::Human);
+        cmd.pattern = Some("[".into());
+        assert_eq!(
+            format_list_with_width(
+                &catalog(),
+                &cmd,
+                &ShellType::Bash,
+                &UserConfig::default(),
+                false,
+                None,
+            ),
+            Err(Failure::InvalidPattern)
+        );
+        assert_eq!(
+            format_human(
+                &[],
+                &ListColumn::DEFAULTS,
+                &UserConfig::default(),
+                false,
+                None
+            ),
+            ""
+        );
+    }
+
+    #[test]
+    fn cells_are_single_line_styled_and_truncated_at_every_width() {
+        let config = UserConfig::default();
+        let mut alias = Alias::new("line one\nline two\tend".into(), false, true);
+        alias.description = Some("first\rsecond".into());
+
+        assert_eq!(raw_cell(ListColumn::Status, "name", &alias, &config), "✘");
+        assert_eq!(raw_cell(ListColumn::Global, "name", &alias, &config), "⦾");
+        assert_eq!(
+            raw_cell(ListColumn::Command, "name", &alias, &config),
+            "line one line two end"
+        );
+        assert_eq!(
+            raw_cell(ListColumn::Description, "name", &alias, &config),
+            "first second"
+        );
+        assert_eq!(truncate("abc", 3), "abc");
+        assert_eq!(truncate("abc", 0), "");
+        assert_eq!(truncate("abc", 1), "…");
+        assert_eq!(truncate("abcdef", 4), "abc…");
+        assert_eq!(
+            styled_cell(ListColumn::Global, "⦾", &alias, &config, false),
+            "⦾"
+        );
+    }
+
+    #[test]
+    fn extremely_narrow_tables_shrink_below_header_widths() {
+        let columns = ListColumn::DEFAULTS;
+        let rows = vec![vec!["long value".into(); columns.len()]];
+        let widths = column_widths(&columns, &rows, Some(1));
+        assert_eq!(widths, vec![1; columns.len()]);
     }
 }

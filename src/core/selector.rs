@@ -47,6 +47,7 @@ pub fn aliases_with_tag(catalog: &AliasCatalog, tag: &str) -> Result<Vec<String>
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::catalog::types::Alias;
@@ -64,6 +65,19 @@ mod tests {
         assert_eq!(
             select_aliases(&catalog, None, &["dev".into(), "rust".into()]).unwrap(),
             ["both"]
+        );
+    }
+
+    #[test]
+    fn invalid_patterns_and_missing_tags_fail() {
+        let catalog = AliasCatalog::new();
+        assert_eq!(
+            select_aliases(&catalog, Some("["), &[]),
+            Err(Failure::InvalidPattern)
+        );
+        assert_eq!(
+            aliases_with_tag(&catalog, "missing"),
+            Err(Failure::TagDoesNotExist)
         );
     }
 }

@@ -116,6 +116,7 @@ pub enum Commands {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::cli::add::AddTarget;
@@ -142,5 +143,21 @@ mod tests {
     #[test]
     fn removed_move_command_is_rejected() {
         assert!(Cli::try_parse_from(["aliasmgr", "move", "ll", "dev"]).is_err());
+    }
+
+    #[test]
+    fn tag_validation_rejects_empty_and_whitespace() {
+        assert!(validate_tag("").is_err());
+        assert!(validate_tag("two words").is_err());
+        assert_eq!(validate_tag("Case-Sensitive").unwrap(), "Case-Sensitive");
+    }
+
+    #[test]
+    fn edit_requires_at_least_one_change() {
+        let cli = Cli::try_parse_from(["aliasmgr", "edit", "ll"]).unwrap();
+        assert_eq!(
+            cli.validate_prompt_controls().unwrap_err().kind(),
+            ErrorKind::MissingRequiredArgument
+        );
     }
 }
