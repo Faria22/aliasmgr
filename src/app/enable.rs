@@ -1,18 +1,13 @@
 use crate::catalog::types::AliasCatalog;
 use crate::cli::enable::{EnableCommand, EnableTarget};
-use crate::cli::interaction::InteractionMode;
 use crate::core::enable::{enable_alias, enable_aliases, enable_all};
 use crate::core::selector::{aliases_with_tag, select_aliases};
 use crate::core::{Failure, Outcome};
 
 use super::CommandOutcome;
-use super::shell::ShellType;
-
 pub fn handle_enable(
     catalog: &mut AliasCatalog,
     cmd: EnableCommand,
-    _shell: &ShellType,
-    _interaction_mode: InteractionMode,
 ) -> Result<CommandOutcome, Failure> {
     match cmd.target {
         Some(EnableTarget::Alias(args)) if args.is_filter() => {

@@ -8,12 +8,9 @@ use crate::core::selector::select_aliases;
 use crate::core::{Failure, Outcome};
 
 use super::CommandOutcome;
-use super::shell::ShellType;
-
 pub fn handle_remove(
     catalog: &mut AliasCatalog,
     cmd: RemoveCommand,
-    _shell: &ShellType,
     interaction_mode: InteractionMode,
 ) -> Result<CommandOutcome, Failure> {
     match cmd.target {

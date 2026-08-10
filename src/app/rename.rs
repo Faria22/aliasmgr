@@ -1,5 +1,4 @@
 use crate::catalog::types::AliasCatalog;
-use crate::cli::interaction::InteractionMode;
 use crate::cli::rename::{RenameCommand, RenameTarget};
 use crate::core::Failure;
 use crate::core::rename::{rename_alias, rename_tag};
@@ -9,7 +8,6 @@ use super::CommandOutcome;
 pub fn handle_rename(
     catalog: &mut AliasCatalog,
     cmd: RenameCommand,
-    _interaction_mode: InteractionMode,
 ) -> Result<CommandOutcome, Failure> {
     match cmd.target {
         Some(RenameTarget::Alias(args)) => {

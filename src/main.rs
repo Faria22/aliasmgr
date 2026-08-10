@@ -108,20 +108,16 @@ fn main() {
         Commands::Add(cmd) => {
             handle_add(&mut catalog, cmd, &shell, interaction_mode).map(CommandOutcome::from)
         }
-        Commands::Remove(cmd) => handle_remove(&mut catalog, cmd, &shell, interaction_mode),
+        Commands::Remove(cmd) => handle_remove(&mut catalog, cmd, interaction_mode),
         Commands::List(cmd) => {
             handle_list(&catalog, cmd, &shell, &config, colors_enabled).map(CommandOutcome::from)
         }
-        Commands::Rename(cmd) => handle_rename(&mut catalog, cmd, interaction_mode),
-        Commands::Edit(cmd) => {
-            handle_edit(&mut catalog, cmd, &shell, interaction_mode).map(CommandOutcome::from)
-        }
-        Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell, interaction_mode),
-        Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell, interaction_mode),
-        Commands::Doctor(cmd) => {
-            handle_doctor(&catalog, cmd, &shell, quiet).map(CommandOutcome::from)
-        }
-        Commands::Sync(cmd) => handle_sync(cmd).map(CommandOutcome::from),
+        Commands::Rename(cmd) => handle_rename(&mut catalog, cmd),
+        Commands::Edit(cmd) => handle_edit(&mut catalog, cmd, &shell).map(CommandOutcome::from),
+        Commands::Enable(cmd) => handle_enable(&mut catalog, cmd),
+        Commands::Disable(cmd) => handle_disable(&mut catalog, cmd),
+        Commands::Doctor(_) => handle_doctor(&catalog, &shell, quiet).map(CommandOutcome::from),
+        Commands::Sync(_) => handle_sync().map(CommandOutcome::from),
         Commands::ShellSync(cmd) => {
             print!(
                 "{}",

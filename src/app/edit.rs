@@ -2,7 +2,6 @@ use log::warn;
 
 use crate::catalog::types::AliasCatalog;
 use crate::cli::edit::EditCommand;
-use crate::cli::interaction::InteractionMode;
 use crate::core::conflict::conflict_warnings;
 use crate::core::edit::edit_alias;
 use crate::core::{Failure, Outcome};
@@ -13,7 +12,6 @@ pub fn handle_edit(
     catalog: &mut AliasCatalog,
     cmd: EditCommand,
     shell: &ShellType,
-    _interaction_mode: InteractionMode,
 ) -> Result<Outcome, Failure> {
     let mut alias = catalog
         .aliases

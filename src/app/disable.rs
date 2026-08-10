@@ -1,18 +1,13 @@
 use crate::catalog::types::AliasCatalog;
 use crate::cli::disable::{DisableCommand, DisableTarget};
-use crate::cli::interaction::InteractionMode;
 use crate::core::disable::{disable_alias, disable_aliases, disable_all};
 use crate::core::selector::{aliases_with_tag, select_aliases};
 use crate::core::{Failure, Outcome};
 
 use super::CommandOutcome;
-use super::shell::ShellType;
-
 pub fn handle_disable(
     catalog: &mut AliasCatalog,
     cmd: DisableCommand,
-    _shell: &ShellType,
-    _interaction_mode: InteractionMode,
 ) -> Result<CommandOutcome, Failure> {
     match cmd.target {
         Some(DisableTarget::Alias(args)) if args.is_filter() => {
