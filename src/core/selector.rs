@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn combines_pattern_and_group_filters() {
         let selected = select_aliases(&sample_catalog(), Some("b*"), Some(Some("dev"))).unwrap();
-        assert_eq!(selected, ["build", "bench"]);
+        assert_eq!(selected, ["bench", "build"]);
     }
 
     #[test]

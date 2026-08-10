@@ -4,7 +4,7 @@ use crate::catalog::types::AliasCatalog;
 use log::error;
 
 pub fn remove_alias(catalog: &mut AliasCatalog, name: &str) -> Result<Outcome, Failure> {
-    match catalog.aliases.shift_remove(name) {
+    match catalog.aliases.remove(name) {
         Some(_) => Ok(Outcome::CatalogChanged),
         None => {
             error!("Alias '{}' does not exist", name);
@@ -27,7 +27,7 @@ pub fn remove_aliases(catalog: &mut AliasCatalog, names: &[String]) -> Result<Ou
 }
 
 pub fn remove_group(catalog: &mut AliasCatalog, name: &str) -> Result<Outcome, Failure> {
-    match catalog.groups.shift_remove(name) {
+    match catalog.groups.remove(name) {
         Some(_) => Ok(Outcome::CatalogChanged),
         None => {
             error!("Group '{}' does not exist", name);

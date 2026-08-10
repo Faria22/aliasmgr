@@ -11,7 +11,6 @@ pub(crate) mod r#move;
 pub(crate) mod remove;
 pub(crate) mod rename;
 pub(crate) mod selector;
-pub(crate) mod sort;
 pub(crate) mod sync;
 
 pub(crate) mod interaction;
@@ -26,8 +25,9 @@ use list::ListCommand;
 use r#move::MoveCommand;
 use remove::RemoveCommand;
 use rename::RenameCommand;
-use sort::SortCommand;
 use sync::{ShellSyncCommand, SyncCommand};
+
+use crate::config::ColorMode;
 
 #[derive(Parser)]
 #[command(
@@ -70,6 +70,10 @@ pub struct Cli {
         conflicts_with_all = ["verbose", "quiet"]
     )]
     pub debug: bool,
+
+    /// Control colored output
+    #[arg(long, global = true, value_enum)]
+    pub color: Option<ColorMode>,
 
     /// Subcommands
     #[command(subcommand)]
@@ -138,9 +142,6 @@ pub enum Commands {
     /// Generate shell commands that reconcile aliases in the current terminal
     #[command(hide = true)]
     ShellSync(ShellSyncCommand),
-
-    /// Sort aliases or groups by name
-    Sort(SortCommand),
 
     /// Initialize aliasmgr
     #[command(hide = true)]
@@ -492,6 +493,12 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn parses_global_color_mode() {
+        let cli = Cli::try_parse_from(["aliasmgr", "--color", "never", "list"]).unwrap();
+        assert_eq!(cli.color, Some(ColorMode::Never));
     }
 
     #[test]

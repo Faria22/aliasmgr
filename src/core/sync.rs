@@ -29,11 +29,8 @@ fn active_aliases<'a>(catalog: &'a AliasCatalog, shell: &ShellType) -> Vec<Activ
 }
 
 fn catalog_revision(active: &[ActiveAlias<'_>]) -> String {
-    let mut aliases: Vec<_> = active.iter().collect();
-    aliases.sort_unstable_by_key(|entry| entry.name);
-
     let mut hasher = DefaultHasher::new();
-    for entry in aliases {
+    for entry in active {
         (entry.name, &entry.alias.command, entry.alias.global).hash(&mut hasher);
     }
     format!("{:016x}", hasher.finish())

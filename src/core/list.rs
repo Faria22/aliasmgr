@@ -13,21 +13,20 @@ use crate::app::shell::ShellType;
 
 use crate::catalog::types::AliasCatalog;
 use crate::core::Failure;
-use indexmap::IndexMap;
-use std::vec::Vec;
+use std::collections::BTreeMap;
 
 /// Retrieves all alias groups and their associated aliases from the catalog.
 /// # Arguments
 /// * `catalog` - A reference to the catalog containing groups and aliases.
 ///
 /// # Returns
-/// A HashMap where keys are GroupId (either named or ungrouped) and values
-/// are vectors of alias names belonging to those groups.
+/// An ordered mapping whose keys are group identifiers (named or ungrouped)
+/// and whose values are sorted alias names belonging to those groups.
 pub fn get_all_aliases_grouped(
     catalog: &AliasCatalog,
     shell: &ShellType,
-) -> IndexMap<Option<String>, Vec<String>> {
-    let mut groups = IndexMap::<Option<String>, Vec<String>>::new();
+) -> BTreeMap<Option<String>, Vec<String>> {
+    let mut groups = BTreeMap::<Option<String>, Vec<String>>::new();
 
     // Initialize the groups with empty vectors
     groups.insert(None, Vec::new());
@@ -45,7 +44,6 @@ pub fn get_all_aliases_grouped(
             .expect("group is in aliases, but not in the group vector")
             .push(alias_name.clone());
     }
-
     groups
 }
 
@@ -83,10 +81,11 @@ pub fn get_aliases_from_single_group(
 mod tests {
     use super::*;
     use crate::catalog::types::Alias;
+    use std::collections::BTreeMap;
 
     fn create_test_catalog() -> AliasCatalog {
-        let mut groups = IndexMap::new();
-        let mut aliases = IndexMap::new();
+        let mut groups = BTreeMap::new();
+        let mut aliases = BTreeMap::new();
 
         groups.insert("group1".into(), true);
         groups.insert("group2".into(), true);
@@ -224,12 +223,12 @@ mod tests {
 
     #[test]
     fn test_get_all_groups_no_aliases() {
-        let mut groups_map = IndexMap::new();
+        let mut groups_map = BTreeMap::new();
         groups_map.insert("group1".into(), true);
         groups_map.insert("group2".into(), true);
 
         let catalog = AliasCatalog {
-            aliases: IndexMap::new(),
+            aliases: BTreeMap::new(),
             groups: groups_map,
         };
 
@@ -252,13 +251,13 @@ mod tests {
 
     #[test]
     fn test_get_all_groups_no_groups() {
-        let mut aliases = IndexMap::new();
+        let mut aliases = BTreeMap::new();
         aliases.insert(
             "alias1".into(),
             Alias::new("cmd1".into(), None, true, false),
         );
         let catalog = AliasCatalog {
-            groups: IndexMap::new(),
+            groups: BTreeMap::new(),
             aliases,
         };
         let groups = get_all_aliases_grouped(&catalog, &ShellType::Bash);
@@ -268,11 +267,11 @@ mod tests {
 
     #[test]
     fn test_get_single_group_no_aliases() {
-        let mut groups_map = IndexMap::new();
+        let mut groups_map = BTreeMap::new();
         groups_map.insert("group1".into(), true);
 
         let catalog = AliasCatalog {
-            aliases: IndexMap::new(),
+            aliases: BTreeMap::new(),
             groups: groups_map,
         };
 

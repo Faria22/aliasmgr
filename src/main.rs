@@ -3,12 +3,14 @@
 mod app;
 mod catalog;
 mod cli;
+mod config;
 mod core;
 
 use clap::Parser;
 
 use cli::interaction::InteractionMode;
 use cli::{Cli, Commands};
+use config::load_config;
 
 use catalog::io::{catalog_path as resolve_catalog_path, load_catalog, save_catalog};
 
@@ -27,7 +29,6 @@ use app::list::handle_list;
 use app::r#move::handle_move;
 use app::remove::handle_remove;
 use app::rename::handle_rename;
-use app::sort::handle_sort;
 use app::sync::{handle_shell_sync, handle_sync};
 
 use app::shell::{DEFAULT_SHELL, determine_shell};
@@ -67,6 +68,15 @@ fn main() {
         .parse_default_env()
         .init();
 
+    let config = match load_config() {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("ERROR: {error:#}");
+            std::process::exit(1);
+        }
+    };
+    let colors_enabled = cli.color.unwrap_or(config.color).enabled();
+
     let mut catalog = AliasCatalog::new();
     let mut catalog_path = None;
     let mut shell = DEFAULT_SHELL;
@@ -105,14 +115,15 @@ fn main() {
         Commands::Move(cmd) => {
             handle_move(&mut catalog, cmd, interaction_mode).map(CommandOutcome::from)
         }
-        Commands::List(cmd) => handle_list(&catalog, cmd, &shell).map(CommandOutcome::from),
+        Commands::List(cmd) => {
+            handle_list(&catalog, cmd, &shell, &config, colors_enabled).map(CommandOutcome::from)
+        }
         Commands::Rename(cmd) => {
             handle_rename(&mut catalog, cmd, interaction_mode).map(CommandOutcome::from)
         }
         Commands::Edit(cmd) => {
             handle_edit(&mut catalog, cmd, &shell, interaction_mode).map(CommandOutcome::from)
         }
-        Commands::Sort(cmd) => handle_sort(&mut catalog, cmd).map(CommandOutcome::from),
         Commands::Enable(cmd) => handle_enable(&mut catalog, cmd, &shell, interaction_mode),
         Commands::Disable(cmd) => handle_disable(&mut catalog, cmd, &shell, interaction_mode),
         Commands::Doctor(cmd) => {

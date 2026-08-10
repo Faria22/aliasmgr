@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
-use indexmap::IndexMap;
+use std::collections::BTreeMap;
 use toml_edit::{DocumentMut, InlineTable, Item, Table};
 
 use super::spec::{AliasCatalogSpec, COLLIDING_ALIAS_KEY, convert_spec_to_catalog};
@@ -84,19 +84,19 @@ fn build_alias_item(alias: &Alias) -> Item {
     }
 }
 
-fn insert_groups(doc: &mut DocumentMut, groups: &IndexMap<String, bool>) {
-    for (group_name, enabled) in groups {
+fn insert_groups(doc: &mut DocumentMut, groups: &BTreeMap<String, bool>) {
+    for (group_name, &enabled) in groups {
         let table = ensure_group_table(doc, group_name);
-        if !*enabled {
-            table["enabled"] = Item::Value((*enabled).into());
+        if !enabled {
+            table["enabled"] = Item::Value(enabled.into());
         }
     }
 }
 
 fn insert_aliases(
     doc: &mut DocumentMut,
-    aliases: &IndexMap<String, Alias>,
-    groups: &IndexMap<String, bool>,
+    aliases: &BTreeMap<String, Alias>,
+    groups: &BTreeMap<String, bool>,
 ) -> Result<()> {
     for (alias_name, alias) in aliases {
         if let Some(group) = &alias.group {
@@ -266,6 +266,35 @@ mod tests {
 
         let saved_content = fs::read_to_string(&temp_conf).unwrap();
         assert_eq!(saved_content, SAMPLE_TOML);
+    }
+
+    #[test]
+    fn save_catalog_sorts_groups_and_aliases() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_conf = temp_dir.path().join("aliases.toml");
+        let mut catalog = AliasCatalog::new();
+        catalog.groups.insert("zeta".into(), true);
+        catalog.groups.insert("alpha".into(), true);
+        catalog.aliases.insert(
+            "zulu".into(),
+            Alias::new("z".into(), Some("alpha".into()), true, false),
+        );
+        catalog.aliases.insert(
+            "alpha".into(),
+            Alias::new("a".into(), Some("alpha".into()), true, false),
+        );
+        catalog
+            .aliases
+            .insert("beta".into(), Alias::new("b".into(), None, true, false));
+        catalog
+            .aliases
+            .insert("aardvark".into(), Alias::new("a".into(), None, true, false));
+
+        save_catalog(&catalog, &temp_conf).unwrap();
+        assert_eq!(
+            fs::read_to_string(&temp_conf).unwrap(),
+            "aardvark = \"a\"\nbeta = \"b\"\n\n[alpha]\nalpha = \"a\"\nzulu = \"z\"\n\n[zeta]\n"
+        );
     }
 
     #[test]

@@ -30,7 +30,7 @@ CLI tool to manage shell aliases from a single, versionable TOML file, written i
 - Default path: `~/.config/aliasmgr/aliases.toml` (XDG config home).
 - Format supports top-level aliases and grouped aliases. Disabled or global aliases use the detailed form.
 - An ungrouped alias and a group may share a name; aliasmgr preserves both when writing the catalog.
-- Order of groups and aliases matches the catalog file; new items are appended to the bottom.
+- Groups and aliases are listed and saved in case-sensitive alphabetical order.
 - When aliasmgr rewrites the catalog, extra whitespace (including blank lines) is removed.
 
 ```toml
@@ -46,6 +46,36 @@ gc = { command = "git commit", enabled = true }
 enabled = false                                # disable entire group
 ll = { command = "ls -la", enabled = true }
 ```
+
+## User Configuration
+
+Optional presentation preferences can be stored in
+`~/.config/aliasmgr/config.toml` (XDG config home). When the file is absent,
+aliasmgr uses the defaults below without creating it. Set
+`ALIASMGR_CONFIG_PATH` to use a different existing file.
+
+```toml
+[color]
+mode = "auto" # auto, always, or never
+
+[symbols]
+enabled = "✔"
+disabled = "✘"
+global = "⦾"
+
+[styles]
+enabled = { foreground = "green", bold = true }
+disabled = { foreground = "red", bold = true }
+global = { foreground = "blue", bold = true }
+```
+
+Foreground colors accept ANSI names such as `red`, `bright blue`, or a
+`#RRGGBB` value. In `auto` mode, colors are emitted only when standard
+output is a terminal, and `NO_COLOR` disables them. The global
+`--color <auto|always|never>` option overrides the configured mode.
+
+Unknown settings produce a warning and are ignored. Invalid values for known
+settings produce an error.
 
 ## Commands
 - `aliasmgr add <name> <command> [--group <group>] [--disabled] [--global]`
@@ -63,8 +93,6 @@ ll = { command = "ls -la", enabled = true }
 - `aliasmgr rename group <old_name> <new_name>`
 - `aliasmgr edit <name> <new_command> [--group [group]] [--toggle_enabled] [--toggle_global]`
 - `aliasmgr sync`
-- `aliasmgr sort aliases [--group [group]]`
-- `aliasmgr sort groups`
 - `aliasmgr enable <name>` (enables the matching alias or group; prompts if both exist)
 - `aliasmgr enable alias <name>` (explicit form)
 - `aliasmgr enable alias [--pattern <glob>] [--group [group]]` (bulk filter)
@@ -84,6 +112,7 @@ Notes:
   `--force` accepts every prompt and selects aliases when an alias and group have
   the same name. `--no-input` exits with status 2 if a command would prompt.
   Without either flag, prompt behavior remains interactive.
+- `--color <auto|always|never>` overrides the configured color mode.
 - Alias names cannot be empty or contain whitespace or `=`.
 - Global aliases (`--global`) only work on zsh; they are skipped on other shells.
 - Adding or editing an alias warns without blocking when its name conflicts with a

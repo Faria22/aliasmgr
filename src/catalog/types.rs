@@ -1,7 +1,7 @@
 //! Catalog types for command aliases.
 //! ! This module defines the structures used to represent command aliases and their catalogs.
 
-use indexmap::IndexMap;
+use std::collections::BTreeMap;
 
 /// Representation of an alias in the catalog.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -30,16 +30,16 @@ impl Alias {
 /// Overall catalog containing aliases and groups.
 #[derive(PartialEq, Eq, Debug)]
 pub struct AliasCatalog {
-    pub aliases: IndexMap<String, Alias>,
-    pub groups: IndexMap<String, bool>,
+    pub aliases: BTreeMap<String, Alias>,
+    pub groups: BTreeMap<String, bool>,
 }
 
 /// Constructor for AliasCatalog.
 impl AliasCatalog {
     pub fn new() -> Self {
         AliasCatalog {
-            aliases: IndexMap::new(),
-            groups: IndexMap::new(),
+            aliases: BTreeMap::new(),
+            groups: BTreeMap::new(),
         }
     }
 }
