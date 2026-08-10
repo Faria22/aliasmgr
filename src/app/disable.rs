@@ -1,187 +1,59 @@
 use crate::catalog::types::AliasCatalog;
-use crate::core::disable::{disable_alias, disable_aliases, disable_all, disable_group};
-use crate::core::selector::select_aliases;
+use crate::cli::disable::{DisableCommand, DisableTarget};
+use crate::cli::interaction::InteractionMode;
+use crate::core::disable::{disable_alias, disable_aliases, disable_all};
+use crate::core::selector::{aliases_with_tag, select_aliases};
 use crate::core::{Failure, Outcome};
 
-use crate::cli::disable::{DisableCommand, DisableTarget};
-use crate::cli::interaction::{InteractionMode, prompt_alias_or_group};
-
 use super::CommandOutcome;
-use super::resource::{ResourceType, resolve_resource_type};
 use super::shell::ShellType;
-
-fn handle_disable_shorthand(
-    catalog: &mut AliasCatalog,
-    name: &str,
-    shell: &ShellType,
-    choose_alias: impl FnOnce(&str) -> bool,
-) -> Result<Outcome, Failure> {
-    match resolve_resource_type(catalog, name, choose_alias) {
-        ResourceType::Alias => disable_alias(catalog, name),
-        ResourceType::Group => disable_group(catalog, name, shell),
-    }
-}
 
 pub fn handle_disable(
     catalog: &mut AliasCatalog,
     cmd: DisableCommand,
-    shell: &ShellType,
-    interaction_mode: InteractionMode,
+    _shell: &ShellType,
+    _interaction_mode: InteractionMode,
 ) -> Result<CommandOutcome, Failure> {
     match cmd.target {
         Some(DisableTarget::Alias(args)) if args.is_filter() => {
-            let names = select_aliases(
-                catalog,
-                args.pattern.as_deref(),
-                args.group.as_ref().map(|group| group.as_deref()),
-            )?;
+            let names = select_aliases(catalog, args.pattern.as_deref(), &args.tag)?;
             let matched = names.len();
             let (outcome, changed) = disable_aliases(catalog, &names);
-            let message = if matched == 0 {
-                "No aliases matched the selector.".to_string()
+            Ok(CommandOutcome::with_message(
+                outcome,
+                if matched == 0 {
+                    "No aliases matched the selector.".into()
+                } else {
+                    format!("Disabled {changed} of {matched} matching aliases.")
+                },
+            ))
+        }
+        Some(DisableTarget::Alias(args)) => {
+            disable_alias(catalog, args.name.as_deref().expect("exact name required"))
+                .map(CommandOutcome::from)
+        }
+        Some(DisableTarget::Tag(args)) => {
+            let names = aliases_with_tag(catalog, &args.name)?;
+            let matched = names.len();
+            let (outcome, changed) = disable_aliases(catalog, &names);
+            Ok(CommandOutcome::with_message(
+                outcome,
+                format!(
+                    "Disabled {changed} of {matched} aliases tagged '{}'.",
+                    args.name
+                ),
+            ))
+        }
+        Some(DisableTarget::All) => {
+            let outcome = disable_all(catalog);
+            let message = if outcome == Outcome::CatalogChanged {
+                "All aliases are now disabled."
             } else {
-                format!("Disabled {changed} of {matched} matching aliases.")
+                "All aliases are already disabled."
             };
             Ok(CommandOutcome::with_message(outcome, message))
         }
-        Some(DisableTarget::Alias(args)) => disable_alias(
-            catalog,
-            args.name
-                .as_deref()
-                .expect("clap requires an exact name or a filter"),
-        )
-        .map(CommandOutcome::from),
-        Some(DisableTarget::Group(args)) => {
-            disable_group(catalog, &args.name, shell).map(CommandOutcome::from)
-        }
-        Some(DisableTarget::All) => disable_all(catalog).map(|outcome| {
-            let message = match outcome {
-                Outcome::CatalogChanged => "All aliases and groups are now disabled.",
-                Outcome::NoChanges => "All aliases and groups are already disabled.",
-            };
-            CommandOutcome::with_message(outcome, message)
-        }),
-        None => handle_disable_shorthand(
-            catalog,
-            cmd.name
-                .as_deref()
-                .expect("clap requires a name when no subcommand is used"),
-            shell,
-            |name| prompt_alias_or_group(interaction_mode, name, "disabled"),
-        )
-        .map(CommandOutcome::from),
-    }
-}
-
-#[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
-mod tests {
-    use super::*;
-    use crate::catalog::types::Alias;
-    use crate::cli::selector::AliasSelectorArgs;
-
-    fn sample_catalog() -> AliasCatalog {
-        let mut catalog = AliasCatalog::new();
-        catalog.aliases.insert(
-            "ll".to_string(),
-            Alias::new("ls -l".to_string(), None, true, false),
-        );
-        catalog.groups.insert("tools".to_string(), true);
-        catalog
-    }
-
-    #[test]
-    fn disables_shorthand_alias() {
-        let mut catalog = sample_catalog();
-        let result = handle_disable(
-            &mut catalog,
-            DisableCommand {
-                target: None,
-                name: Some("ll".to_string()),
-            },
-            &ShellType::Bash,
-            InteractionMode::Interactive,
-        );
-
-        assert!(result.is_ok());
-        assert!(!catalog.aliases["ll"].enabled);
-        assert!(catalog.groups["tools"]);
-    }
-
-    #[test]
-    fn disables_shorthand_group() {
-        let mut catalog = sample_catalog();
-        let result = handle_disable(
-            &mut catalog,
-            DisableCommand {
-                target: None,
-                name: Some("tools".to_string()),
-            },
-            &ShellType::Bash,
-            InteractionMode::Interactive,
-        );
-
-        assert!(result.is_ok());
-        assert!(catalog.aliases["ll"].enabled);
-        assert!(!catalog.groups["tools"]);
-    }
-
-    #[test]
-    fn disables_explicit_alias_and_group() {
-        let mut catalog = sample_catalog();
-        let alias_result = handle_disable(
-            &mut catalog,
-            DisableCommand {
-                target: Some(DisableTarget::Alias(AliasSelectorArgs {
-                    name: Some("ll".to_string()),
-                    pattern: None,
-                    group: None,
-                })),
-                name: None,
-            },
-            &ShellType::Bash,
-            InteractionMode::Interactive,
-        );
-        let group_result = handle_disable(
-            &mut catalog,
-            DisableCommand {
-                target: Some(DisableTarget::Group(crate::cli::disable::DisableArgs {
-                    name: "tools".to_string(),
-                })),
-                name: None,
-            },
-            &ShellType::Bash,
-            InteractionMode::Interactive,
-        );
-
-        assert!(alias_result.is_ok());
-        assert!(group_result.is_ok());
-        assert!(!catalog.aliases["ll"].enabled);
-        assert!(!catalog.groups["tools"]);
-    }
-
-    #[test]
-    fn disables_all_aliases_and_groups() {
-        let mut catalog = sample_catalog();
-
-        let result = handle_disable(
-            &mut catalog,
-            DisableCommand {
-                target: Some(DisableTarget::All),
-                name: None,
-            },
-            &ShellType::Bash,
-            InteractionMode::Interactive,
-        );
-
-        assert_eq!(
-            result,
-            Ok(CommandOutcome::with_message(
-                Outcome::CatalogChanged,
-                "All aliases and groups are now disabled."
-            ))
-        );
-        assert!(!catalog.aliases["ll"].enabled);
-        assert!(!catalog.groups["tools"]);
+        None => disable_alias(catalog, cmd.name.as_deref().expect("name required"))
+            .map(CommandOutcome::from),
     }
 }

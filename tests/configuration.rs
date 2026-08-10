@@ -25,6 +25,8 @@ fn explicit_configuration_controls_symbols_and_styles() {
         mode = "never"
         [symbols]
         enabled = "+"
+        [list]
+        columns = ["status", "name"]
         [styles.enabled]
         foreground = "#ff00aa"
         bold = false
@@ -32,15 +34,24 @@ fn explicit_configuration_controls_symbols_and_styles() {
     )
     .unwrap();
 
-    let plain = run_aliasmgr(&catalog, &config, &["list", "--group"]);
+    let plain = run_aliasmgr(&catalog, &config, &["list"]);
     assert!(plain.status.success());
-    assert_eq!(String::from_utf8(plain.stdout).unwrap(), "+ ll -> ls -la\n");
+    assert_eq!(
+        String::from_utf8(plain.stdout).unwrap(),
+        "Status  Name\n+       ll\n"
+    );
 
-    let colored = run_aliasmgr(&catalog, &config, &["--color", "always", "list", "--group"]);
+    let colored = run_aliasmgr(&catalog, &config, &["--color", "always", "list"]);
     assert!(colored.status.success());
     assert_eq!(
         String::from_utf8(colored.stdout).unwrap(),
-        "\u{1b}[38;2;255;0;170m+\u{1b}[0m ll -> ls -la\n"
+        "Status  Name\n\u{1b}[38;2;255;0;170m+\u{1b}[0m       ll\n"
+    );
+
+    let override_columns = run_aliasmgr(&catalog, &config, &["list", "--columns", "name,command"]);
+    assert_eq!(
+        String::from_utf8(override_columns.stdout).unwrap(),
+        "Name  Command\nll    ls -la\n"
     );
 }
 

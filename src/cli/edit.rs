@@ -1,22 +1,48 @@
 use clap::Args;
 
+use super::validate_tag;
+
 #[derive(Args)]
 pub struct EditCommand {
-    /// Name of the alias to edit
+    /// Alias to edit
     pub name: String,
 
     /// Replacement command
-    pub new_command: String,
+    pub command: Option<String>,
 
-    /// Toggle enable/disable status
+    /// Set the alias description
+    #[arg(long, conflicts_with = "clear_description")]
+    pub description: Option<String>,
+
+    /// Remove the alias description
+    #[arg(long)]
+    pub clear_description: bool,
+
+    /// Add a tag; repeat to add multiple tags
+    #[arg(long, value_name = "TAG", value_parser = validate_tag)]
+    pub add_tag: Vec<String>,
+
+    /// Remove a tag; repeat to remove multiple tags
+    #[arg(long, value_name = "TAG", value_parser = validate_tag)]
+    pub remove_tag: Vec<String>,
+
+    /// Toggle whether the alias is enabled
     #[arg(long, short = 'e')]
-    pub toggle_enable: bool,
+    pub toggle_enabled: bool,
 
-    /// Toggle global status
+    /// Toggle whether the alias is global
     #[arg(long, short = 'b')]
     pub toggle_global: bool,
+}
 
-    /// Change alias group. If left empty, removes the alias from any group.
-    #[arg(long, short)]
-    pub group: Option<Option<String>>,
+impl EditCommand {
+    pub fn has_changes(&self) -> bool {
+        self.command.is_some()
+            || self.description.is_some()
+            || self.clear_description
+            || !self.add_tag.is_empty()
+            || !self.remove_tag.is_empty()
+            || self.toggle_enabled
+            || self.toggle_global
+    }
 }

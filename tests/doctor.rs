@@ -64,7 +64,7 @@ fn malformed_catalog_fails_cleanly() {
 }
 
 #[test]
-fn unsupported_nested_group_fails_cleanly() {
+fn legacy_group_fails_cleanly() {
     let directory = tempfile::tempdir().unwrap();
     let catalog = directory.path().join("aliases.toml");
     fs::write(&catalog, "[tools]\n[tools.nested]\nll = \"ls -la\"\n").unwrap();
@@ -72,5 +72,7 @@ fn unsupported_nested_group_fails_cleanly() {
     let output = run_doctor(&catalog, "bash");
 
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("nested groups are not supported"));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("legacy alias groups are unsupported")
+    );
 }

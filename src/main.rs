@@ -26,7 +26,6 @@ use app::enable::handle_enable;
 use app::file_path::determine_catalog_path;
 use app::init::handle_init;
 use app::list::handle_list;
-use app::r#move::handle_move;
 use app::remove::handle_remove;
 use app::rename::handle_rename;
 use app::sync::{handle_shell_sync, handle_sync};
@@ -94,33 +93,26 @@ fn main() {
         let resolved_catalog_path = resolve_catalog_path(catalog_path.as_ref());
         catalog = match load_catalog(&resolved_catalog_path) {
             Ok(catalog) => catalog,
-            Err(error) if is_doctor => {
+            Err(error) => {
                 eprintln!(
                     "ERROR: Could not load catalog '{}': {error}",
                     resolved_catalog_path.display()
                 );
                 std::process::exit(1);
             }
-            Err(error) => panic!("Failed to load catalog: {error}"),
         };
         debug!("Loaded catalog: {:?}", catalog);
     }
 
     let result = match cli.command {
-        // Add new alias or group
         Commands::Add(cmd) => {
             handle_add(&mut catalog, cmd, &shell, interaction_mode).map(CommandOutcome::from)
         }
         Commands::Remove(cmd) => handle_remove(&mut catalog, cmd, &shell, interaction_mode),
-        Commands::Move(cmd) => {
-            handle_move(&mut catalog, cmd, interaction_mode).map(CommandOutcome::from)
-        }
         Commands::List(cmd) => {
             handle_list(&catalog, cmd, &shell, &config, colors_enabled).map(CommandOutcome::from)
         }
-        Commands::Rename(cmd) => {
-            handle_rename(&mut catalog, cmd, interaction_mode).map(CommandOutcome::from)
-        }
+        Commands::Rename(cmd) => handle_rename(&mut catalog, cmd, interaction_mode),
         Commands::Edit(cmd) => {
             handle_edit(&mut catalog, cmd, &shell, interaction_mode).map(CommandOutcome::from)
         }
@@ -165,11 +157,12 @@ fn main() {
                 println!("{message}");
             }
         }
-        Err(_) => {
+        Err(error) => {
             debug!("An error occurred during command execution.");
-            if is_doctor {
-                std::process::exit(1);
+            if !is_doctor {
+                eprintln!("ERROR: {error}");
             }
+            std::process::exit(1);
         }
     }
 }

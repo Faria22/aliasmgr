@@ -1,315 +1,291 @@
-use serde::Serialize;
-use std::collections::BTreeMap;
-
-use super::shell::ShellType;
-use crate::catalog::types::AliasCatalog;
-use crate::cli::list::{ListCommand, OutputFormat};
-use crate::config::UserConfig;
-use crate::core::list::{get_aliases_from_single_group, get_all_aliases_grouped};
-use crate::core::{Failure, Outcome};
+use std::io::IsTerminal;
 
 use globset::Glob;
+use serde::Serialize;
+use terminal_size::{Width, terminal_size};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
-/// Returns a colored symbol representing the enabled status.
-struct HumanFormatter<'a> {
-    config: &'a UserConfig,
-    colors_enabled: bool,
-}
-
-impl HumanFormatter<'_> {
-    fn enabled_symbol(&self, enabled: bool) -> String {
-        if enabled {
-            self.config
-                .styles
-                .enabled
-                .render(&self.config.symbols.enabled, self.colors_enabled)
-        } else {
-            self.config
-                .styles
-                .disabled
-                .render(&self.config.symbols.disabled, self.colors_enabled)
-        }
-    }
-
-    fn globe_symbol(&self, global: bool) -> String {
-        if global {
-            format!(
-                " {}",
-                self.config
-                    .styles
-                    .global
-                    .render(&self.config.symbols.global, self.colors_enabled)
-            )
-        } else {
-            String::new()
-        }
-    }
-
-    fn format_alias_info(&self, catalog: &AliasCatalog, alias: &str) -> Result<String, Failure> {
-        if let Some(alias_info) = catalog.aliases.get(alias) {
-            Ok(format!(
-                "{}{} {} -> {}",
-                self.enabled_symbol(alias_info.enabled),
-                self.globe_symbol(alias_info.global),
-                alias,
-                alias_info.command
-            ))
-        } else {
-            eprintln!("Alias '{}' not found in catalog.", alias);
-            Err(Failure::AliasDoesNotExist)
-        }
-    }
-
-    fn group_header(
-        &self,
-        catalog: &AliasCatalog,
-        group: &Option<String>,
-    ) -> Result<String, Failure> {
-        let group_enabled;
-        let group_name;
-        if let Some(g) = group {
-            match catalog.groups.get(g) {
-                Some(enabled) => {
-                    group_enabled = enabled;
-                    group_name = g.clone();
-                }
-                None => {
-                    eprintln!("Group '{}' does not exist in catalog.", g);
-                    return Err(Failure::GroupDoesNotExist);
-                }
-            }
-        } else {
-            group_enabled = &true;
-            group_name = "ungrouped".to_string();
-        }
-
-        let header_message = format!(
-            " Group: {} {} ",
-            group_name,
-            self.enabled_symbol(*group_enabled)
-        );
-        Ok(format!("{:=^width$}", header_message, width = 50))
-    }
-
-    fn format_aliases_list(
-        &self,
-        catalog: &AliasCatalog,
-        aliases: &[String],
-    ) -> Result<String, Failure> {
-        let mut content = String::new();
-        for alias in aliases {
-            content += &(self.format_alias_info(catalog, alias)? + "\n");
-        }
-        Ok(content)
-    }
-}
-
-#[cfg(test)]
-fn enabled_symbol(enabled: bool) -> String {
-    HumanFormatter {
-        config: &UserConfig::default(),
-        colors_enabled: true,
-    }
-    .enabled_symbol(enabled)
-}
-
-#[cfg(test)]
-fn globe_symbol(global: bool) -> String {
-    HumanFormatter {
-        config: &UserConfig::default(),
-        colors_enabled: true,
-    }
-    .globe_symbol(global)
-}
-
-pub fn format_alias_info(catalog: &AliasCatalog, alias: &str) -> Result<String, Failure> {
-    HumanFormatter {
-        config: &UserConfig::default(),
-        colors_enabled: true,
-    }
-    .format_alias_info(catalog, alias)
-}
-
-#[cfg(test)]
-fn group_header(catalog: &AliasCatalog, group: &Option<String>) -> Result<String, Failure> {
-    HumanFormatter {
-        config: &UserConfig::default(),
-        colors_enabled: true,
-    }
-    .group_header(catalog, group)
-}
-
-#[cfg(test)]
-fn format_group_and_aliases(
-    catalog: &AliasCatalog,
-    group_id: &Option<String>,
-    aliases: &[String],
-) -> Result<String, Failure> {
-    let mut content = String::new();
-    content += &(group_header(catalog, group_id)? + "\n");
-    content += &format_aliases_list(catalog, aliases)?;
-    Ok(content)
-}
-
-/// Formats a list of aliases without a group header.
-#[cfg(test)]
-fn format_aliases_list(catalog: &AliasCatalog, aliases: &[String]) -> Result<String, Failure> {
-    HumanFormatter {
-        config: &UserConfig::default(),
-        colors_enabled: true,
-    }
-    .format_aliases_list(catalog, aliases)
-}
-
-/// If ungrouped, will remove the group header
-#[cfg(test)]
-fn format_group_and_aliases_single_group(
-    catalog: &AliasCatalog,
-    group_id: &Option<String>,
-    aliases: &[String],
-) -> Result<String, Failure> {
-    let mut content = String::new();
-    if group_id.is_some() {
-        content += &(group_header(catalog, group_id)? + "\n");
-    }
-    content += &format_aliases_list(catalog, aliases)?;
-    Ok(content)
-}
-
-fn retain_aliases(catalog: &AliasCatalog, aliases: &mut Vec<String>, cmd: &ListCommand) {
-    if let Some(pattern) = &cmd.pattern {
-        let glob = Glob::new(pattern).unwrap().compile_matcher();
-        aliases.retain(|alias| glob.is_match(alias));
-    }
-    if cmd.enabled {
-        aliases.retain(|alias| catalog.aliases[alias].enabled);
-    } else if cmd.disabled {
-        aliases.retain(|alias| !catalog.aliases[alias].enabled);
-    }
-
-    if cmd.global {
-        aliases.retain(|alias| catalog.aliases[alias].global);
-    }
-}
-
-fn select_aliases(
-    catalog: &AliasCatalog,
-    cmd: &ListCommand,
-    shell: &ShellType,
-) -> Result<BTreeMap<Option<String>, Vec<String>>, Failure> {
-    let mut groups = if let Some(group) = &cmd.group {
-        let group_id = group.clone();
-        let aliases = get_aliases_from_single_group(catalog, group_id.as_deref(), shell)?;
-        BTreeMap::from([(group_id, aliases)])
-    } else {
-        get_all_aliases_grouped(catalog, shell)
-    };
-
-    for aliases in groups.values_mut() {
-        retain_aliases(catalog, aliases, cmd);
-    }
-    groups.retain(|_, aliases| !aliases.is_empty());
-    Ok(groups)
-}
+use crate::app::shell::ShellType;
+use crate::catalog::types::{Alias, AliasCatalog};
+use crate::cli::list::{ListColumn, ListCommand, OutputFormat};
+use crate::config::UserConfig;
+use crate::core::list::visible_aliases;
+use crate::core::{Failure, Outcome};
 
 #[derive(Serialize)]
 struct JsonAlias<'a> {
     name: &'a str,
     command: &'a str,
-    group: Option<&'a str>,
     enabled: bool,
     global: bool,
+    tags: &'a std::collections::BTreeSet<String>,
+    description: Option<&'a str>,
 }
 
-fn format_json(catalog: &AliasCatalog, groups: &BTreeMap<Option<String>, Vec<String>>) -> String {
-    let aliases = groups
-        .values()
-        .flatten()
-        .map(|name| {
-            let alias = &catalog.aliases[name];
-            JsonAlias {
-                name,
-                command: &alias.command,
-                group: alias.group.as_deref(),
-                enabled: alias.enabled,
-                global: alias.global,
-            }
+fn selected_aliases<'a>(
+    catalog: &'a AliasCatalog,
+    cmd: &ListCommand,
+    shell: &ShellType,
+) -> Result<Vec<(&'a str, &'a Alias)>, Failure> {
+    let matcher = cmd
+        .pattern
+        .as_deref()
+        .map(|pattern| {
+            Glob::new(pattern)
+                .map(|glob| glob.compile_matcher())
+                .map_err(|_| Failure::InvalidPattern)
+        })
+        .transpose()?;
+
+    Ok(visible_aliases(catalog, shell)
+        .filter(|(name, _)| {
+            matcher
+                .as_ref()
+                .is_none_or(|matcher| matcher.is_match(name))
+        })
+        .filter(|(_, alias)| cmd.tag.iter().all(|tag| alias.tags.contains(tag)))
+        .filter(|(_, alias)| !cmd.enabled || alias.enabled)
+        .filter(|(_, alias)| !cmd.disabled || !alias.enabled)
+        .filter(|(_, alias)| !cmd.global || alias.global)
+        .map(|(name, alias)| (name.as_str(), alias))
+        .collect())
+}
+
+fn header(column: ListColumn) -> &'static str {
+    match column {
+        ListColumn::Status => "Status",
+        ListColumn::Name => "Name",
+        ListColumn::Command => "Command",
+        ListColumn::Global => "Global",
+        ListColumn::Tags => "Tags",
+        ListColumn::Description => "Description",
+    }
+}
+
+fn single_line(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| match character {
+            '\n' | '\r' | '\t' => ' ',
+            _ => character,
+        })
+        .collect()
+}
+
+fn raw_cell(column: ListColumn, name: &str, alias: &Alias, config: &UserConfig) -> String {
+    match column {
+        ListColumn::Status if alias.enabled => config.symbols.enabled.clone(),
+        ListColumn::Status => config.symbols.disabled.clone(),
+        ListColumn::Name => name.to_owned(),
+        ListColumn::Command => single_line(&alias.command),
+        ListColumn::Global if alias.global => config.symbols.global.clone(),
+        ListColumn::Global => String::new(),
+        ListColumn::Tags => alias.tags.iter().cloned().collect::<Vec<_>>().join(", "),
+        ListColumn::Description => alias
+            .description
+            .as_deref()
+            .map(single_line)
+            .unwrap_or_default(),
+    }
+}
+
+fn truncate(value: &str, width: usize) -> String {
+    if UnicodeWidthStr::width(value) <= width {
+        return value.to_owned();
+    }
+    if width == 0 {
+        return String::new();
+    }
+    if width == 1 {
+        return "…".into();
+    }
+    let target = width - 1;
+    let mut used = 0;
+    let mut output = String::new();
+    for character in value.chars() {
+        let character_width = character.width().unwrap_or(0);
+        if used + character_width > target {
+            break;
+        }
+        output.push(character);
+        used += character_width;
+    }
+    output.push('…');
+    output
+}
+
+fn column_widths(
+    columns: &[ListColumn],
+    rows: &[Vec<String>],
+    terminal_width: Option<usize>,
+) -> Vec<usize> {
+    let mut widths = columns
+        .iter()
+        .enumerate()
+        .map(|(index, column)| {
+            rows.iter()
+                .map(|row| UnicodeWidthStr::width(row[index].as_str()))
+                .chain([UnicodeWidthStr::width(header(*column))])
+                .max()
+                .unwrap_or(0)
         })
         .collect::<Vec<_>>();
+    let Some(available) = terminal_width else {
+        return widths;
+    };
+    let separators = columns.len().saturating_sub(1) * 2;
+    let shrink_order = [
+        ListColumn::Description,
+        ListColumn::Command,
+        ListColumn::Tags,
+        ListColumn::Name,
+        ListColumn::Global,
+        ListColumn::Status,
+    ];
 
-    serde_json::to_string_pretty(&aliases).expect("alias list is JSON serializable") + "\n"
+    for preserve_headers in [true, false] {
+        while widths.iter().sum::<usize>() + separators > available {
+            let mut changed = false;
+            for candidate in shrink_order {
+                if let Some(index) = columns.iter().position(|column| *column == candidate) {
+                    let minimum = if preserve_headers {
+                        UnicodeWidthStr::width(header(candidate))
+                    } else {
+                        1
+                    };
+                    if widths[index] > minimum {
+                        widths[index] -= 1;
+                        changed = true;
+                        if widths.iter().sum::<usize>() + separators <= available {
+                            break;
+                        }
+                    }
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+    }
+    widths
+}
+
+fn styled_cell(
+    column: ListColumn,
+    raw: &str,
+    alias: &Alias,
+    config: &UserConfig,
+    colors_enabled: bool,
+) -> String {
+    match column {
+        ListColumn::Status if alias.enabled => config.styles.enabled.render(raw, colors_enabled),
+        ListColumn::Status => config.styles.disabled.render(raw, colors_enabled),
+        ListColumn::Global if alias.global => config.styles.global.render(raw, colors_enabled),
+        _ => raw.to_owned(),
+    }
 }
 
 fn format_human(
-    catalog: &AliasCatalog,
-    groups: &BTreeMap<Option<String>, Vec<String>>,
-    focused_group: bool,
+    aliases: &[(&str, &Alias)],
+    columns: &[ListColumn],
     config: &UserConfig,
     colors_enabled: bool,
-) -> Result<String, Failure> {
-    let formatter = HumanFormatter {
-        config,
-        colors_enabled,
+    terminal_width: Option<usize>,
+) -> String {
+    if aliases.is_empty() {
+        return String::new();
+    }
+    let raw_rows = aliases
+        .iter()
+        .map(|(name, alias)| {
+            columns
+                .iter()
+                .map(|column| raw_cell(*column, name, alias, config))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let widths = column_widths(columns, &raw_rows, terminal_width);
+
+    let render_plain_row = |cells: Vec<String>| {
+        cells
+            .into_iter()
+            .enumerate()
+            .map(|(index, cell)| {
+                let value = truncate(&cell, widths[index]);
+                let padding = widths[index].saturating_sub(UnicodeWidthStr::width(value.as_str()));
+                value + &" ".repeat(padding)
+            })
+            .collect::<Vec<_>>()
+            .join("  ")
+            .trim_end()
+            .to_owned()
+            + "\n"
     };
-    let mut content = String::new();
-    for (group_id, aliases) in groups {
-        if focused_group {
-            if group_id.is_some() {
-                content += &(formatter.group_header(catalog, group_id)? + "\n");
-            }
-            content += &formatter.format_aliases_list(catalog, aliases)?;
-        } else {
-            content += &(formatter.group_header(catalog, group_id)? + "\n");
-            content += &formatter.format_aliases_list(catalog, aliases)?;
-        }
+
+    let mut output = render_plain_row(
+        columns
+            .iter()
+            .map(|column| header(*column).to_owned())
+            .collect(),
+    );
+    for ((_, alias), raw_row) in aliases.iter().zip(raw_rows) {
+        let cells = raw_row
+            .into_iter()
+            .enumerate()
+            .map(|(index, raw)| {
+                let value = truncate(&raw, widths[index]);
+                let padding = widths[index].saturating_sub(UnicodeWidthStr::width(value.as_str()));
+                styled_cell(columns[index], &value, alias, config, colors_enabled)
+                    + &" ".repeat(padding)
+            })
+            .collect::<Vec<_>>();
+        output.push_str(cells.join("  ").trim_end());
+        output.push('\n');
     }
-    Ok(content)
+    output
 }
 
-fn format_list_with_config(
+fn format_json(aliases: &[(&str, &Alias)]) -> String {
+    let aliases = aliases
+        .iter()
+        .map(|(name, alias)| JsonAlias {
+            name,
+            command: &alias.command,
+            enabled: alias.enabled,
+            global: alias.global,
+            tags: &alias.tags,
+            description: alias.description.as_deref(),
+        })
+        .collect::<Vec<_>>();
+    serde_json::to_string_pretty(&aliases).expect("alias list serializes") + "\n"
+}
+
+fn format_list_with_width(
     catalog: &AliasCatalog,
     cmd: &ListCommand,
     shell: &ShellType,
     config: &UserConfig,
     colors_enabled: bool,
+    terminal_width: Option<usize>,
 ) -> Result<String, Failure> {
-    let groups = select_aliases(catalog, cmd, shell)?;
-    match cmd.format {
-        OutputFormat::Human => format_human(
-            catalog,
-            &groups,
-            cmd.group.is_some(),
-            config,
-            colors_enabled,
-        ),
-        OutputFormat::Json => Ok(format_json(catalog, &groups)),
+    let aliases = selected_aliases(catalog, cmd, shell)?;
+    if let Some(columns) = &cmd.columns
+        && columns
+            .iter()
+            .enumerate()
+            .any(|(index, column)| columns[..index].contains(column))
+    {
+        return Err(Failure::InvalidColumns);
     }
+    Ok(match cmd.format {
+        OutputFormat::Json => format_json(&aliases),
+        OutputFormat::Human => {
+            let columns = cmd.columns.as_deref().unwrap_or(&config.list.columns);
+            format_human(&aliases, columns, config, colors_enabled, terminal_width)
+        }
+    })
 }
 
-#[cfg(test)]
-fn format_list(
-    catalog: &AliasCatalog,
-    cmd: &ListCommand,
-    shell: &ShellType,
-) -> Result<String, Failure> {
-    format_list_with_config(catalog, cmd, shell, &UserConfig::default(), true)
-}
-
-/// Handle the 'list' command based on the provided options.
-/// This function lists aliases according to the specified criteria:
-/// - If a specific group is provided, it lists aliases in that group.
-/// - If the 'all' flag is set, it lists all aliases.
-/// - If the 'disabled' flag is set, it lists only disabled aliases.
-/// - By default, it lists only enabled aliases.
-///
-/// # Arguments
-/// - `catalog`: Reference to the catalog containing aliases and groups.
-/// - `cmd`: The ListCommand containing options for listing.
-///
-/// # Returns
-/// - `Outcome::NoChanges` if the operation is successful.
-/// - `Failure::GroupDoesNotExist` if the specified group does not exist.
-/// - Other failures as defined in the `Failure` enum.
 pub fn handle_list(
     catalog: &AliasCatalog,
     cmd: ListCommand,
@@ -317,676 +293,114 @@ pub fn handle_list(
     config: &UserConfig,
     colors_enabled: bool,
 ) -> Result<Outcome, Failure> {
+    let width = std::io::stdout()
+        .is_terminal()
+        .then(|| terminal_size().map(|(Width(width), _)| usize::from(width)))
+        .flatten();
     print!(
         "{}",
-        format_list_with_config(catalog, &cmd, shell, config, colors_enabled)?
+        format_list_with_width(catalog, &cmd, shell, config, colors_enabled, width)?
     );
     Ok(Outcome::NoChanges)
 }
 
 #[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use crate::catalog::types::{Alias, AliasCatalog};
-    use assert_matches::assert_matches;
+    use crate::cli::list::ListCommand;
 
-    fn create_test_catalog() -> AliasCatalog {
-        let mut catalog = AliasCatalog::new();
-        // Ungrouped alias
-        catalog.aliases.insert(
-            "test".to_string(),
-            Alias::new("echo test".to_string(), None, true, false),
-        );
-        // Grouped alias
-        catalog.aliases.insert(
-            "build".to_string(),
-            Alias::new(
-                "cargo build".to_string(),
-                Some("dev".to_string()),
-                true,
-                false,
-            ),
-        );
-        catalog.groups.insert("dev".to_string(), true);
-        catalog
+    fn command(format: OutputFormat) -> ListCommand {
+        ListCommand {
+            pattern: None,
+            tag: vec![],
+            enabled: false,
+            disabled: false,
+            global: false,
+            format,
+            columns: None,
+        }
     }
 
-    fn create_filtered_catalog() -> AliasCatalog {
+    fn catalog() -> AliasCatalog {
         let mut catalog = AliasCatalog::new();
-        catalog.groups.insert("dev".to_string(), true);
-        catalog.groups.insert("ops".to_string(), true);
-        catalog.groups.insert("zsh".to_string(), true);
-        catalog.aliases.insert(
-            "build".to_string(),
-            Alias::new(
-                "cargo build".to_string(),
-                Some("dev".to_string()),
-                true,
-                false,
-            ),
-        );
-        catalog.aliases.insert(
-            "deploy".to_string(),
-            Alias::new("deploy".to_string(), Some("ops".to_string()), false, false),
-        );
-        catalog.aliases.insert(
-            "glob".to_string(),
-            Alias::new("*.rs".to_string(), Some("zsh".to_string()), true, true),
-        );
+        let mut alias = Alias::new("cargo test --workspace".into(), true, false);
+        alias.tags.extend(["dev".into(), "rust".into()]);
+        alias.description = Some("Run the complete test suite".into());
+        catalog.aliases.insert("test".into(), alias);
         catalog
     }
 
     #[test]
-    fn configured_symbols_and_styles_are_used() {
-        let catalog = create_test_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: Some(None),
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        let mut config = UserConfig::default();
-        config.symbols.enabled = "+".into();
-        config.styles.enabled.foreground = "magenta".into();
-
-        let plain =
-            format_list_with_config(&catalog, &cmd, &ShellType::Bash, &config, false).unwrap();
-        let colored =
-            format_list_with_config(&catalog, &cmd, &ShellType::Bash, &config, true).unwrap();
-        assert!(plain.starts_with("+ test"));
-        assert!(colored.starts_with("\u{1b}[35;1m+\u{1b}[0m test"));
-    }
-
-    #[test]
-    fn test_enabled_symbol() {
-        assert_eq!(enabled_symbol(true), "\u{1b}[32;1m✔\u{1b}[0m");
-        assert_eq!(enabled_symbol(false), "\u{1b}[31;1m✘\u{1b}[0m");
-    }
-
-    #[test]
-    fn test_print_alias_valid() {
-        let catalog = create_test_catalog();
-
-        let result = format_alias_info(&catalog, "test");
-        assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            format!("{} test -> echo test", enabled_symbol(true))
-        );
-    }
-
-    #[test]
-    fn test_group_header_valid() {
-        let catalog = create_test_catalog();
-
-        let result = group_header(&catalog, &Some("dev".to_string()));
-        assert!(result.is_ok());
-        assert!(result.unwrap().contains("Group: dev"));
-    }
-
-    #[test]
-    fn test_format_group_and_aliases_valid() {
-        let catalog = create_test_catalog();
-
-        let aliases = vec!["test".to_string()];
-        let result = format_group_and_aliases(&catalog, &Some("dev".to_string()), &aliases);
-
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        assert!(output.contains("Group: dev"));
-        assert!(output.contains("test -> echo test"));
-    }
-
-    #[test]
-    fn list_omits_empty_groups_and_sorts_nonempty_groups() {
-        let catalog = create_filtered_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-
-        let output = format_list(&catalog, &cmd, &ShellType::Bash).unwrap();
-
-        assert!(!output.contains("Group: ungrouped"));
-        assert!(!output.contains("Group: zsh"));
-        assert!(output.find("Group: dev").unwrap() < output.find("Group: ops").unwrap());
-    }
-
-    #[test]
-    fn pattern_filter_only_formats_groups_with_matches() {
-        let catalog = create_filtered_catalog();
-        let cmd = ListCommand {
-            pattern: Some("b*".to_string()),
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-
-        let output = format_list(&catalog, &cmd, &ShellType::Zsh).unwrap();
-
-        assert!(output.contains("Group: dev"));
-        assert!(!output.contains("Group: ops"));
-        assert!(!output.contains("Group: zsh"));
-    }
-
-    #[test]
-    fn enabled_and_disabled_filters_omit_empty_groups() {
-        let catalog = create_filtered_catalog();
-        let enabled = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: true,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        let disabled = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: true,
-            global: false,
-            format: OutputFormat::Human,
-        };
-
-        let enabled_output = format_list(&catalog, &enabled, &ShellType::Bash).unwrap();
-        let disabled_output = format_list(&catalog, &disabled, &ShellType::Bash).unwrap();
-
-        assert!(enabled_output.contains("Group: dev"));
-        assert!(!enabled_output.contains("Group: ops"));
-        assert!(!enabled_output.contains("Group: zsh"));
-        assert!(!disabled_output.contains("Group: dev"));
-        assert!(disabled_output.contains("Group: ops"));
-        assert!(!disabled_output.contains("Group: zsh"));
-    }
-
-    #[test]
-    fn global_filter_omits_shell_incompatible_and_nonmatching_groups() {
-        let catalog = create_filtered_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: true,
-            format: OutputFormat::Human,
-        };
-
-        assert_eq!(format_list(&catalog, &cmd, &ShellType::Bash).unwrap(), "");
-
-        let zsh_output = format_list(&catalog, &cmd, &ShellType::Zsh).unwrap();
-        assert!(!zsh_output.contains("Group: dev"));
-        assert!(!zsh_output.contains("Group: ops"));
-        assert!(zsh_output.contains("Group: zsh"));
-    }
-
-    #[test]
-    fn json_lists_ungrouped_and_grouped_aliases() {
-        let catalog = create_test_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Json,
-        };
-
-        let output = format_list(&catalog, &cmd, &ShellType::Bash).unwrap();
-        let aliases: serde_json::Value = serde_json::from_str(&output).unwrap();
-
-        assert_eq!(
-            aliases,
-            serde_json::json!([
-                {
-                    "name": "test",
-                    "command": "echo test",
-                    "group": null,
-                    "enabled": true,
-                    "global": false
-                },
-                {
-                    "name": "build",
-                    "command": "cargo build",
-                    "group": "dev",
-                    "enabled": true,
-                    "global": false
-                }
-            ])
-        );
-    }
-
-    #[test]
-    fn json_respects_pattern_group_and_status_filters() {
-        let catalog = create_filtered_catalog();
-        let cmd = ListCommand {
-            pattern: Some("d*".to_string()),
-            group: Some(Some("ops".to_string())),
-            enabled: false,
-            disabled: true,
-            global: false,
-            format: OutputFormat::Json,
-        };
-
-        let output = format_list(&catalog, &cmd, &ShellType::Zsh).unwrap();
-        let aliases: serde_json::Value = serde_json::from_str(&output).unwrap();
-
-        assert_eq!(
-            aliases,
-            serde_json::json!([{
-                "name": "deploy",
-                "command": "deploy",
-                "group": "ops",
-                "enabled": false,
-                "global": false
-            }])
-        );
-    }
-
-    #[test]
-    fn json_only_includes_global_aliases_for_zsh() {
-        let catalog = create_filtered_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: true,
-            format: OutputFormat::Json,
-        };
-
-        assert_eq!(
-            serde_json::from_str::<serde_json::Value>(
-                &format_list(&catalog, &cmd, &ShellType::Bash).unwrap()
-            )
-            .unwrap(),
-            serde_json::json!([])
-        );
-        assert_eq!(
-            serde_json::from_str::<serde_json::Value>(
-                &format_list(&catalog, &cmd, &ShellType::Zsh).unwrap()
-            )
-            .unwrap(),
-            serde_json::json!([{
-                "name": "glob",
-                "command": "*.rs",
-                "group": "zsh",
-                "enabled": true,
-                "global": true
-            }])
-        );
-    }
-
-    #[test]
-    fn no_matches_or_empty_focused_group_produce_no_output() {
-        let catalog = create_filtered_catalog();
-        let no_matches = ListCommand {
-            pattern: Some("missing*".to_string()),
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        let empty_focused_group = ListCommand {
-            pattern: Some("missing*".to_string()),
-            group: Some(Some("dev".to_string())),
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-
-        assert_eq!(
-            format_list(&catalog, &no_matches, &ShellType::Zsh).unwrap(),
-            ""
-        );
-        assert_eq!(
-            format_list(&catalog, &empty_focused_group, &ShellType::Zsh).unwrap(),
-            ""
-        );
-    }
-
-    #[test]
-    fn test_handle_list_specific_existing_group() {
-        let catalog = create_test_catalog();
-
-        let cmd = ListCommand {
-            pattern: None,
-            group: Some(Some("dev".to_string())),
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        let result = handle_list(
-            &catalog,
-            cmd,
+    fn default_table_has_six_columns_in_contract_order() {
+        let output = format_list_with_width(
+            &catalog(),
+            &command(OutputFormat::Human),
             &ShellType::Bash,
             &UserConfig::default(),
-            true,
+            false,
+            None,
+        )
+        .unwrap();
+        assert!(
+            output
+                .lines()
+                .next()
+                .unwrap()
+                .starts_with("Status  Name  Command")
         );
-        assert!(result.is_ok());
+        assert!(
+            output
+                .lines()
+                .next()
+                .unwrap()
+                .contains("Global  Tags       Description")
+        );
     }
 
     #[test]
-    fn test_handle_list_specific_nonexistent_group() {
-        let catalog = create_test_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: Some(Some("nonexistent".to_string())),
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        let result = handle_list(
-            &catalog,
-            cmd,
+    fn narrow_tables_truncate_without_dropping_columns() {
+        let output = format_list_with_width(
+            &catalog(),
+            &command(OutputFormat::Human),
             &ShellType::Bash,
             &UserConfig::default(),
-            true,
-        );
-        assert_matches!(result, Err(Failure::GroupDoesNotExist));
+            false,
+            Some(45),
+        )
+        .unwrap();
+        assert!(output.contains('…'));
+        assert_eq!(output.lines().next().unwrap().split_whitespace().count(), 6);
     }
 
     #[test]
-    fn test_handle_list_all() {
-        let catalog = create_test_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        let result = handle_list(
-            &catalog,
-            cmd,
+    fn json_always_contains_metadata() {
+        let output = format_list_with_width(
+            &catalog(),
+            &command(OutputFormat::Json),
             &ShellType::Bash,
             &UserConfig::default(),
-            true,
-        );
-        assert!(result.is_ok());
+            false,
+            None,
+        )
+        .unwrap();
+        let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(value[0]["tags"], serde_json::json!(["dev", "rust"]));
+        assert_eq!(value[0]["description"], "Run the complete test suite");
     }
 
     #[test]
-    fn test_handle_list_enabled() {
-        let catalog = create_test_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: true,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        let result = handle_list(
-            &catalog,
-            cmd,
+    fn tag_filters_require_every_tag() {
+        let mut cmd = command(OutputFormat::Json);
+        cmd.tag = vec!["dev".into(), "missing".into()];
+        let output = format_list_with_width(
+            &catalog(),
+            &cmd,
             &ShellType::Bash,
             &UserConfig::default(),
-            true,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_handle_list_disabled() {
-        let catalog = create_test_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: true,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        let result = handle_list(
-            &catalog,
-            cmd,
-            &ShellType::Bash,
-            &UserConfig::default(),
-            true,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_handle_list_no_aliases() {
-        let catalog = AliasCatalog::new();
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: true,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        let result = handle_list(
-            &catalog,
-            cmd,
-            &ShellType::Bash,
-            &UserConfig::default(),
-            true,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_handle_list_ungrouped() {
-        let catalog = create_test_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: Some(None),
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        let result = handle_list(
-            &catalog,
-            cmd,
-            &ShellType::Bash,
-            &UserConfig::default(),
-            true,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_handle_list_global() {
-        let catalog = create_test_catalog();
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: true,
-            format: OutputFormat::Human,
-        };
-        let result = handle_list(
-            &catalog,
-            cmd,
-            &ShellType::Bash,
-            &UserConfig::default(),
-            true,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_format_alias_info_nonexistent_alias() {
-        let catalog = create_test_catalog();
-        let result = format_alias_info(&catalog, "nonexistent");
-        assert_matches!(result, Err(Failure::AliasDoesNotExist));
-    }
-
-    #[test]
-    fn test_group_header_nonexistent_group() {
-        let catalog = create_test_catalog();
-        let result = group_header(&catalog, &Some("nonexistent".to_string()));
-        assert_matches!(result, Err(Failure::GroupDoesNotExist));
-    }
-
-    #[test]
-    fn test_format_group_and_aliases_nonexistent_group() {
-        let catalog = create_test_catalog();
-        let aliases = vec!["test".to_string()];
-        let result = format_group_and_aliases(&catalog, &Some("nonexistent".to_string()), &aliases);
-        assert_matches!(result, Err(Failure::GroupDoesNotExist));
-    }
-
-    #[test]
-    fn test_format_group_and_aliases_nonexistent_alias() {
-        let catalog = create_test_catalog();
-        let aliases = vec!["nonexistent".to_string()];
-        let result = format_group_and_aliases(&catalog, &Some("dev".to_string()), &aliases);
-        assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
-    }
-
-    #[test]
-    fn test_format_aliases_list_nonexistent_alias() {
-        let catalog = create_test_catalog();
-        let aliases = vec!["nonexistent".to_string()];
-        let result = format_aliases_list(&catalog, &aliases);
-        assert!(matches!(result, Err(Failure::AliasDoesNotExist)));
-    }
-
-    #[test]
-    fn test_global_symbol() {
-        assert_eq!(globe_symbol(true), " \u{1b}[34;1m⦾\u{1b}[0m");
-        assert_eq!(globe_symbol(false), "".to_string());
-    }
-
-    #[test]
-    fn test_format_group_and_aliases_single_group_ungrouped() {
-        let catalog = create_test_catalog();
-        let aliases = vec!["test".to_string()];
-        let result = format_group_and_aliases_single_group(&catalog, &None, &aliases);
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        assert!(!output.contains("Group:"));
-        assert!(output.contains("test -> echo test"));
-    }
-
-    #[test]
-    fn test_format_group_and_aliases_single_group_named() {
-        let catalog = create_test_catalog();
-        let aliases = vec!["build".to_string()];
-        let result =
-            format_group_and_aliases_single_group(&catalog, &Some("dev".to_string()), &aliases);
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        assert!(output.contains("Group: dev"));
-        assert!(output.contains("build -> cargo build"));
-    }
-
-    #[test]
-    fn test_retain_aliases_empty() {
-        let catalog = create_test_catalog();
-        let mut aliases = vec!["test".to_string(), "build".to_string()];
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        retain_aliases(&catalog, &mut aliases, &cmd);
-        assert!(!aliases.is_empty());
-        assert_eq!(aliases.len(), 2);
-        assert!(aliases.contains(&"test".to_string()));
-        assert!(aliases.contains(&"build".to_string()));
-    }
-
-    #[test]
-    fn test_retain_aliases_enabled() {
-        let mut catalog = create_test_catalog();
-        catalog.aliases.get_mut("build").unwrap().enabled = false;
-        let mut aliases = vec!["test".to_string(), "build".to_string()];
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: true,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        retain_aliases(&catalog, &mut aliases, &cmd);
-        assert!(!aliases.is_empty());
-        assert_eq!(aliases.len(), 1);
-        assert!(aliases.contains(&"test".to_string()));
-        assert!(!aliases.contains(&"build".to_string()));
-    }
-
-    #[test]
-    fn test_retain_aliases_disabled() {
-        let mut catalog = create_test_catalog();
-        catalog.aliases.get_mut("build").unwrap().enabled = false;
-        let mut aliases = vec!["test".to_string(), "build".to_string()];
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: true,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        retain_aliases(&catalog, &mut aliases, &cmd);
-        assert!(!aliases.is_empty());
-        assert_eq!(aliases.len(), 1);
-        assert!(!aliases.contains(&"test".to_string()));
-        assert!(aliases.contains(&"build".to_string()));
-    }
-
-    #[test]
-    fn test_retain_aliases_pattern() {
-        let catalog = create_test_catalog();
-        let mut aliases = vec!["test".to_string(), "build".to_string()];
-        let cmd = ListCommand {
-            pattern: Some("b*".to_string()),
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: false,
-            format: OutputFormat::Human,
-        };
-        retain_aliases(&catalog, &mut aliases, &cmd);
-        assert!(!aliases.is_empty());
-        assert_eq!(aliases.len(), 1);
-        assert!(!aliases.contains(&"test".to_string()));
-        assert!(aliases.contains(&"build".to_string()));
-    }
-
-    #[test]
-    fn test_retain_aliases_global() {
-        let mut catalog = create_test_catalog();
-        catalog.aliases.get_mut("build").unwrap().global = true;
-        let mut aliases = vec!["test".to_string(), "build".to_string()];
-        let cmd = ListCommand {
-            pattern: None,
-            group: None,
-            enabled: false,
-            disabled: false,
-            global: true,
-            format: OutputFormat::Human,
-        };
-        retain_aliases(&catalog, &mut aliases, &cmd);
-        assert!(!aliases.is_empty());
-        assert_eq!(aliases.len(), 1);
-        assert!(!aliases.contains(&"test".to_string()));
-        assert!(aliases.contains(&"build".to_string()));
+            false,
+            None,
+        )
+        .unwrap();
+        assert_eq!(output, "[]\n");
     }
 }

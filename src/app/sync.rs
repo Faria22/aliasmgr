@@ -43,7 +43,7 @@ mod tests {
         let mut catalog = AliasCatalog::new();
         catalog.aliases.insert(
             "current".into(),
-            Alias::new("echo current".into(), None, true, false),
+            Alias::new("echo current".into(), true, false),
         );
 
         with_vars(

@@ -1,23 +1,29 @@
 # aliasmgr
 
-CLI tool to manage shell aliases from a single, versionable TOML file, written in Rust 🦀. It keeps aliases grouped, toggled, and synchronized with your shell so you can avoid hand-editing scattered `alias` definitions.
+CLI tool to manage shell aliases from a single, versionable TOML file, written in Rust 🦀. It keeps aliases documented, tagged, toggled, and synchronized with your shell so you can avoid hand-editing scattered `alias` definitions.
 
 ## Features
-- Store aliases in `~/.config/aliasmgr/aliases.toml` (or a custom path) with optional groups.
-- Add, move, list, and remove aliases; mark groups or aliases as disabled.
+
+- Store aliases in `~/.config/aliasmgr/aliases.toml` (or a custom path).
+- Add optional descriptions and multiple searchable tags to aliases.
+- Add, edit, list, rename, enable, disable, and remove aliases or tag selections.
+- Render human-readable listings as configurable tables, or emit JSON for scripts.
 - Keep open terminals synchronized automatically before each prompt.
 - Track managed aliases per terminal so stale aliases can be removed without clearing unrelated shell aliases.
-- Zsh-only global aliases (`alias -g`) support.
+- Support Zsh-only global aliases (`alias -g`).
 
 ## Installation
 
 ### Cargo
+
 `cargo install aliasmgr`
 
 ### Homebrew
+
 `brew install faria22/homebrew-tap/aliasmgr`
 
 ## Shell Setup
+
 - Initialize in your shell rc file so aliasmgr can load aliases, synchronize before each prompt, and know which shell you use:
   - Bash: `eval "$(aliasmgr init bash)"`
   - Zsh: `eval "$(aliasmgr init zsh)"`
@@ -27,32 +33,22 @@ CLI tool to manage shell aliases from a single, versionable TOML file, written i
 - The init script exports `ALIASMGR_SHELL`, defines the `aliasmgr` wrapper, and keeps the applied revision and managed alias names local to each terminal.
 
 ## Alias Catalog File
+
 - Default path: `~/.config/aliasmgr/aliases.toml` (XDG config home).
-- Format supports top-level aliases and grouped aliases. Disabled or global aliases use the detailed form.
-- An ungrouped alias and a group may share a name; aliasmgr preserves both when writing the catalog.
-- Groups and aliases are listed and saved in case-sensitive alphabetical order.
-- When aliasmgr rewrites the catalog, extra whitespace (including blank lines) is removed.
+- Enabled aliases without metadata use the simple string form.
+- Disabled, global, described, or tagged aliases use the detailed inline form.
+- Aliases and tags are saved in case-sensitive alphabetical order; duplicate tags are removed.
+- Legacy group tables are not accepted. Their migration is handled separately.
 
 ```toml
-py = "python3"                                 # enabled by default
-js = { command = "node", enabled = false }     # disabled
-x = { command = "xargs", global = true }       # global alias (zsh only)
-
-[git]                                          # group name
-ga = "git add"
-gc = { command = "git commit", enabled = true }
-
-[misc]
-enabled = false                                # disable entire group
-ll = { command = "ls -la", enabled = true }
+ll = "ls -la"
+glob = { command = "*.rs", enabled = true, global = true }
+test = { command = "cargo test", enabled = true, global = false, description = "Run the test suite", tags = ["dev", "rust"] }
 ```
 
 ## User Configuration
 
-Optional presentation preferences can be stored in
-`~/.config/aliasmgr/config.toml` (XDG config home). When the file is absent,
-aliasmgr uses the defaults below without creating it. Set
-`ALIASMGR_CONFIG_PATH` to use a different existing file.
+Presentation preferences live in `~/.config/aliasmgr/config.toml` (XDG config home). A missing default file uses built-in defaults without creating a file. Set `ALIASMGR_CONFIG_PATH` to require and use an explicit file.
 
 ```toml
 [color]
@@ -67,93 +63,74 @@ global = "⦾"
 enabled = { foreground = "green", bold = true }
 disabled = { foreground = "red", bold = true }
 global = { foreground = "blue", bold = true }
+
+[list]
+columns = ["status", "name", "command", "global", "tags", "description"]
 ```
 
-Foreground colors accept ANSI names such as `red`, `bright blue`, or a
-`#RRGGBB` value. In `auto` mode, colors are emitted only when standard
-output is a terminal, and `NO_COLOR` disables them. The global
-`--color <auto|always|never>` option overrides the configured mode.
+`list.columns` is exhaustive and ordered: only the selected columns render, in the listed order. Valid names are `status`, `name`, `command`, `global`, `tags`, and `description`. Use `list --columns name,command,tags` for a one-command override. Interactive tables truncate wide cells with an ellipsis to fit the terminal; selected columns are never dropped.
 
-Unknown settings produce a warning and are ignored. Invalid values for known
-settings produce an error.
+`auto` color applies only to terminal output and respects `NO_COLOR`. The global `--color <auto|always|never>` option overrides the configured mode. Invalid known settings fail clearly; unknown settings warn and are ignored.
 
 ## Commands
-- `aliasmgr add <name> <command> [--group <group>] [--disabled] [--global]`
-- `aliasmgr add alias <name> <command> [--group <group>] [--disabled] [--global]` (explicit form)
-- `aliasmgr add group <name> [--disabled]`
-- `aliasmgr move <name> [group]`
-- `aliasmgr list [<pattern>] [--group [group]] [--enabled] [--disabled] [--global] [--format <human|json>]`
-- `aliasmgr remove <name>` (removes the matching alias or group; prompts if both exist)
-- `aliasmgr remove alias <name>` (explicit form)
-- `aliasmgr remove alias [--pattern <glob>] [--group [group]]` (bulk filter; prompts once)
-- `aliasmgr remove group <name> [--reassign [--enable-reassigned | --disable-reassigned]]`
+
+- `aliasmgr add <name> <command> [--description <text>] [--tag <tag>]... [--disabled] [--global]`
+- `aliasmgr add alias <name> <command> ...` (explicit form for reserved names)
+- `aliasmgr edit <name> [command] [--description <text> | --clear-description] [--add-tag <tag>]... [--remove-tag <tag>]... [--toggle-enabled] [--toggle-global]`
+- `aliasmgr list [pattern] [--tag <tag>]... [--enabled | --disabled] [--global] [--columns <columns>] [--format <human|json>]`
+- `aliasmgr remove <name>`
+- `aliasmgr remove alias <name>`
+- `aliasmgr remove alias [--pattern <glob>] [--tag <tag>]...` (bulk filter; prompts once)
+- `aliasmgr remove tag <tag>` (detaches the tag without removing aliases)
 - `aliasmgr remove all`
-- `aliasmgr rename <old_name> <new_name>` (renames the matching alias or group; prompts if both exist)
-- `aliasmgr rename alias <old_name> <new_name>` (explicit form)
-- `aliasmgr rename group <old_name> <new_name>`
-- `aliasmgr edit <name> <new_command> [--group [group]] [--toggle_enabled] [--toggle_global]`
-- `aliasmgr sync`
-- `aliasmgr enable <name>` (enables the matching alias or group; prompts if both exist)
-- `aliasmgr enable alias <name>` (explicit form)
-- `aliasmgr enable alias [--pattern <glob>] [--group [group]]` (bulk filter)
-- `aliasmgr enable group <name>`
+- `aliasmgr rename <old-name> <new-name>`
+- `aliasmgr rename alias <old-name> <new-name>`
+- `aliasmgr rename tag <old-tag> <new-tag>`
+- `aliasmgr enable <name>`
+- `aliasmgr enable alias <name>`
+- `aliasmgr enable alias [--pattern <glob>] [--tag <tag>]...`
+- `aliasmgr enable tag <tag>`
 - `aliasmgr enable all`
-- `aliasmgr disable <name>` (disables the matching alias or group; prompts if both exist)
-- `aliasmgr disable alias <name>` (explicit form)
-- `aliasmgr disable alias [--pattern <glob>] [--group [group]]` (bulk filter)
-- `aliasmgr disable group <name>`
+- `aliasmgr disable <name>`
+- `aliasmgr disable alias <name>`
+- `aliasmgr disable alias [--pattern <glob>] [--tag <tag>]...`
+- `aliasmgr disable tag <tag>`
 - `aliasmgr disable all`
+- `aliasmgr sync`
 - `aliasmgr doctor` (also available as `aliasmgr validate`)
 
-For more details, use the `-h` or `--help` flags.
+For more details, use `-h` or `--help`.
 
 Notes:
-- `--force` and `--no-input` are mutually exclusive global automation flags.
-  `--force` accepts every prompt and selects aliases when an alias and group have
-  the same name. `--no-input` exits with status 2 if a command would prompt.
-  Without either flag, prompt behavior remains interactive.
-- `--color <auto|always|never>` overrides the configured color mode.
+
+- Repeat `--tag` when creating an alias or filtering by multiple tags. Filters use AND semantics: every supplied tag must be present.
+- Tags are case-sensitive and cannot be empty or contain whitespace.
+- `--force` and `--no-input` are mutually exclusive global automation flags. `--force` accepts overwrite and removal prompts; `--no-input` exits with status 2 if input would be required.
 - Alias names cannot be empty or contain whitespace or `=`.
-- Global aliases (`--global`) only work on zsh; they are skipped on other shells.
-- Adding or editing an alias warns without blocking when its name conflicts with a
-  builtin in the active Bash/Zsh shell or an executable found on `PATH`.
-- `aliasmgr doctor` checks the catalog without modifying it. Invalid alias names,
-  missing group references, and malformed structures are errors; shell-incompatible
-  global aliases and command conflicts are warnings. Errors produce a non-zero exit
-  status for scripts.
-- `list --format json` emits an array of aliases with `name`, `command`, `group`, `enabled`, and `global` fields. Ungrouped aliases have a `null` group.
-- Alias filter operations match alias names with glob syntax. `--group <group>`
-  selects aliases in that exact group, while a bare `--group` selects ungrouped
-  aliases. Combining `--pattern` and `--group` selects their intersection and
-  never changes the group itself.
+- Global aliases only work on Zsh and are skipped for other shells.
+- Adding or editing an alias warns without blocking when its name conflicts with a builtin in the active Bash/Zsh shell or an executable found on `PATH`.
+- `aliasmgr doctor` checks the catalog without modifying it. Invalid alias names or tags and malformed structures are errors; shell-incompatible global aliases and command conflicts are warnings.
+- `list --format json` always emits `name`, `command`, `enabled`, `global`, `tags`, and `description`. Missing descriptions are `null` and untagged aliases have an empty tag array.
 
 ## Sync Behavior
+
 - Each initialized terminal tracks the alias names and effective catalog revision that it last applied.
 - Before each prompt, aliasmgr compares that terminal's revision with the current catalog. It emits no shell changes when they match.
 - When the effective catalog changes, aliases tracked by that terminal are removed with targeted, quiet `unalias` commands before all current active aliases are added back.
 - This avoids `unalias -a`, so aliases maintained outside aliasmgr are not cleared.
-- Disabled groups, disabled aliases, invalid alias names, and zsh global aliases in non-zsh shells are skipped when generating shell commands.
+- Disabled aliases, invalid alias names, and Zsh global aliases in non-Zsh shells are skipped when generating shell commands.
 - Changes made in another terminal or by manually editing the catalog are applied when the next prompt is displayed.
-- `aliasmgr sync` forces immediate reconciliation even when the stored revision matches, which repairs managed aliases that were manually removed or overwritten.
-- Reassigning aliases from a disabled group prompts once before activating its individually enabled aliases. The prompt defaults to keeping them disabled; use `--enable-reassigned` or `--disable-reassigned` with `--reassign` for non-interactive use.
-- Shell changes are generated by an internal command on standard output and evaluated by the wrapper; normal command output remains untouched.
+- `aliasmgr sync` forces immediate reconciliation even when the stored revision matches.
 
 ## Development
+
 - Run tests: `cargo test`
 - Format: `cargo fmt`
 - Lint: `cargo clippy`
 
 ## Releasing
-1. Add a dated `## <version> - <date>` entry to `CHANGELOG.md` with non-empty
-   release notes.
+
+1. Add a dated `## <version> - <date>` entry to `CHANGELOG.md` with non-empty release notes.
 2. Run `cargo release <major|minor|patch> --execute`.
 
-`cargo release` bumps the package version, verifies and publishes the crate to
-crates.io, creates the release commit and `v<version>` tag, and pushes them to
-GitHub. Before committing, its release hook runs the build, tests, linter,
-formatter check, and the same changelog validation used by the GitHub Release
-workflow. Pushing the tag creates a GitHub Release from the matching changelog
-entry and opens a formula update pull request in the Homebrew tap. The formula
-update merges automatically after the tap's test suite passes. If the matching
-GitHub milestone has no open issues or pull requests, the tag workflow closes
-it automatically.
+`cargo release` bumps the package version, verifies and publishes the crate to crates.io, creates the release commit and `v<version>` tag, and pushes them to GitHub. Before committing, its release hook runs the build, tests, linter, formatter check, and changelog validation. Pushing the tag creates a GitHub Release and opens a formula update pull request in the Homebrew tap.

@@ -10,6 +10,8 @@ use log::warn;
 use owo_colors::{DynColors, Style};
 use serde::Deserialize;
 
+use crate::cli::list::ListColumn;
+
 pub const CONFIG_FILE_ENV_VAR: &str = "ALIASMGR_CONFIG_PATH";
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, ValueEnum)]
@@ -79,6 +81,19 @@ pub struct StyleConfig {
     pub global: StateStyle,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ListConfig {
+    pub columns: Vec<ListColumn>,
+}
+
+impl Default for ListConfig {
+    fn default() -> Self {
+        Self {
+            columns: ListColumn::DEFAULTS.to_vec(),
+        }
+    }
+}
+
 impl Default for StyleConfig {
     fn default() -> Self {
         Self {
@@ -103,6 +118,7 @@ pub struct UserConfig {
     pub color: ColorMode,
     pub symbols: SymbolConfig,
     pub styles: StyleConfig,
+    pub list: ListConfig,
 }
 
 #[derive(Default, Deserialize)]
@@ -111,6 +127,15 @@ struct RawConfig {
     color: RawColorConfig,
     symbols: RawSymbolConfig,
     styles: RawStyleConfig,
+    list: RawListConfig,
+    #[serde(flatten)]
+    unknown: BTreeMap<String, toml::Value>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct RawListConfig {
+    columns: Option<Vec<ListColumn>>,
     #[serde(flatten)]
     unknown: BTreeMap<String, toml::Value>,
 }
@@ -187,6 +212,7 @@ fn parse_config(content: &str) -> Result<UserConfig> {
     warn_unknown(Some("color"), &raw.color.unknown);
     warn_unknown(Some("symbols"), &raw.symbols.unknown);
     warn_unknown(Some("styles"), &raw.styles.unknown);
+    warn_unknown(Some("list"), &raw.list.unknown);
 
     let mut config = UserConfig::default();
     if let Some(mode) = raw.color.mode {
@@ -205,6 +231,19 @@ fn parse_config(content: &str) -> Result<UserConfig> {
     apply_style("enabled", &mut config.styles.enabled, raw.styles.enabled)?;
     apply_style("disabled", &mut config.styles.disabled, raw.styles.disabled)?;
     apply_style("global", &mut config.styles.global, raw.styles.global)?;
+    if let Some(columns) = raw.list.columns {
+        if columns.is_empty() {
+            bail!("'list.columns' must contain at least one column");
+        }
+        if columns
+            .iter()
+            .enumerate()
+            .any(|(index, column)| columns[..index].contains(column))
+        {
+            bail!("'list.columns' must not contain duplicate columns");
+        }
+        config.list.columns = columns;
+    }
     Ok(config)
 }
 
@@ -253,6 +292,7 @@ mod tests {
         assert_eq!(config.symbols.global, "⦾");
         assert_eq!(config.styles.enabled.foreground, "green");
         assert!(config.styles.enabled.bold);
+        assert_eq!(config.list.columns, ListColumn::DEFAULTS);
     }
 
     #[test]
@@ -290,6 +330,14 @@ mod tests {
         )
         .unwrap();
         assert_eq!(config.symbols.enabled, "+");
+    }
+
+    #[test]
+    fn list_columns_are_configurable_in_order() {
+        let config = parse_config("[list]\ncolumns = [\"name\", \"tags\"]\n").unwrap();
+        assert_eq!(config.list.columns, [ListColumn::Name, ListColumn::Tags]);
+        assert!(parse_config("[list]\ncolumns = []\n").is_err());
+        assert!(parse_config("[list]\ncolumns = [\"name\", \"name\"]\n").is_err());
     }
 
     #[test]
