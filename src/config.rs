@@ -23,15 +23,8 @@ pub enum ColorMode {
 
 impl ColorMode {
     pub fn enabled(self) -> bool {
-        self.enabled_for(
-            std::io::stdout().is_terminal(),
-            env::var_os("NO_COLOR").is_some(),
-        )
-    }
-
-    fn enabled_for(self, is_terminal: bool, no_color: bool) -> bool {
         match self {
-            Self::Auto => is_terminal && !no_color,
+            Self::Auto => std::io::stdout().is_terminal() && env::var_os("NO_COLOR").is_none(),
             Self::Always => true,
             Self::Never => false,
         }
@@ -343,9 +336,6 @@ mod tests {
     fn color_mode_respects_explicit_modes() {
         assert!(ColorMode::Always.enabled());
         assert!(!ColorMode::Never.enabled());
-        assert!(ColorMode::Auto.enabled_for(true, false));
-        assert!(!ColorMode::Auto.enabled_for(false, false));
-        assert!(!ColorMode::Auto.enabled_for(true, true));
     }
 
     #[test]
