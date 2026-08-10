@@ -43,3 +43,34 @@ pub fn remove_tag(catalog: &mut AliasCatalog, tag: &str) -> Result<(Outcome, usi
         Ok((Outcome::CatalogChanged, changed))
     }
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use super::*;
+    use crate::catalog::types::Alias;
+
+    #[test]
+    fn empty_bulk_and_all_removals_are_noops() {
+        let mut catalog = AliasCatalog::new();
+        assert_eq!(remove_aliases(&mut catalog, &[]), Outcome::NoChanges);
+        assert_eq!(remove_all(&mut catalog), Outcome::NoChanges);
+    }
+
+    #[test]
+    fn nonempty_bulk_and_all_removals_change_the_catalog() {
+        let mut catalog = AliasCatalog::new();
+        catalog
+            .aliases
+            .insert("one".into(), Alias::new("cmd".into(), true, false));
+        assert_eq!(
+            remove_aliases(&mut catalog, &["one".into()]),
+            Outcome::CatalogChanged
+        );
+        catalog
+            .aliases
+            .insert("two".into(), Alias::new("cmd".into(), true, false));
+        assert_eq!(remove_all(&mut catalog), Outcome::CatalogChanged);
+        assert!(catalog.aliases.is_empty());
+    }
+}

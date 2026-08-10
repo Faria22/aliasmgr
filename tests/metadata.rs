@@ -77,6 +77,7 @@ fn metadata_command_failures_are_reported() {
 
     for args in [
         &["add", "global", "echo global", "--global"][..],
+        &["add", "bad=name", "echo bad"][..],
         &["enable", "alias", "missing"][..],
         &["disable", "missing"][..],
         &["edit", "missing", "echo changed"][..],

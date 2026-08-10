@@ -456,6 +456,10 @@ mod tests {
             styled_cell(ListColumn::Global, "⦾", &alias, &config, false),
             "⦾"
         );
+        assert_eq!(
+            styled_cell(ListColumn::Status, "✘", &alias, &config, false),
+            "✘"
+        );
     }
 
     #[test]
@@ -464,5 +468,9 @@ mod tests {
         let rows = vec![vec!["long value".into(); columns.len()]];
         let widths = column_widths(&columns, &rows, Some(1));
         assert_eq!(widths, vec![1; columns.len()]);
+
+        let columns = [ListColumn::Name];
+        let rows = vec![vec!["long value".into()]];
+        assert_eq!(column_widths(&columns, &rows, Some(1)), [1]);
     }
 }

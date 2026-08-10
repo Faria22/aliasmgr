@@ -15,3 +15,29 @@ pub fn edit_alias(
     *current = alias.clone();
     Ok(Outcome::CatalogChanged)
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_unchanged_and_changed_aliases_have_distinct_outcomes() {
+        let mut catalog = AliasCatalog::new();
+        let original = Alias::new("old".into(), true, false);
+        assert_eq!(
+            edit_alias(&mut catalog, "missing", &original),
+            Err(Failure::AliasDoesNotExist)
+        );
+        catalog.aliases.insert("name".into(), original.clone());
+        assert_eq!(
+            edit_alias(&mut catalog, "name", &original),
+            Ok(Outcome::NoChanges)
+        );
+        let changed = Alias::new("new".into(), true, false);
+        assert_eq!(
+            edit_alias(&mut catalog, "name", &changed),
+            Ok(Outcome::CatalogChanged)
+        );
+    }
+}

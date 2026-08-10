@@ -154,4 +154,9 @@ mod tests {
         let path = PathBuf::from("custom-aliases.toml");
         assert_eq!(catalog_path(Some(&path)), path);
     }
+
+    #[test]
+    fn default_catalog_path_uses_aliasmgr_config_directory() {
+        assert!(catalog_path(None).ends_with("aliasmgr/aliases.toml"));
+    }
 }
