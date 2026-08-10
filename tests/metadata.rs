@@ -63,6 +63,9 @@ fn metadata_commands_cover_exact_shorthand_tag_filter_and_all_forms() {
     assert!(remove_exact.status.success(), "{remove_exact:?}");
     let remove_shorthand = run_aliasmgr(&catalog, &["remove", "three"]);
     assert!(remove_shorthand.status.success(), "{remove_shorthand:?}");
+
+    let sync = run_aliasmgr(&catalog, &["sync"]);
+    assert!(sync.status.success(), "{sync:?}");
 }
 
 #[test]
