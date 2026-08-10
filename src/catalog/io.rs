@@ -85,8 +85,7 @@ fn build_alias_item(alias: &Alias) -> Item {
 }
 
 fn insert_groups(doc: &mut DocumentMut, groups: &BTreeMap<String, bool>) {
-    for group_name in groups.keys() {
-        let enabled = groups[group_name];
+    for (group_name, &enabled) in groups {
         let table = ensure_group_table(doc, group_name);
         if !enabled {
             table["enabled"] = Item::Value(enabled.into());
@@ -99,8 +98,7 @@ fn insert_aliases(
     aliases: &BTreeMap<String, Alias>,
     groups: &BTreeMap<String, bool>,
 ) -> Result<()> {
-    for alias_name in aliases.keys() {
-        let alias = &aliases[alias_name];
+    for (alias_name, alias) in aliases {
         if let Some(group) = &alias.group {
             if !groups.contains_key(group) {
                 bail!("Alias '{alias_name}' references unknown group '{group}'");
