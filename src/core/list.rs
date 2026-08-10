@@ -67,14 +67,13 @@ pub fn get_aliases_from_single_group(
     }
 
     info!("Retrieving aliases.");
-    let aliases = catalog
+    Ok(catalog
         .aliases
         .iter()
         .filter(|(_, alias)| alias.group.as_deref() == group)
         .filter(|(_, alias)| !(alias.global && *shell != ShellType::Zsh))
         .map(|(alias_name, _)| alias_name.clone())
-        .collect::<Vec<_>>();
-    Ok(aliases)
+        .collect())
 }
 
 #[cfg(test)]
