@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::io::IsTerminal;
@@ -119,7 +119,7 @@ struct RawConfig {
     symbols: RawSymbolConfig,
     styles: RawStyleConfig,
     #[serde(flatten)]
-    unknown: HashMap<String, toml::Value>,
+    unknown: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Default, Deserialize)]
@@ -127,7 +127,7 @@ struct RawConfig {
 struct RawColorConfig {
     mode: Option<ColorMode>,
     #[serde(flatten)]
-    unknown: HashMap<String, toml::Value>,
+    unknown: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Default, Deserialize)]
@@ -137,7 +137,7 @@ struct RawSymbolConfig {
     disabled: Option<String>,
     global: Option<String>,
     #[serde(flatten)]
-    unknown: HashMap<String, toml::Value>,
+    unknown: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Default, Deserialize)]
@@ -147,7 +147,7 @@ struct RawStyleConfig {
     disabled: Option<RawStateStyle>,
     global: Option<RawStateStyle>,
     #[serde(flatten)]
-    unknown: HashMap<String, toml::Value>,
+    unknown: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Default, Deserialize)]
@@ -156,13 +156,11 @@ struct RawStateStyle {
     foreground: Option<String>,
     bold: Option<bool>,
     #[serde(flatten)]
-    unknown: HashMap<String, toml::Value>,
+    unknown: BTreeMap<String, toml::Value>,
 }
 
-fn warn_unknown(section: Option<&str>, fields: &HashMap<String, toml::Value>) {
-    let mut names = fields.keys().collect::<Vec<_>>();
-    names.sort_unstable();
-    for name in names {
+fn warn_unknown(section: Option<&str>, fields: &BTreeMap<String, toml::Value>) {
+    for name in fields.keys() {
         if let Some(section) = section {
             warn!("Unknown configuration setting '{section}.{name}' ignored.");
         } else {

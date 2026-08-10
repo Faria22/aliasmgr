@@ -5,7 +5,7 @@
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use super::types::{Alias, AliasCatalog};
 
@@ -37,7 +37,7 @@ pub struct GroupSpec {
     pub ungrouped_alias: Option<Box<AliasSpecTypes>>,
 
     #[serde(flatten)]
-    pub aliases: HashMap<String, AliasSpecTypes>,
+    pub aliases: BTreeMap<String, AliasSpecTypes>,
 }
 
 /// Different types of alias specifications.
@@ -61,7 +61,7 @@ pub enum AliasSpecTypes {
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct AliasCatalogSpec {
     #[serde(flatten)]
-    pub entries: HashMap<String, AliasSpecTypes>,
+    pub entries: BTreeMap<String, AliasSpecTypes>,
 }
 
 /// Convert an AliasSpecTypes to its corresponding Alias representation.
@@ -86,7 +86,7 @@ fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Result<
     })
 }
 
-fn insert_alias(aliases: &mut HashMap<String, Alias>, name: String, alias: Alias) -> Result<()> {
+fn insert_alias(aliases: &mut BTreeMap<String, Alias>, name: String, alias: Alias) -> Result<()> {
     if aliases.insert(name.clone(), alias).is_some() {
         bail!("alias '{name}' is defined more than once");
     }
@@ -101,8 +101,8 @@ fn insert_alias(aliases: &mut HashMap<String, Alias>, name: String, alias: Alias
 /// # Returns
 /// * An AliasCatalog representation of the given AliasCatalogSpec.
 pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> Result<AliasCatalog> {
-    let mut aliases = HashMap::new();
-    let mut groups = HashMap::new();
+    let mut aliases = BTreeMap::new();
+    let mut groups = BTreeMap::new();
 
     for (name, entry) in spec.entries {
         match entry {

@@ -44,10 +44,6 @@ pub fn get_all_aliases_grouped(
             .expect("group is in aliases, but not in the group vector")
             .push(alias_name.clone());
     }
-    for aliases in groups.values_mut() {
-        aliases.sort_unstable();
-    }
-
     groups
 }
 
@@ -71,14 +67,13 @@ pub fn get_aliases_from_single_group(
     }
 
     info!("Retrieving aliases.");
-    let mut aliases = catalog
+    let aliases = catalog
         .aliases
         .iter()
         .filter(|(_, alias)| alias.group.as_deref() == group)
         .filter(|(_, alias)| !(alias.global && *shell != ShellType::Zsh))
         .map(|(alias_name, _)| alias_name.clone())
         .collect::<Vec<_>>();
-    aliases.sort_unstable();
     Ok(aliases)
 }
 
@@ -89,8 +84,8 @@ mod tests {
     use crate::catalog::types::Alias;
 
     fn create_test_catalog() -> AliasCatalog {
-        let mut groups = std::collections::HashMap::new();
-        let mut aliases = std::collections::HashMap::new();
+        let mut groups = std::collections::BTreeMap::new();
+        let mut aliases = std::collections::BTreeMap::new();
 
         groups.insert("group1".into(), true);
         groups.insert("group2".into(), true);
@@ -228,12 +223,12 @@ mod tests {
 
     #[test]
     fn test_get_all_groups_no_aliases() {
-        let mut groups_map = std::collections::HashMap::new();
+        let mut groups_map = std::collections::BTreeMap::new();
         groups_map.insert("group1".into(), true);
         groups_map.insert("group2".into(), true);
 
         let catalog = AliasCatalog {
-            aliases: std::collections::HashMap::new(),
+            aliases: std::collections::BTreeMap::new(),
             groups: groups_map,
         };
 
@@ -256,13 +251,13 @@ mod tests {
 
     #[test]
     fn test_get_all_groups_no_groups() {
-        let mut aliases = std::collections::HashMap::new();
+        let mut aliases = std::collections::BTreeMap::new();
         aliases.insert(
             "alias1".into(),
             Alias::new("cmd1".into(), None, true, false),
         );
         let catalog = AliasCatalog {
-            groups: std::collections::HashMap::new(),
+            groups: std::collections::BTreeMap::new(),
             aliases,
         };
         let groups = get_all_aliases_grouped(&catalog, &ShellType::Bash);
@@ -272,11 +267,11 @@ mod tests {
 
     #[test]
     fn test_get_single_group_no_aliases() {
-        let mut groups_map = std::collections::HashMap::new();
+        let mut groups_map = std::collections::BTreeMap::new();
         groups_map.insert("group1".into(), true);
 
         let catalog = AliasCatalog {
-            aliases: std::collections::HashMap::new(),
+            aliases: std::collections::BTreeMap::new(),
             groups: groups_map,
         };
 

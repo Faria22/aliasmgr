@@ -28,7 +28,7 @@ pub fn select_aliases(
         })
         .transpose()?;
 
-    let mut aliases = catalog
+    let aliases = catalog
         .aliases
         .iter()
         .filter(|(name, _)| {
@@ -39,7 +39,6 @@ pub fn select_aliases(
         .filter(|(_, alias)| group.is_none_or(|group| alias.group.as_deref() == group))
         .map(|(name, _)| name.clone())
         .collect::<Vec<_>>();
-    aliases.sort_unstable();
     Ok(aliases)
 }
 

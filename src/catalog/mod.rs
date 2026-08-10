@@ -16,7 +16,7 @@ pub(crate) mod types;
 #[cfg_attr(coverage_nightly, coverage(off))]
 pub(crate) mod tests {
     use crate::catalog::types::{Alias, AliasCatalog};
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     pub const SAMPLE_TOML: &str = {
         r#"js = { command = "node", enabled = false, global = false }
@@ -35,8 +35,8 @@ gc = { command = "git commit", enabled = true, global = false }
     };
 
     pub fn expected_catalog() -> AliasCatalog {
-        let mut aliases = HashMap::new();
-        let mut groups = HashMap::new();
+        let mut aliases = BTreeMap::new();
+        let mut groups = BTreeMap::new();
         aliases.insert("py".into(), Alias::new("python3".into(), None, true, false));
         aliases.insert("js".into(), Alias::new("node".into(), None, false, false));
         aliases.insert("x".into(), Alias::new("xargs".into(), None, true, true));

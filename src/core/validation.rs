@@ -31,9 +31,7 @@ pub fn validate_catalog(catalog: &AliasCatalog, shell: &ShellType) -> Validation
         .map(String::as_str);
     let conflicts = conflict_warnings(valid_names, shell);
 
-    let mut names = catalog.aliases.keys().collect::<Vec<_>>();
-    names.sort_unstable();
-    for name in names {
+    for name in catalog.aliases.keys() {
         let alias = &catalog.aliases[name];
         if !is_valid_alias_name(name) {
             report.errors.push(format!(

@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use toml_edit::{DocumentMut, InlineTable, Item, Table};
 
 use super::spec::{AliasCatalogSpec, COLLIDING_ALIAS_KEY, convert_spec_to_catalog};
@@ -84,10 +84,8 @@ fn build_alias_item(alias: &Alias) -> Item {
     }
 }
 
-fn insert_groups(doc: &mut DocumentMut, groups: &HashMap<String, bool>) {
-    let mut group_names = groups.keys().collect::<Vec<_>>();
-    group_names.sort_unstable();
-    for group_name in group_names {
+fn insert_groups(doc: &mut DocumentMut, groups: &BTreeMap<String, bool>) {
+    for group_name in groups.keys() {
         let enabled = groups[group_name];
         let table = ensure_group_table(doc, group_name);
         if !enabled {
@@ -98,12 +96,10 @@ fn insert_groups(doc: &mut DocumentMut, groups: &HashMap<String, bool>) {
 
 fn insert_aliases(
     doc: &mut DocumentMut,
-    aliases: &HashMap<String, Alias>,
-    groups: &HashMap<String, bool>,
+    aliases: &BTreeMap<String, Alias>,
+    groups: &BTreeMap<String, bool>,
 ) -> Result<()> {
-    let mut alias_names = aliases.keys().collect::<Vec<_>>();
-    alias_names.sort_unstable();
-    for alias_name in alias_names {
+    for alias_name in aliases.keys() {
         let alias = &aliases[alias_name];
         if let Some(group) = &alias.group {
             if !groups.contains_key(group) {
