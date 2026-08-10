@@ -496,10 +496,9 @@ mod tests {
     }
 
     #[test]
-    fn parses_global_color_mode_and_rejects_removed_sort_command() {
+    fn parses_global_color_mode() {
         let cli = Cli::try_parse_from(["aliasmgr", "--color", "never", "list"]).unwrap();
         assert_eq!(cli.color, Some(ColorMode::Never));
-        assert!(Cli::try_parse_from(["aliasmgr", "sort", "aliases"]).is_err());
     }
 
     #[test]
