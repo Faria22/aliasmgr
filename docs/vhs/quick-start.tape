@@ -13,6 +13,9 @@ Wait+Line /[$>]$/
 Type ': > "$ALIASMGR_CATALOG_PATH"'
 Enter
 Wait+Line /[$>]$/
+Type 'eval "$(aliasmgr init bash)"'
+Enter
+Wait+Line /[$>]$/
 Type 'clear'
 Enter
 Wait+Line /[$>]$/
@@ -27,10 +30,6 @@ Type 'aliasmgr list --columns name,command,description'
 Enter
 Wait+Line /[$>]$/
 Sleep 2s
-Type 'eval "$(aliasmgr init bash --no-auto-sync)"'
-Enter
-Wait+Line /[$>]$/
-Sleep 750ms
 Type 'greet'
 Enter
 Wait+Line /[$>]$/

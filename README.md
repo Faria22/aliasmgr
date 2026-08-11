@@ -122,21 +122,17 @@ Notes:
 
 ## Examples
 
-The recordings below use isolated catalogs under `/tmp`; they do not read or change your normal aliasmgr catalog. Each example includes the equivalent commands so the workflow remains usable without animated media.
+The examples assume that aliasmgr has already been initialized in the current shell. The recordings use isolated catalogs under `/tmp`; they do not read or change your normal aliasmgr catalog. Each example includes the equivalent commands so the workflow remains usable without animated media.
 
 ### Quick start
 
-Add a documented alias, inspect it, initialize aliasmgr in Bash, and use the alias.
+Add a documented alias, inspect it, and use the alias.
 
-![Terminal recording of adding, listing, initializing, and using a greeting alias](docs/assets/quick-start.gif)
+![Terminal recording of adding, listing, and using a greeting alias](docs/assets/quick-start.gif)
 
 ```bash
-export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-quick-start.toml
-export ALIASMGR_SHELL=bash
-: > "$ALIASMGR_CATALOG_PATH"
 aliasmgr add greet "echo Hello from aliasmgr!" --description "Friendly greeting"
 aliasmgr list --columns name,command,description
-eval "$(aliasmgr init bash --no-auto-sync)"
 greet
 ```
 
@@ -147,9 +143,6 @@ Use tags and descriptions to organize an initially disabled alias, then update a
 ![Terminal recording of tagging, describing, editing, and enabling an alias named checks](docs/assets/organize-aliases.gif)
 
 ```bash
-export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-organize-aliases.toml
-export ALIASMGR_SHELL=bash
-: > "$ALIASMGR_CATALOG_PATH"
 aliasmgr add checks "cargo test" --tag rust --tag dev --description "Run tests" --disabled
 aliasmgr list --all --columns status,name,tags,description
 aliasmgr edit checks "cargo test --all-targets" --remove-tag dev --add-tag ci --description "Run all tests"
@@ -164,10 +157,6 @@ Once the prompt hook is initialized, changes to the catalog are applied before t
 ![Terminal recording of an alias becoming available and updating through automatic Bash prompt synchronization](docs/assets/shell-sync.gif)
 
 ```bash
-export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-shell-sync.toml
-export ALIASMGR_SHELL=bash
-: > "$ALIASMGR_CATALOG_PATH"
-eval "$(aliasmgr init bash)"
 aliasmgr add greet "echo Hello from the synced alias"
 greet
 aliasmgr edit greet "echo Updated at the next prompt"

@@ -1,4 +1,3 @@
-$ eval "$(aliasmgr init bash)"
 $ aliasmgr add greet "echo Hello from the synced alias"
 $ greet
 Hello from the synced alias
