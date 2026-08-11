@@ -28,6 +28,8 @@ fn explicit_configuration_controls_symbols_and_styles() {
         [list]
         columns = ["status", "name"]
         status = "always"
+        [styles.header]
+        bold = false
         [styles.enabled]
         foreground = "#ff00aa"
         bold = false

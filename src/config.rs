@@ -83,7 +83,13 @@ impl StateStyle {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HeaderStyle {
+    pub bold: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StyleConfig {
+    pub header: HeaderStyle,
     pub enabled: StateStyle,
     pub disabled: StateStyle,
     pub global: StateStyle,
@@ -116,6 +122,7 @@ impl Default for ListConfig {
 impl Default for StyleConfig {
     fn default() -> Self {
         Self {
+            header: HeaderStyle { bold: true },
             enabled: StateStyle {
                 foreground: "green".into(),
                 bold: true,
@@ -187,9 +194,18 @@ struct RawSymbolConfig {
 #[derive(Default, Deserialize)]
 #[serde(default)]
 struct RawStyleConfig {
+    header: Option<RawHeaderStyle>,
     enabled: Option<RawStateStyle>,
     disabled: Option<RawStateStyle>,
     global: Option<RawStateStyle>,
+    #[serde(flatten)]
+    unknown: BTreeMap<String, toml::Value>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct RawHeaderStyle {
+    bold: Option<bool>,
     #[serde(flatten)]
     unknown: BTreeMap<String, toml::Value>,
 }
@@ -273,6 +289,12 @@ fn parse_config_with_warnings(content: &str) -> Result<LoadedConfig> {
     ] {
         apply_style(name, target, style, &mut warnings)?;
     }
+    if let Some(header) = raw.styles.header {
+        collect_unknown_warnings(Some("styles.header"), &header.unknown, &mut warnings);
+        if let Some(bold) = header.bold {
+            config.styles.header.bold = bold;
+        }
+    }
     if let Some(columns) = raw.list.columns {
         if columns.is_empty() {
             bail!("'list.columns' must contain at least one column");
@@ -347,6 +369,7 @@ mod tests {
         assert_eq!(config.symbols.global, "⦾");
         assert_eq!(config.styles.enabled.foreground, "green");
         assert!(config.styles.enabled.bold);
+        assert!(config.styles.header.bold);
         assert_eq!(config.list.columns, ListColumn::DEFAULTS);
         assert_eq!(config.list.status, StatusColumnMode::Auto);
     }
@@ -360,6 +383,8 @@ mod tests {
             [symbols]
             enabled = "+"
             disabled = "-"
+            [styles.header]
+            bold = false
             [styles.disabled]
             foreground = "#ff00aa"
             bold = false
@@ -372,6 +397,7 @@ mod tests {
         assert_eq!(config.symbols.disabled, "-");
         assert_eq!(config.styles.disabled.foreground, "#ff00aa");
         assert!(!config.styles.disabled.bold);
+        assert!(!config.styles.header.bold);
     }
 
     #[test]
@@ -411,6 +437,7 @@ mod tests {
         assert!(parse_config("[color]\nmode = \"sometimes\"\n").is_err());
         assert!(parse_config("[styles.enabled]\nforeground = \"not-a-color\"\n").is_err());
         assert!(parse_config("[styles.enabled]\nbold = \"yes\"\n").is_err());
+        assert!(parse_config("[styles.header]\nbold = \"yes\"\n").is_err());
     }
 
     #[test]

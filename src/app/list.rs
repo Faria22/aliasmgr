@@ -1,6 +1,7 @@
 use std::io::IsTerminal;
 
 use globset::Glob;
+use owo_colors::OwoColorize;
 use serde::Serialize;
 use terminal_size::{Width, terminal_size};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -212,28 +213,21 @@ fn format_human(
         .collect::<Vec<_>>();
     let widths = column_widths(columns, &raw_rows, terminal_width);
 
-    let render_plain_row = |cells: Vec<String>| {
-        cells
-            .into_iter()
-            .enumerate()
-            .map(|(index, cell)| {
-                let value = truncate(&cell, widths[index]);
-                let padding = widths[index].saturating_sub(UnicodeWidthStr::width(value.as_str()));
-                value + &" ".repeat(padding)
-            })
-            .collect::<Vec<_>>()
-            .join("  ")
-            .trim_end()
-            .to_owned()
-            + "\n"
-    };
-
-    let mut output = render_plain_row(
-        columns
-            .iter()
-            .map(|column| header(*column).to_owned())
-            .collect(),
-    );
+    let header_cells = columns
+        .iter()
+        .enumerate()
+        .map(|(index, column)| {
+            let value = truncate(header(*column), widths[index]);
+            let padding = widths[index].saturating_sub(UnicodeWidthStr::width(value.as_str()));
+            let value = if config.styles.header.bold && colors_enabled {
+                value.bold().to_string()
+            } else {
+                value
+            };
+            value + &" ".repeat(padding)
+        })
+        .collect::<Vec<_>>();
+    let mut output = header_cells.join("  ").trim_end().to_owned() + "\n";
     for ((_, alias), raw_row) in aliases.iter().zip(raw_rows) {
         let cells = raw_row
             .into_iter()
@@ -380,6 +374,40 @@ mod tests {
         )
         .unwrap();
         assert!(output.lines().next().unwrap().contains("Global"));
+    }
+
+    #[test]
+    fn table_headers_are_bold_by_default_and_configurable() {
+        let output = format_list_with_width(
+            &catalog(),
+            &command(OutputFormat::Human),
+            &ShellType::Bash,
+            &UserConfig::default(),
+            true,
+            None,
+        )
+        .unwrap();
+        assert!(
+            output
+                .lines()
+                .next()
+                .unwrap()
+                .contains("\u{1b}[1mName\u{1b}[0m")
+        );
+
+        let mut config = UserConfig::default();
+        config.styles.header.bold = false;
+        let output = format_list_with_width(
+            &catalog(),
+            &command(OutputFormat::Human),
+            &ShellType::Bash,
+            &config,
+            true,
+            None,
+        )
+        .unwrap();
+        assert!(output.starts_with("Name  Command"));
+        assert!(!output.lines().next().unwrap().contains("\u{1b}["));
     }
 
     #[test]
