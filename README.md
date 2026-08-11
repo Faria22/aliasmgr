@@ -60,6 +60,7 @@ disabled = "✘"
 global = "⦾"
 
 [styles]
+header = { bold = true }
 enabled = { foreground = "green", bold = true }
 disabled = { foreground = "red", bold = true }
 global = { foreground = "blue", bold = true }
@@ -70,6 +71,8 @@ status = "auto"
 ```
 
 `list.columns` is ordered. Valid names are `status`, `name`, `command`, `global`, `tags`, and `description`. With the default `status = "auto"`, the Status column is hidden when listing only enabled or disabled aliases and shown by `list --all`. Use `always` or `never` to override that behavior. An explicit `list --columns name,command,tags` is exhaustive and overrides the status policy for that command. The human-readable Global column is hidden under Bash even when configured or explicitly requested; JSON output still includes `global`. Interactive tables truncate wide cells with an ellipsis to fit the terminal; selected columns are never dropped.
+
+Table headers are bold by default when styling is enabled. Set `styles.header.bold = false` to use plain headers.
 
 `auto` color applies only to terminal output and respects `NO_COLOR`. The global `--color <auto|always|never>` option overrides the configured mode. Invalid known settings fail clearly; unknown settings warn and are ignored.
 
