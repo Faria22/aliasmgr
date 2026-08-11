@@ -77,7 +77,7 @@ status = "auto"
 
 - `aliasmgr add <name> <command> [--description <text>] [--tag <tag>]... [--disabled] [--global]`
 - `aliasmgr edit <name> [command] [--description <text> | --clear-description] [--add-tag <tag>]... [--remove-tag <tag>]... [--toggle-enabled] [--toggle-global]`
-- `aliasmgr list [pattern] [--tag <tag>]... [--enabled | --disabled | --all] [--global] [--columns <columns>] [--format <human|json>]`
+- `aliasmgr list [pattern] [--tag <tag>]... [--disabled | --all] [--global] [--columns <columns>] [--format <human|json>]`
 - `aliasmgr remove <name>`
 - `aliasmgr remove alias <name>`
 - `aliasmgr remove alias [--pattern <glob>] [--tag <tag>]...` (bulk filter; prompts once)

@@ -334,7 +334,6 @@ mod tests {
         ListCommand {
             pattern: None,
             tag: vec![],
-            enabled: false,
             disabled: false,
             all: false,
             global: false,

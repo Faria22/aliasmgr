@@ -145,6 +145,11 @@ mod tests {
     }
 
     #[test]
+    fn list_enabled_flag_is_rejected_because_enabled_is_the_default() {
+        assert!(Cli::try_parse_from(["aliasmgr", "list", "--enabled"]).is_err());
+    }
+
+    #[test]
     fn tag_validation_rejects_empty_and_whitespace() {
         assert!(validate_tag("").is_err());
         assert!(validate_tag("two words").is_err());

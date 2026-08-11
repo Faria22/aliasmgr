@@ -33,14 +33,12 @@ impl ListColumn {
 }
 
 #[derive(Args)]
-#[command(group(ArgGroup::new("list_scope").args(["enabled", "disabled", "all"]).multiple(false)))]
+#[command(group(ArgGroup::new("list_scope").args(["disabled", "all"]).multiple(false)))]
 pub struct ListCommand {
     pub pattern: Option<String>,
     /// List aliases containing every supplied tag
     #[arg(short, long, value_name = "TAG", value_parser = validate_tag)]
     pub tag: Vec<String>,
-    #[arg(short, long)]
-    pub enabled: bool,
     #[arg(short, long)]
     pub disabled: bool,
     /// List enabled and disabled aliases
