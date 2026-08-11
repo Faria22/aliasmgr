@@ -33,7 +33,7 @@ impl Alias {
 }
 
 /// Overall catalog containing aliases in deterministic name order.
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct AliasCatalog {
     pub aliases: BTreeMap<String, Alias>,
 }

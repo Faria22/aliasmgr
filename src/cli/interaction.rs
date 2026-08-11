@@ -34,6 +34,19 @@ pub fn prompt_overwrite_existing_alias(mode: InteractionMode, alias: &str) -> bo
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
+pub fn prompt_replace_imported_alias(mode: InteractionMode, alias: &str) -> bool {
+    non_interactive_answer(mode, "replace an existing alias during import").unwrap_or_else(|| {
+        Confirm::new()
+            .with_prompt(format!(
+                "Alias \"{alias}\" already exists. Replace it with the imported alias?"
+            ))
+            .default(false)
+            .interact()
+            .unwrap()
+    })
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn prompt_use_non_existing_catalog_file(mode: InteractionMode, path: &str) -> bool {
     non_interactive_answer(mode, &format!("use missing catalog path '{path}'")).unwrap_or_else(
         || {
