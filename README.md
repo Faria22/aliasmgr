@@ -75,13 +75,13 @@ status = "auto"
 
 ## Commands
 
-- `aliasmgr add <name> <command> [--description <text>] [--tag <tag>]... [--disabled] [--global]`
-- `aliasmgr edit <name> [command] [--description <text> | --clear-description] [--add-tag <tag>]... [--remove-tag <tag>]... [--global | --no-global]`
-- `aliasmgr import <path>... [--tag <tag>]... [--dry-run] [--skip-existing | --replace-existing]`
-- `aliasmgr list [pattern] [--tag <tag>]... [--disabled | --all] [--global] [--columns <columns>] [--format <human|json>]`
+- `aliasmgr add <name> <command> [-g|--global] [-t|--tag <tag>]... [-d|--description <text>] [--disabled]`
+- `aliasmgr edit <name> [command] [-a|--add-tag <tag>]... [-r|--remove-tag <tag>]... [-d|--description <text> | --clear-description] [-g|--global | --no-global]`
+- `aliasmgr import <path>... [-d|--dry-run] [-s|--skip-existing | -r|--replace-existing] [-t|--tag <tag>]...`
+- `aliasmgr list [pattern] [-t|--tag <tag>]... [-d|--disabled | --all] [-g|--global] [--columns <columns>] [-f|--format <human|json>]`
 - `aliasmgr remove <name>`
 - `aliasmgr remove alias <name>`
-- `aliasmgr remove alias [--pattern <glob>] [--tag <tag>]...` (bulk filter; prompts once)
+- `aliasmgr remove alias [-p|--pattern <glob>] [-t|--tag <tag>]...` (bulk filter; prompts once)
 - `aliasmgr remove tag <tag>` (detaches the tag without removing aliases)
 - `aliasmgr remove tag <tag> --aliases` (removes every tagged alias after one prompt)
 - `aliasmgr remove all`
@@ -90,12 +90,12 @@ status = "auto"
 - `aliasmgr rename tag <old-tag> <new-tag>`
 - `aliasmgr enable <name>`
 - `aliasmgr enable alias <name>`
-- `aliasmgr enable alias [--pattern <glob>] [--tag <tag>]...`
+- `aliasmgr enable alias [-p|--pattern <glob>] [-t|--tag <tag>]...`
 - `aliasmgr enable tag <tag>`
 - `aliasmgr enable all`
 - `aliasmgr disable <name>`
 - `aliasmgr disable alias <name>`
-- `aliasmgr disable alias [--pattern <glob>] [--tag <tag>]...`
+- `aliasmgr disable alias [-p|--pattern <glob>] [-t|--tag <tag>]...`
 - `aliasmgr disable tag <tag>`
 - `aliasmgr disable all`
 - `aliasmgr sync`
@@ -106,10 +106,11 @@ For more details, use `-h` or `--help`.
 Notes:
 
 - Repeat `--tag` when creating an alias or filtering by multiple tags. Filters use AND semantics: every supplied tag must be present.
-- `import` reads ordinary Bash and Zsh alias declarations from one or more files. Unsupported lines are skipped. Existing aliases prompt before replacement and default to being kept; use `--skip-existing` to keep them non-interactively, or `--replace-existing`/`--force` to replace them. `--dry-run` reports counts without prompting or changing the catalog.
+- `import` reads ordinary Bash and Zsh alias declarations from one or more files. Unsupported lines are skipped. Existing aliases prompt before replacement and default to being kept. `--yes` behaves like `--replace-existing`, while `--no` behaves like `--skip-existing`; the command-specific policies also work with `--no-input`. `--dry-run` reports counts without prompting or changing the catalog.
 - `list` shows enabled aliases by default. Use `--disabled` for disabled aliases or `--all` for both.
 - Tags are case-sensitive and cannot be empty or contain whitespace.
-- `--force` and `--no-input` are mutually exclusive global automation flags. `--force` accepts overwrite and removal prompts; `--no-input` exits with status 2 if input would be required.
+- `-y`/`--yes`, `-n`/`--no`, and `-N`/`--no-input` are mutually exclusive global prompt controls. They respectively accept, decline, or fail with status 2 when confirmation is required.
+- Global options also provide `-c`/`--color`, `-D`/`--debug`, `-q`/`--quiet`, and `-v`/`--verbose`.
 - Alias names cannot be empty or contain whitespace or `=`.
 - Global aliases only work on Zsh and are skipped for other shells.
 - Adding or editing an alias warns without blocking when its name conflicts with a builtin in the active Bash/Zsh shell or an executable found on `PATH`.

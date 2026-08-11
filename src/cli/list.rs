@@ -39,16 +39,19 @@ pub struct ListCommand {
     /// List aliases containing every supplied tag
     #[arg(short, long, value_name = "TAG", value_parser = validate_tag)]
     pub tag: Vec<String>,
-    #[arg(short, long)]
+    /// List only disabled aliases
+    #[arg(short = 'd', long)]
     pub disabled: bool,
     /// List enabled and disabled aliases
     #[arg(long)]
     pub all: bool,
-    #[arg(long)]
+    /// List only Zsh global aliases
+    #[arg(short = 'g', long)]
     pub global: bool,
-    #[arg(long, value_enum, default_value = "human")]
-    pub format: OutputFormat,
     /// Override configured table columns, in display order
     #[arg(long, value_enum, value_delimiter = ',', num_args = 1..)]
     pub columns: Option<Vec<ListColumn>>,
+    /// Select human-readable or JSON output
+    #[arg(short, long, value_enum, default_value = "human")]
+    pub format: OutputFormat,
 }

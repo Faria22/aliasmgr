@@ -7,7 +7,8 @@ use super::validate_tag;
 pub struct AliasSelectorArgs {
     #[arg(conflicts_with_all = ["pattern", "tag"])]
     pub name: Option<String>,
-    #[arg(long, value_name = "GLOB", value_parser = validate_glob)]
+    /// Select aliases whose names match a glob
+    #[arg(short = 'p', long, value_name = "GLOB", value_parser = validate_glob)]
     pub pattern: Option<String>,
     /// Select aliases containing every supplied tag
     #[arg(short, long, value_name = "TAG", value_parser = validate_tag)]

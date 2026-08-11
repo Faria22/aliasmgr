@@ -31,7 +31,7 @@ fn imports_bash_and_zsh_aliases_from_multiple_files() {
             "import",
             bash.to_str().unwrap(),
             zsh.to_str().unwrap(),
-            "--tag",
+            "-t",
             "shell",
         ],
     );
@@ -65,10 +65,7 @@ fn collision_policies_preserve_identical_aliases_and_replace_differences() {
     )
     .unwrap();
 
-    let skipped = run_aliasmgr(
-        &catalog,
-        &["import", source.to_str().unwrap(), "--skip-existing"],
-    );
+    let skipped = run_aliasmgr(&catalog, &["import", source.to_str().unwrap(), "-s"]);
     assert!(skipped.status.success(), "{skipped:?}");
     assert!(
         String::from_utf8_lossy(&skipped.stdout)
@@ -77,10 +74,7 @@ fn collision_policies_preserve_identical_aliases_and_replace_differences() {
     assert!(String::from_utf8_lossy(&skipped.stdout).contains("1 aliases unchanged"));
     assert_eq!(fs::read_to_string(&catalog).unwrap(), original);
 
-    let replaced = run_aliasmgr(
-        &catalog,
-        &["import", source.to_str().unwrap(), "--replace-existing"],
-    );
+    let replaced = run_aliasmgr(&catalog, &["import", source.to_str().unwrap(), "-r", "-N"]);
     assert!(replaced.status.success(), "{replaced:?}");
     let content = fs::read_to_string(&catalog).unwrap();
     assert!(content.contains("gs = \"git status --short\""));
@@ -90,12 +84,12 @@ fn collision_policies_preserve_identical_aliases_and_replace_differences() {
 }
 
 #[test]
-fn force_aliases_replace_and_no_input_requires_a_policy() {
+fn prompt_modes_alias_collision_policies_and_no_input_requires_a_policy() {
     let directory = tempfile::tempdir().unwrap();
     let catalog = directory.path().join("aliases.toml");
     let source = directory.path().join("aliases");
     fs::write(&catalog, "ll = \"ls\"\n").unwrap();
-    fs::write(&source, "alias ll='ls -la'\n").unwrap();
+    fs::write(&source, "alias ll='ls -la'\nalias gs='git status'\n").unwrap();
 
     let refused = run_aliasmgr(
         &catalog,
@@ -104,9 +98,18 @@ fn force_aliases_replace_and_no_input_requires_a_policy() {
     assert_eq!(refused.status.code(), Some(2));
     assert_eq!(fs::read_to_string(&catalog).unwrap(), "ll = \"ls\"\n");
 
-    let replaced = run_aliasmgr(&catalog, &["import", source.to_str().unwrap(), "--force"]);
+    let skipped = run_aliasmgr(&catalog, &["import", source.to_str().unwrap(), "--no"]);
+    assert!(skipped.status.success(), "{skipped:?}");
+    let content = fs::read_to_string(&catalog).unwrap();
+    assert!(content.contains("ll = \"ls\""));
+    assert!(content.contains("gs = \"git status\""));
+
+    fs::write(&catalog, "ll = \"ls\"\n").unwrap();
+    let replaced = run_aliasmgr(&catalog, &["import", source.to_str().unwrap(), "--yes"]);
     assert!(replaced.status.success(), "{replaced:?}");
-    assert_eq!(fs::read_to_string(&catalog).unwrap(), "ll = \"ls -la\"\n");
+    let content = fs::read_to_string(&catalog).unwrap();
+    assert!(content.contains("ll = \"ls -la\""));
+    assert!(content.contains("gs = \"git status\""));
 }
 
 #[test]
@@ -118,12 +121,21 @@ fn dry_run_reports_without_prompting_or_writing() {
     fs::write(&catalog, original).unwrap();
     fs::write(&source, "alias ll='ls -la'\nalias gs='git status'\n").unwrap();
 
-    let output = run_aliasmgr(&catalog, &["import", source.to_str().unwrap(), "--dry-run"]);
+    let output = run_aliasmgr(&catalog, &["import", source.to_str().unwrap(), "-d"]);
     assert!(output.status.success(), "{output:?}");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Dry run: 1 aliases would be imported"));
     assert!(stdout.contains("1 collisions found"));
     assert_eq!(fs::read_to_string(&catalog).unwrap(), original);
+
+    for (mode, result) in [("--yes", "replaced"), ("--no", "skipped")] {
+        let output = run_aliasmgr(&catalog, &["import", source.to_str().unwrap(), "-d", mode]);
+        assert!(output.status.success(), "{mode}: {output:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .contains(&format!("1 collisions found and would be {result}"))
+        );
+    }
 
     let skipped = run_aliasmgr(
         &catalog,

@@ -86,9 +86,9 @@ fn tag_removal_can_delete_tagged_aliases_after_one_confirmation() {
     assert!(String::from_utf8_lossy(&no_input.stderr).contains("remove 2 aliases tagged 'dev'"));
     assert_eq!(fs::read_to_string(&catalog).unwrap(), original);
 
-    let force = run_aliasmgr(&catalog, &["remove", "tag", "dev", "--aliases", "--force"]);
-    assert!(force.status.success(), "{force:?}");
-    assert_eq!(stdout(&force), "Removed 2 of 2 aliases tagged 'dev'.");
+    let yes = run_aliasmgr(&catalog, &["remove", "tag", "dev", "--aliases", "--yes"]);
+    assert!(yes.status.success(), "{yes:?}");
+    assert_eq!(stdout(&yes), "Removed 2 of 2 aliases tagged 'dev'.");
     let content = fs::read_to_string(&catalog).unwrap();
     assert!(!content.contains("build ="));
     assert!(!content.contains("test ="));
@@ -110,9 +110,9 @@ fn filtered_remove_prompts_once_and_empty_matches_are_noops() {
     );
     assert_eq!(fs::read_to_string(&catalog).unwrap(), original);
 
-    let force = run_aliasmgr(&catalog, &["remove", "alias", "--tag", "dev", "--force"]);
-    assert!(force.status.success());
-    assert_eq!(stdout(&force), "Removed 2 of 2 matching aliases.");
+    let yes = run_aliasmgr(&catalog, &["remove", "alias", "--tag", "dev", "--yes"]);
+    assert!(yes.status.success());
+    assert_eq!(stdout(&yes), "Removed 2 of 2 matching aliases.");
 
     fs::write(&catalog, "ll = \"ls -la\"\n").unwrap();
     let empty = run_aliasmgr(&catalog, &["enable", "alias", "--tag", "missing"]);

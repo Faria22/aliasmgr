@@ -83,3 +83,27 @@ fn unknown_configuration_settings_warn_without_blocking() {
             .contains("Unknown configuration setting 'future' ignored.")
     );
 }
+
+#[test]
+fn resolved_color_mode_controls_logger_styling() {
+    let directory = tempfile::tempdir().unwrap();
+    let catalog = directory.path().join("aliases.toml");
+    let config = directory.path().join("config.toml");
+    fs::write(&catalog, "ll = \"ls -la\"\n").unwrap();
+    fs::write(&config, "future = true\n[color]\nmode = \"always\"\n").unwrap();
+
+    for (mode, colored) in [("auto", false), ("always", true), ("never", false)] {
+        let output = run_aliasmgr(&catalog, &config, &["list", "-c", mode]);
+        assert!(output.status.success(), "{mode}: {output:?}");
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert!(stderr.contains("Unknown configuration setting 'future' ignored."));
+        assert_eq!(stderr.contains("\u{1b}["), colored, "{mode}: {stderr:?}");
+    }
+
+    let configured = run_aliasmgr(&catalog, &config, &["list"]);
+    assert!(
+        String::from_utf8(configured.stderr)
+            .unwrap()
+            .contains("\u{1b}[")
+    );
+}

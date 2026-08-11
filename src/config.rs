@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use clap::ValueEnum;
-use log::warn;
+use env_logger::WriteStyle;
 use owo_colors::{DynColors, Style};
 use serde::Deserialize;
 
@@ -29,6 +29,14 @@ impl ColorMode {
             Self::Auto => std::io::stdout().is_terminal() && env::var_os("NO_COLOR").is_none(),
             Self::Always => true,
             Self::Never => false,
+        }
+    }
+
+    pub fn write_style(self) -> WriteStyle {
+        match self {
+            Self::Auto => WriteStyle::Auto,
+            Self::Always => WriteStyle::Always,
+            Self::Never => WriteStyle::Never,
         }
     }
 }
@@ -132,6 +140,12 @@ pub struct UserConfig {
     pub list: ListConfig,
 }
 
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct LoadedConfig {
+    pub config: UserConfig,
+    pub warnings: Vec<String>,
+}
+
 #[derive(Default, Deserialize)]
 #[serde(default)]
 struct RawConfig {
@@ -189,21 +203,32 @@ struct RawStateStyle {
     unknown: BTreeMap<String, toml::Value>,
 }
 
-fn warn_unknown(section: Option<&str>, fields: &BTreeMap<String, toml::Value>) {
+fn collect_unknown_warnings(
+    section: Option<&str>,
+    fields: &BTreeMap<String, toml::Value>,
+    warnings: &mut Vec<String>,
+) {
     for name in fields.keys() {
         if let Some(section) = section {
-            warn!("Unknown configuration setting '{section}.{name}' ignored.");
+            warnings.push(format!(
+                "Unknown configuration setting '{section}.{name}' ignored."
+            ));
         } else {
-            warn!("Unknown configuration setting '{name}' ignored.");
+            warnings.push(format!("Unknown configuration setting '{name}' ignored."));
         }
     }
 }
 
-fn apply_style(name: &str, target: &mut StateStyle, raw: Option<RawStateStyle>) -> Result<()> {
+fn apply_style(
+    name: &str,
+    target: &mut StateStyle,
+    raw: Option<RawStateStyle>,
+    warnings: &mut Vec<String>,
+) -> Result<()> {
     let Some(raw) = raw else {
         return Ok(());
     };
-    warn_unknown(Some(&format!("styles.{name}")), &raw.unknown);
+    collect_unknown_warnings(Some(&format!("styles.{name}")), &raw.unknown, warnings);
     if let Some(foreground) = raw.foreground {
         foreground.parse::<DynColors>().map_err(|_| {
             anyhow::anyhow!(
@@ -218,13 +243,14 @@ fn apply_style(name: &str, target: &mut StateStyle, raw: Option<RawStateStyle>) 
     Ok(())
 }
 
-fn parse_config(content: &str) -> Result<UserConfig> {
+fn parse_config_with_warnings(content: &str) -> Result<LoadedConfig> {
     let raw: RawConfig = toml::from_str(content)?;
-    warn_unknown(None, &raw.unknown);
-    warn_unknown(Some("color"), &raw.color.unknown);
-    warn_unknown(Some("symbols"), &raw.symbols.unknown);
-    warn_unknown(Some("styles"), &raw.styles.unknown);
-    warn_unknown(Some("list"), &raw.list.unknown);
+    let mut warnings = Vec::new();
+    collect_unknown_warnings(None, &raw.unknown, &mut warnings);
+    collect_unknown_warnings(Some("color"), &raw.color.unknown, &mut warnings);
+    collect_unknown_warnings(Some("symbols"), &raw.symbols.unknown, &mut warnings);
+    collect_unknown_warnings(Some("styles"), &raw.styles.unknown, &mut warnings);
+    collect_unknown_warnings(Some("list"), &raw.list.unknown, &mut warnings);
 
     let mut config = UserConfig::default();
     if let Some(mode) = raw.color.mode {
@@ -240,9 +266,13 @@ fn parse_config(content: &str) -> Result<UserConfig> {
         config.symbols.global = global;
     }
 
-    apply_style("enabled", &mut config.styles.enabled, raw.styles.enabled)?;
-    apply_style("disabled", &mut config.styles.disabled, raw.styles.disabled)?;
-    apply_style("global", &mut config.styles.global, raw.styles.global)?;
+    for (name, target, style) in [
+        ("enabled", &mut config.styles.enabled, raw.styles.enabled),
+        ("disabled", &mut config.styles.disabled, raw.styles.disabled),
+        ("global", &mut config.styles.global, raw.styles.global),
+    ] {
+        apply_style(name, target, style, &mut warnings)?;
+    }
     if let Some(columns) = raw.list.columns {
         if columns.is_empty() {
             bail!("'list.columns' must contain at least one column");
@@ -259,7 +289,12 @@ fn parse_config(content: &str) -> Result<UserConfig> {
     if let Some(status) = raw.list.status {
         config.list.status = status;
     }
-    Ok(config)
+    Ok(LoadedConfig { config, warnings })
+}
+
+#[cfg(test)]
+fn parse_config(content: &str) -> Result<UserConfig> {
+    Ok(parse_config_with_warnings(content)?.config)
 }
 
 pub fn config_path(path: Option<&Path>) -> PathBuf {
@@ -272,24 +307,29 @@ pub fn config_path(path: Option<&Path>) -> PathBuf {
     })
 }
 
+#[cfg(test)]
 fn load_config_from(path: &Path, required: bool) -> Result<UserConfig> {
+    Ok(load_config_from_with_warnings(path, required)?.config)
+}
+
+fn load_config_from_with_warnings(path: &Path, required: bool) -> Result<LoadedConfig> {
     if !path.exists() {
         if required {
             bail!("configured file '{}' does not exist", path.display());
         }
-        return Ok(UserConfig::default());
+        return Ok(LoadedConfig::default());
     }
 
     let content = fs::read_to_string(path)
         .with_context(|| format!("could not read configuration '{}'", path.display()))?;
-    parse_config(&content)
+    parse_config_with_warnings(&content)
         .with_context(|| format!("could not parse configuration '{}'", path.display()))
 }
 
-pub fn load_config() -> Result<UserConfig> {
+pub fn load_config() -> Result<LoadedConfig> {
     let explicit = env::var_os(CONFIG_FILE_ENV_VAR).map(PathBuf::from);
     let path = config_path(explicit.as_deref());
-    load_config_from(&path, explicit.is_some())
+    load_config_from_with_warnings(&path, explicit.is_some())
 }
 
 #[cfg(test)]
@@ -336,7 +376,7 @@ mod tests {
 
     #[test]
     fn unknown_settings_are_accepted() {
-        let config = parse_config(
+        let loaded = parse_config_with_warnings(
             r#"
             future = true
             [symbols]
@@ -345,7 +385,14 @@ mod tests {
             "#,
         )
         .unwrap();
-        assert_eq!(config.symbols.enabled, "+");
+        assert_eq!(loaded.config.symbols.enabled, "+");
+        assert_eq!(
+            loaded.warnings,
+            [
+                "Unknown configuration setting 'future' ignored.",
+                "Unknown configuration setting 'symbols.future' ignored.",
+            ]
+        );
     }
 
     #[test]
@@ -404,6 +451,9 @@ mod tests {
     fn color_mode_respects_explicit_modes() {
         assert!(ColorMode::Always.enabled());
         assert!(!ColorMode::Never.enabled());
+        assert_eq!(ColorMode::Auto.write_style(), WriteStyle::Auto);
+        assert_eq!(ColorMode::Always.write_style(), WriteStyle::Always);
+        assert_eq!(ColorMode::Never.write_style(), WriteStyle::Never);
     }
 
     #[test]
