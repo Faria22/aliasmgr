@@ -7,6 +7,7 @@ pub(crate) mod list;
 pub(crate) mod remove;
 pub(crate) mod rename;
 pub(crate) mod selector;
+mod status;
 pub(crate) mod sync;
 pub(crate) mod validation;
 

@@ -1,5 +1,3 @@
-use log::info;
-
 use super::{Failure, Outcome};
 use crate::catalog::types::{Alias, AliasCatalog};
 
@@ -9,7 +7,6 @@ pub fn add_alias(
     alias: &Alias,
 ) -> Result<Outcome, Failure> {
     if catalog.aliases.contains_key(name) {
-        info!("Alias '{name}' already exists.");
         return Err(Failure::AliasAlreadyExists);
     }
     catalog.aliases.insert(name.into(), alias.clone());
