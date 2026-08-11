@@ -11,7 +11,7 @@ pub struct EditCommand {
     pub command: Option<String>,
 
     /// Set the alias description
-    #[arg(long, conflicts_with = "clear_description")]
+    #[arg(short = 'd', long, conflicts_with = "clear_description")]
     pub description: Option<String>,
 
     /// Remove the alias description
@@ -19,11 +19,11 @@ pub struct EditCommand {
     pub clear_description: bool,
 
     /// Add a tag; repeat to add multiple tags
-    #[arg(long, value_name = "TAG", value_parser = validate_tag)]
+    #[arg(short = 'a', long, value_name = "TAG", value_parser = validate_tag)]
     pub add_tag: Vec<String>,
 
     /// Remove a tag; repeat to remove multiple tags
-    #[arg(long, value_name = "TAG", value_parser = validate_tag)]
+    #[arg(short = 'r', long, value_name = "TAG", value_parser = validate_tag)]
     pub remove_tag: Vec<String>,
 
     /// Make the alias global

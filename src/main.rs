@@ -6,8 +6,6 @@ mod cli;
 mod config;
 mod core;
 
-use clap::Parser;
-
 use cli::interaction::InteractionMode;
 use cli::{Cli, Commands};
 use config::load_config;
@@ -23,7 +21,7 @@ use app::disable::handle_disable;
 use app::doctor::handle_doctor;
 use app::edit::handle_edit;
 use app::enable::handle_enable;
-use app::file_path::determine_catalog_path;
+use app::file_path::{CatalogPathDecision, determine_catalog_path};
 use app::init::handle_init;
 use app::list::handle_list;
 use app::remove::handle_remove;
@@ -41,15 +39,26 @@ fn main() {
         error.exit();
     }
     let quiet = cli.quiet;
-    let interaction_mode = if cli.force {
-        InteractionMode::Force
+    let interaction_mode = if cli.yes {
+        InteractionMode::Yes
+    } else if cli.no {
+        InteractionMode::No
     } else if cli.no_input {
         InteractionMode::NoInput
     } else {
         InteractionMode::Interactive
     };
 
-    // Determine log level based on CLI flags
+    let loaded_config = match load_config() {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("ERROR: {error:#}");
+            std::process::exit(1);
+        }
+    };
+    let config = loaded_config.config;
+    let color_mode = cli.color.unwrap_or(config.color);
+
     let level = if cli.quiet {
         LevelFilter::Error
     } else if cli.verbose {
@@ -65,16 +74,13 @@ fn main() {
         .format_target(false)
         .filter_level(level)
         .parse_default_env()
+        .write_style(color_mode.write_style())
         .init();
 
-    let config = match load_config() {
-        Ok(config) => config,
-        Err(error) => {
-            eprintln!("ERROR: {error:#}");
-            std::process::exit(1);
-        }
-    };
-    let colors_enabled = cli.color.unwrap_or(config.color).enabled();
+    for warning in loaded_config.warnings {
+        log::warn!("{warning}");
+    }
+    let colors_enabled = color_mode.enabled();
 
     let mut catalog = AliasCatalog::new();
     let mut catalog_path = None;
@@ -86,8 +92,15 @@ fn main() {
         shell = determine_shell();
         debug!("Determined shell: {}", shell);
 
-        catalog_path = determine_catalog_path(interaction_mode)
-            .expect("Custom catalog path did not exist and user chose not to use it.");
+        catalog_path = match determine_catalog_path(interaction_mode) {
+            CatalogPathDecision::Use(path) => path,
+            CatalogPathDecision::Decline => {
+                if !quiet {
+                    println!("Catalog path was declined. No changes made.");
+                }
+                return;
+            }
+        };
         debug!("Using catalog path: {:?}", catalog_path);
 
         let resolved_catalog_path = resolve_catalog_path(catalog_path.as_ref());
@@ -119,10 +132,7 @@ fn main() {
         Commands::Doctor(_) => handle_doctor(&catalog, &shell, quiet).map(CommandOutcome::from),
         Commands::Sync(_) => handle_sync().map(CommandOutcome::from),
         Commands::ShellSync(cmd) => {
-            print!(
-                "{}",
-                handle_shell_sync(&catalog, &shell, cmd, interaction_mode)
-            );
+            print!("{}", handle_shell_sync(&catalog, &shell, cmd));
             Ok(CommandOutcome::from(Outcome::NoChanges))
         }
         Commands::Init(cmd) => {

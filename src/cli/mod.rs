@@ -1,4 +1,6 @@
-use clap::{CommandFactory, Parser, Subcommand, error::ErrorKind};
+use std::collections::{BTreeMap, HashMap};
+
+use clap::{Command, CommandFactory, FromArgMatches, Parser, Subcommand, error::ErrorKind};
 
 pub(crate) mod add;
 pub(crate) mod disable;
@@ -41,34 +43,60 @@ pub fn validate_tag(tag: &str) -> Result<String, String> {
     disable_help_subcommand = true
 )]
 pub struct Cli {
-    #[arg(long, global = true, conflicts_with = "no_input")]
-    pub force: bool,
-    #[arg(long, global = true, conflicts_with = "force")]
-    pub no_input: bool,
-    #[arg(short, long, global = true, conflicts_with_all = ["quiet", "debug"])]
-    pub verbose: bool,
-    #[arg(short, long, global = true, conflicts_with_all = ["verbose", "debug"])]
-    pub quiet: bool,
-    #[arg(long, global = true, conflicts_with_all = ["verbose", "quiet"])]
-    pub debug: bool,
-    #[arg(long, global = true, value_enum)]
+    /// Control when colored output is used
+    #[arg(
+        short = 'c',
+        long,
+        global = true,
+        value_enum,
+        help_heading = "Global Options"
+    )]
     pub color: Option<ColorMode>,
+    /// Show debug diagnostics
+    #[arg(short = 'D', long, global = true, conflicts_with_all = ["verbose", "quiet"], help_heading = "Global Options")]
+    pub debug: bool,
+    /// Automatically decline confirmation prompts
+    #[arg(short = 'n', long, global = true, conflicts_with_all = ["yes", "no_input"], help_heading = "Global Options")]
+    pub no: bool,
+    /// Never prompt; fail when confirmation is required
+    #[arg(short = 'N', long, global = true, conflicts_with_all = ["yes", "no"], help_heading = "Global Options")]
+    pub no_input: bool,
+    /// Suppress normal command output
+    #[arg(short, long, global = true, conflicts_with_all = ["verbose", "debug"], help_heading = "Global Options")]
+    pub quiet: bool,
+    /// Show informational diagnostics
+    #[arg(short, long, global = true, conflicts_with_all = ["quiet", "debug"], help_heading = "Global Options")]
+    pub verbose: bool,
+    /// Automatically accept confirmation prompts
+    #[arg(short = 'y', long, global = true, conflicts_with_all = ["no", "no_input"], help_heading = "Global Options")]
+    pub yes: bool,
     #[command(subcommand)]
     pub command: Commands,
 }
 
 impl Cli {
+    pub fn parse() -> Self {
+        let matches = Self::command().get_matches();
+        Self::from_arg_matches(&matches).unwrap_or_else(|error| error.exit())
+    }
+
+    pub fn command() -> Command {
+        alphabetize_help(<Self as CommandFactory>::command())
+    }
+
     pub fn validate_prompt_controls(&self) -> Result<(), clap::Error> {
-        if self.force && self.no_input {
+        let controls = [
+            ("--yes", self.yes),
+            ("--no", self.no),
+            ("--no-input", self.no_input),
+        ]
+        .into_iter()
+        .filter_map(|(name, enabled)| enabled.then_some(name))
+        .collect::<Vec<_>>();
+        if controls.len() > 1 {
             return Err(Self::command().error(
                 ErrorKind::ArgumentConflict,
-                "--force cannot be used with --no-input",
-            ));
-        }
-        if self.force && matches!(&self.command, Commands::ShellSync(cmd) if cmd.if_changed) {
-            return Err(Self::command().error(
-                ErrorKind::ArgumentConflict,
-                "--force cannot be used with --if-changed",
+                format!("{} cannot be used with {}", controls[0], controls[1]),
             ));
         }
         if matches!(&self.command, Commands::Edit(cmd) if !cmd.has_changes()) {
@@ -79,6 +107,38 @@ impl Cli {
         }
         Ok(())
     }
+}
+
+fn alphabetize_help(mut command: Command) -> Command {
+    let mut headings = BTreeMap::<Option<String>, Vec<(String, String)>>::new();
+    for argument in command
+        .get_arguments()
+        .filter(|argument| !argument.is_positional())
+    {
+        if let Some(long) = argument.get_long() {
+            headings
+                .entry(argument.get_help_heading().map(str::to_owned))
+                .or_default()
+                .push((long.to_owned(), argument.get_id().as_str().to_owned()));
+        }
+    }
+
+    let mut orders = HashMap::new();
+    for arguments in headings.values_mut() {
+        arguments.sort_unstable();
+        for (order, (_, id)) in arguments.iter().enumerate() {
+            orders.insert(id.clone(), order);
+        }
+    }
+
+    command = command.mut_args(|argument| {
+        if let Some(order) = orders.get(argument.get_id().as_str()) {
+            argument.display_order(*order)
+        } else {
+            argument
+        }
+    });
+    command.mut_subcommands(alphabetize_help)
 }
 
 #[derive(Subcommand)]
@@ -170,9 +230,145 @@ mod tests {
         for args in [
             &["aliasmgr", "edit", "ll", "--toggle-enabled"][..],
             &["aliasmgr", "edit", "ll", "--toggle-global"][..],
+            &["aliasmgr", "edit", "ll", "-b"][..],
             &["aliasmgr", "edit", "ll", "--global", "--no-global"][..],
         ] {
             assert!(Cli::try_parse_from(args).is_err(), "{args:?}");
         }
+    }
+
+    #[test]
+    fn help_options_are_sorted_by_long_name_within_each_heading() {
+        fn assert_command(command: &mut Command) {
+            command.build();
+            let help = command.render_help().to_string();
+            let mut heading = None;
+            let mut options = BTreeMap::<String, Vec<String>>::new();
+            for line in help.lines() {
+                if let Some(name) = line.strip_suffix(':') {
+                    heading = Some(name.to_owned());
+                    continue;
+                }
+                let Some(current) = heading.as_ref() else {
+                    continue;
+                };
+                if current == "Arguments" || !line.starts_with("  ") {
+                    continue;
+                }
+                if let Some(long) = line
+                    .split_whitespace()
+                    .find_map(|part| part.strip_prefix("--"))
+                {
+                    if matches!(long, "help" | "version") {
+                        continue;
+                    }
+                    options
+                        .entry(current.clone())
+                        .or_default()
+                        .push(long.trim_end_matches([',', '>']).to_owned());
+                }
+            }
+            for (heading, actual) in options {
+                let mut expected = actual.clone();
+                expected.sort();
+                assert_eq!(actual, expected, "{heading} in {}", command.get_name());
+            }
+            for subcommand in command.get_subcommands_mut() {
+                assert_command(subcommand);
+            }
+        }
+
+        assert_command(&mut Cli::command());
+    }
+
+    #[test]
+    fn flags_have_help_and_unique_short_options_in_every_context() {
+        fn assert_command(command: &Command) {
+            let mut shorts = HashMap::new();
+            for argument in command
+                .get_arguments()
+                .filter(|argument| !argument.is_positional())
+            {
+                assert!(
+                    argument.get_help().is_some(),
+                    "--{} in {} needs help text",
+                    argument.get_long().unwrap_or(argument.get_id().as_str()),
+                    command.get_name()
+                );
+                if let Some(short) = argument.get_short() {
+                    assert!(
+                        shorts.insert(short, argument.get_id()).is_none(),
+                        "duplicate -{short} in {}",
+                        command.get_name()
+                    );
+                }
+                if argument.is_global_set() {
+                    assert_eq!(argument.get_help_heading(), Some("Global Options"));
+                }
+            }
+            for subcommand in command.get_subcommands() {
+                assert_command(subcommand);
+            }
+        }
+
+        let mut command = Cli::command();
+        command.build();
+        assert_command(&command);
+    }
+
+    #[test]
+    fn short_options_match_the_documented_contract() {
+        fn short(command: &Command, long: &str) -> Option<char> {
+            command
+                .get_arguments()
+                .find(|argument| argument.get_long() == Some(long))
+                .and_then(|argument| argument.get_short())
+        }
+
+        let mut command = Cli::command();
+        command.build();
+        for (long, expected) in [
+            ("color", 'c'),
+            ("debug", 'D'),
+            ("no", 'n'),
+            ("no-input", 'N'),
+            ("quiet", 'q'),
+            ("verbose", 'v'),
+            ("yes", 'y'),
+        ] {
+            assert_eq!(short(&command, long), Some(expected));
+        }
+
+        let add = command.find_subcommand("add").unwrap();
+        assert_eq!(short(add, "description"), Some('d'));
+        assert_eq!(short(add, "disabled"), None);
+        assert_eq!(short(add, "global"), Some('g'));
+        assert_eq!(short(add, "tag"), Some('t'));
+
+        let edit = command.find_subcommand("edit").unwrap();
+        assert_eq!(short(edit, "add-tag"), Some('a'));
+        assert_eq!(short(edit, "clear-description"), None);
+        assert_eq!(short(edit, "description"), Some('d'));
+        assert_eq!(short(edit, "global"), Some('g'));
+        assert_eq!(short(edit, "no-global"), None);
+        assert_eq!(short(edit, "remove-tag"), Some('r'));
+        assert!(short(edit, "toggle-enabled").is_none());
+        assert!(short(edit, "toggle-global").is_none());
+
+        let list = command.find_subcommand("list").unwrap();
+        assert_eq!(short(list, "columns"), None);
+        assert_eq!(short(list, "disabled"), Some('d'));
+        assert_eq!(short(list, "format"), Some('f'));
+        assert_eq!(short(list, "global"), Some('g'));
+        assert_eq!(short(list, "tag"), Some('t'));
+        assert!(short(list, "enabled").is_none());
+
+        let remove_alias = command
+            .find_subcommand("remove")
+            .unwrap()
+            .find_subcommand("alias")
+            .unwrap();
+        assert_eq!(short(remove_alias, "pattern"), Some('p'));
+        assert_eq!(short(remove_alias, "tag"), Some('t'));
     }
 }

@@ -81,7 +81,7 @@ __aliasmgr_prompt_sync
 alias build >/dev/null || exit 26
 alias bench >/dev/null || exit 27
 
-remove_output="$(aliasmgr remove alias --pattern 'b*' --tag rust --force)"
+remove_output="$(aliasmgr remove alias -p 'b*' -t rust --yes)"
 [ "$remove_output" = 'Removed 2 of 2 matching aliases.' ] || exit 28
 __aliasmgr_prompt_sync
 ! alias build 2>/dev/null || exit 29

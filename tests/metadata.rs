@@ -133,24 +133,27 @@ fn add_edit_and_json_listing_preserve_metadata() {
             "add",
             "test",
             "cargo test",
-            "--description",
+            "-d",
             "Run tests",
-            "--tag",
+            "-t",
             "rust",
             "--tag",
             "dev",
             "--tag",
             "rust",
+            "--disabled",
         ],
     );
     assert!(add.status.success(), "{add:?}");
     let content = fs::read_to_string(&catalog).unwrap();
     assert!(content.contains("description = \"Run tests\""));
+    assert!(content.contains("enabled = false"));
     assert!(content.contains("tags = [\"dev\", \"rust\"]"));
 
-    let json = run_aliasmgr(&catalog, &["list", "--format", "json"]);
+    let json = run_aliasmgr(&catalog, &["list", "--all", "-f", "json"]);
     let value: serde_json::Value = serde_json::from_slice(&json.stdout).unwrap();
     assert_eq!(value[0]["description"], "Run tests");
+    assert_eq!(value[0]["enabled"], false);
     assert_eq!(value[0]["tags"], serde_json::json!(["dev", "rust"]));
 
     let edit = run_aliasmgr(

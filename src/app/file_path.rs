@@ -2,9 +2,13 @@ use crate::cli::interaction::{InteractionMode, prompt_use_non_existing_catalog_f
 use std::env;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Result, bail};
-
 pub const CATALOG_FILE_ENV_VAR: &str = "ALIASMGR_CATALOG_PATH";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CatalogPathDecision {
+    Use(Option<PathBuf>),
+    Decline,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FileType {
@@ -17,15 +21,9 @@ impl FileType {
             FileType::Catalog => CATALOG_FILE_ENV_VAR,
         }
     }
-
-    fn display_name(self) -> &'static str {
-        match self {
-            FileType::Catalog => "Catalog file",
-        }
-    }
 }
 
-pub fn determine_catalog_path(mode: InteractionMode) -> Result<Option<PathBuf>> {
+pub fn determine_catalog_path(mode: InteractionMode) -> CatalogPathDecision {
     determine_configured_file_path(FileType::Catalog, |path| {
         prompt_use_non_existing_catalog_file(mode, path)
     })
@@ -34,33 +32,25 @@ pub fn determine_catalog_path(mode: InteractionMode) -> Result<Option<PathBuf>> 
 fn determine_configured_file_path(
     file_type: FileType,
     prompt: impl Fn(&str) -> bool,
-) -> Result<Option<PathBuf>> {
+) -> CatalogPathDecision {
     if let Ok(path) = env::var(file_type.env_var()) {
         let path = PathBuf::from(path);
-        handle_configured_file_path(&path, prompt, file_type)
+        handle_configured_file_path(&path, prompt)
     } else {
-        Ok(None)
+        CatalogPathDecision::Use(None)
     }
 }
 
-fn handle_configured_file_path(
-    path: &Path,
-    create: impl Fn(&str) -> bool,
-    file_type: FileType,
-) -> Result<Option<PathBuf>> {
+fn handle_configured_file_path(path: &Path, create: impl Fn(&str) -> bool) -> CatalogPathDecision {
     if path.exists() {
-        return Ok(Some(path.to_path_buf()));
+        return CatalogPathDecision::Use(Some(path.to_path_buf()));
     }
 
     if create(path.to_str().unwrap()) {
-        return Ok(Some(path.to_path_buf()));
+        return CatalogPathDecision::Use(Some(path.to_path_buf()));
     }
 
-    bail!(
-        "{} '{}' does not exist and user chose not to use it.",
-        file_type.display_name(),
-        path.to_str().unwrap()
-    );
+    CatalogPathDecision::Decline
 }
 
 #[cfg(test)]
@@ -76,47 +66,37 @@ mod tests {
             CATALOG_FILE_ENV_VAR,
             Some(temp_file.path().to_str().unwrap()),
             || {
-                let result = determine_catalog_path(InteractionMode::Interactive).unwrap();
-                assert_eq!(result, Some(temp_file.path().to_path_buf()));
+                let result = determine_catalog_path(InteractionMode::Interactive);
+                assert_eq!(
+                    result,
+                    CatalogPathDecision::Use(Some(temp_file.path().to_path_buf()))
+                );
             },
         );
     }
 
     #[test]
     fn test_determine_catalog_path_set_non_existing_file_user_accepts() {
-        let result = handle_configured_file_path(
-            &PathBuf::from("/non/existing/catalog/file"),
-            |_| true,
-            FileType::Catalog,
-        );
-        assert!(result.is_ok());
+        let result =
+            handle_configured_file_path(&PathBuf::from("/non/existing/catalog/file"), |_| true);
         assert_eq!(
-            result.unwrap(),
-            Some(PathBuf::from("/non/existing/catalog/file"))
+            result,
+            CatalogPathDecision::Use(Some(PathBuf::from("/non/existing/catalog/file")))
         );
     }
 
     #[test]
     fn test_determine_catalog_path_set_non_existing_file_user_declines() {
-        let result = handle_configured_file_path(
-            &PathBuf::from("/non/existing/catalog/file"),
-            |_| false,
-            FileType::Catalog,
-        );
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("Catalog file '/non/existing/catalog/file'")
-        );
+        let result =
+            handle_configured_file_path(&PathBuf::from("/non/existing/catalog/file"), |_| false);
+        assert_eq!(result, CatalogPathDecision::Decline);
     }
 
     #[test]
     fn test_determine_catalog_path_env_var_not_set() {
         with_var(CATALOG_FILE_ENV_VAR, None as Option<&str>, || {
-            let result = determine_catalog_path(InteractionMode::Interactive).unwrap();
-            assert_eq!(result, None);
+            let result = determine_catalog_path(InteractionMode::Interactive);
+            assert_eq!(result, CatalogPathDecision::Use(None));
         });
     }
 }
