@@ -5,10 +5,18 @@ use super::validate_tag;
 #[derive(Args)]
 pub struct EditCommand {
     /// Alias to edit
-    pub name: String,
+    pub name: Option<String>,
 
     /// Replacement command
     pub command: Option<String>,
+
+    /// Open the inline interactive editor
+    #[arg(short = 'i', long, conflicts_with_all = ["command", "add_tag", "remove_tag", "description", "clear_description", "global", "no_global"])]
+    pub interactive: bool,
+
+    /// Edit the complete alias catalog interactively
+    #[arg(long, requires = "interactive", conflicts_with = "name")]
+    pub all: bool,
 
     /// Add a tag; repeat to add multiple tags
     #[arg(short, long, value_name = "TAG", value_parser = validate_tag)]
@@ -37,7 +45,8 @@ pub struct EditCommand {
 
 impl EditCommand {
     pub fn has_changes(&self) -> bool {
-        self.command.is_some()
+        self.interactive
+            || self.command.is_some()
             || self.description.is_some()
             || self.clear_description
             || !self.add_tag.is_empty()
@@ -54,8 +63,10 @@ mod tests {
 
     fn command() -> EditCommand {
         EditCommand {
-            name: "test".into(),
+            name: Some("test".into()),
             command: None,
+            interactive: false,
+            all: false,
             description: None,
             clear_description: false,
             add_tag: vec![],

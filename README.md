@@ -7,6 +7,7 @@ CLI tool to manage shell aliases from a single, versionable TOML file, written i
 - Store aliases in `~/.config/aliasmgr/aliases.toml` (or a custom path).
 - Add optional descriptions and multiple searchable tags to aliases.
 - Add, edit, list, rename, enable, disable, and remove aliases or tag selections.
+- Edit one alias or the complete catalog in an inline mouse-and-keyboard terminal UI.
 - Render human-readable listings as configurable tables, or emit JSON for scripts.
 - Keep open terminals synchronized automatically before each prompt.
 - Track managed aliases per terminal so stale aliases can be removed without clearing unrelated shell aliases.
@@ -80,6 +81,8 @@ Table headers are bold by default when styling is enabled. Set `styles.header.bo
 
 - `aliasmgr add <name> <command> [-g|--global] [-t|--tag <tag>]... [-d|--description <text>] [--disabled]`
 - `aliasmgr edit <name> [command] [-a|--add-tag <tag>]... [-r|--remove-tag <tag>]... [-d|--description <text> | --clear-description] [-g|--global | --no-global]`
+- `aliasmgr edit -i <name>`
+- `aliasmgr edit -i --all`
 - `aliasmgr import <path>... [-d|--dry-run] [-s|--skip-existing | -r|--replace-existing] [-t|--tag <tag>]...`
 - `aliasmgr list [pattern] [-t|--tag <tag>]... [-d|--disabled | --all] [-g|--global] [--columns <columns>] [-f|--format <human|json>]`
 - `aliasmgr remove <name>`
@@ -105,6 +108,27 @@ Table headers are bold by default when styling is enabled. Set `styles.header.bo
 - `aliasmgr doctor` (also available as `aliasmgr validate`)
 
 For more details, use `-h` or `--help`.
+
+### Interactive editing
+
+Use `edit -i <name>` to edit one alias or `edit -i --all` to manage the complete catalog. The interactive editor occupies an automatically sized region at the bottom of the current terminal instead of switching to a full-screen alternate buffer. On small terminals, the catalog list and edit form become separate compact views.
+
+The single-alias form can change the name, command, description, comma-separated tags, and enabled state. Under Zsh it also shows a global-alias toggle; Bash preserves existing global state without showing that control. Renaming or adding an alias with an existing name asks before replacing it.
+
+The full-catalog editor searches alias names, commands, descriptions, and tags and supports adding, deleting, renaming, and replacing aliases. Changes remain in memory until saved. Invalid names, empty commands, and invalid tags prevent saving; cancelling or discarding leaves the catalog unchanged.
+
+Keyboard controls:
+
+- `Tab` / `Shift-Tab`: move focus.
+- Arrow keys: navigate lists, text, and choices.
+- `Space`: toggle the focused enabled/global control.
+- `Enter`: activate the focused action or open the compact edit form.
+- `Ctrl-S`: validate and save.
+- `Esc`: go back or cancel the current dialog.
+- `q`: quit when a text field is not focused.
+- `?`: show in-app help.
+
+Mouse clicks select fields and actions; the scroll wheel navigates the alias list. Attempting to quit with unsaved changes offers Save, Discard, and Cancel. The global `--yes`, `--no`, and `--no-input` controls cannot be combined with interactive editing.
 
 Notes:
 

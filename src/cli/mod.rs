@@ -111,6 +111,22 @@ impl Cli {
                 "--no cannot be used with --replace-existing",
             ));
         }
+        if let Commands::Edit(cmd) = &self.command {
+            if cmd.interactive
+                && let Some(control) = controls.first()
+            {
+                return Err(Self::command().error(
+                    ErrorKind::ArgumentConflict,
+                    format!("{control} cannot be used with --interactive"),
+                ));
+            }
+            if cmd.name.is_none() && !cmd.all {
+                return Err(Self::command().error(
+                    ErrorKind::MissingRequiredArgument,
+                    "edit requires an alias name or --interactive --all",
+                ));
+            }
+        }
         if matches!(&self.command, Commands::Edit(cmd) if !cmd.has_changes()) {
             return Err(Self::command().error(
                 ErrorKind::MissingRequiredArgument,
@@ -144,7 +160,7 @@ pub enum Commands {
     /// Rename an alias or tag
     #[command(visible_alias = "rn")]
     Rename(RenameCommand),
-    /// Edit an alias command or metadata
+    /// Edit aliases directly or in an interactive terminal UI
     #[command(visible_alias = "ed")]
     Edit(EditCommand),
     /// Import aliases from Bash or Zsh files
@@ -212,6 +228,30 @@ mod tests {
     }
 
     #[test]
+    fn interactive_edit_supports_one_or_all_and_rejects_prompt_controls() {
+        for args in [
+            &["aliasmgr", "edit", "ll", "--interactive"][..],
+            &["aliasmgr", "edit", "--interactive", "--all"][..],
+        ] {
+            let cli = Cli::try_parse_from(args).unwrap();
+            assert!(cli.validate_prompt_controls().is_ok(), "{args:?}");
+        }
+        for args in [
+            &["aliasmgr", "edit", "--interactive"][..],
+            &["aliasmgr", "edit", "ll", "--interactive", "command"][..],
+            &["aliasmgr", "edit", "ll", "--interactive", "--yes"][..],
+            &["aliasmgr", "edit", "ll", "--interactive", "--no"][..],
+            &["aliasmgr", "edit", "ll", "--interactive", "--no-input"][..],
+        ] {
+            let result = Cli::try_parse_from(args).and_then(|cli| {
+                cli.validate_prompt_controls()?;
+                Ok(cli)
+            });
+            assert!(result.is_err(), "{args:?}");
+        }
+    }
+
+    #[test]
     fn edit_rejects_removed_toggle_flags_and_conflicting_global_states() {
         for args in [
             &["aliasmgr", "edit", "ll", "--toggle-enabled"][..],
@@ -266,6 +306,8 @@ mod tests {
         assert_eq!(
             options(command.find_subcommand_mut("edit").unwrap(), "Options"),
             [
+                "interactive",
+                "all",
                 "add-tag",
                 "remove-tag",
                 "description",

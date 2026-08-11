@@ -1,7 +1,8 @@
 //! Load and save the alias catalog.
 
 use std::fs;
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use log::{debug, info, warn};
@@ -77,11 +78,43 @@ pub fn save_catalog(catalog: &mut AliasCatalog, path: &PathBuf) -> Result<()> {
     if !path.exists() {
         warn!("alias catalog file {:?} does not exist, creating it", path);
     }
-    if let Some(parent) = path.parent() {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
         fs::create_dir_all(parent)?;
     }
     debug!("Saving catalog to {:?}", path);
-    fs::write(path, content).with_context(|| format!("could not save catalog '{}'", path.display()))
+    atomic_write(path, content.as_bytes())
+        .with_context(|| format!("could not save catalog '{}'", path.display()))
+}
+
+fn atomic_write(path: &Path, content: &[u8]) -> Result<()> {
+    let write_path =
+        if fs::symlink_metadata(path).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+            fs::canonicalize(path)?
+        } else {
+            path.to_owned()
+        };
+    let parent = write_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let permissions = fs::metadata(&write_path)
+        .ok()
+        .map(|metadata| metadata.permissions());
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+    temporary.write_all(content)?;
+    temporary.as_file_mut().sync_all()?;
+    if let Some(permissions) = permissions {
+        temporary.as_file().set_permissions(permissions)?;
+    }
+    temporary
+        .persist(&write_path)
+        .map_err(|error| error.error)?;
+    #[cfg(unix)]
+    fs::File::open(parent)?.sync_all()?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -214,5 +247,55 @@ mod tests {
     #[test]
     fn default_catalog_path_uses_aliasmgr_config_directory() {
         assert!(catalog_path(None).ends_with("aliasmgr/aliases.toml"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn catalog_replacement_is_atomic_and_preserves_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = TempDir::new().unwrap();
+        let path = directory.path().join("aliases.toml");
+        fs::write(&path, "old = \"value\"\n").unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).unwrap();
+        let mut catalog = AliasCatalog::new();
+        catalog
+            .aliases
+            .insert("new".into(), Alias::new("value".into(), true, false));
+
+        save_catalog(&mut catalog, &path).unwrap();
+
+        assert_eq!(fs::read_to_string(&path).unwrap(), "new = \"value\"\n");
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o640
+        );
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn atomic_save_preserves_a_catalog_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let directory = TempDir::new().unwrap();
+        let target = directory.path().join("managed.toml");
+        let link = directory.path().join("aliases.toml");
+        fs::write(&target, "old = \"value\"\n").unwrap();
+        symlink(&target, &link).unwrap();
+        let mut catalog = AliasCatalog::new();
+        catalog
+            .aliases
+            .insert("new".into(), Alias::new("value".into(), true, false));
+
+        save_catalog(&mut catalog, &link).unwrap();
+
+        assert!(
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(fs::read_to_string(&target).unwrap(), "new = \"value\"\n");
     }
 }

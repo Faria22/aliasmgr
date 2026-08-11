@@ -150,11 +150,11 @@ fn main() {
             match outcome {
                 Outcome::NoChanges => debug!("No changes made to catalog or shell."),
                 Outcome::CatalogChanged => {
-                    if save_catalog(&mut catalog, &resolve_catalog_path(catalog_path.as_ref()))
-                        .is_err()
+                    if let Err(error) =
+                        save_catalog(&mut catalog, &resolve_catalog_path(catalog_path.as_ref()))
                     {
-                        eprintln!("Failed to save updated catalog.");
-                        return;
+                        eprintln!("ERROR: {error:#}");
+                        std::process::exit(1);
                     }
                     debug!("New catalog saved.");
                 }

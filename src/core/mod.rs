@@ -22,6 +22,7 @@ pub enum Failure {
     InvalidCatalog,
     InvalidPattern,
     InvalidColumns,
+    InteractiveEditor(String),
 }
 
 impl std::fmt::Display for Failure {
@@ -35,6 +36,7 @@ impl std::fmt::Display for Failure {
             Self::InvalidCatalog => "catalog is invalid",
             Self::InvalidPattern => "invalid glob pattern",
             Self::InvalidColumns => "list columns must not contain duplicates",
+            Self::InteractiveEditor(message) => message,
         };
         formatter.write_str(message)
     }
@@ -67,6 +69,10 @@ mod tests {
             (
                 Failure::InvalidColumns,
                 "list columns must not contain duplicates",
+            ),
+            (
+                Failure::InteractiveEditor("interactive editor failed".into()),
+                "interactive editor failed",
             ),
         ];
         for (failure, message) in cases {
