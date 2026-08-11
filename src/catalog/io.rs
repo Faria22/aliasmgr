@@ -41,12 +41,7 @@ pub fn load_catalog(path: &PathBuf) -> Result<AliasCatalog> {
 }
 
 fn build_alias_item(alias: &Alias) -> Item {
-    if !alias.detailed
-        && alias.enabled
-        && !alias.global
-        && alias.description.is_none()
-        && alias.tags.is_empty()
-    {
+    if !alias.detailed {
         return Item::Value(alias.command.clone().into());
     }
 
@@ -68,15 +63,16 @@ fn build_alias_item(alias: &Alias) -> Item {
     Item::Value(inline.into())
 }
 
-fn build_toml_document(catalog: &AliasCatalog) -> DocumentMut {
+fn build_toml_document(catalog: &mut AliasCatalog) -> DocumentMut {
     let mut document = DocumentMut::new();
-    for (name, alias) in &catalog.aliases {
+    for (name, alias) in &mut catalog.aliases {
+        alias.refresh_representation();
         document[name] = build_alias_item(alias);
     }
     document
 }
 
-pub fn save_catalog(catalog: &AliasCatalog, path: &PathBuf) -> Result<()> {
+pub fn save_catalog(catalog: &mut AliasCatalog, path: &PathBuf) -> Result<()> {
     let content = build_toml_document(catalog).to_string();
     if !path.exists() {
         warn!("alias catalog file {:?} does not exist, creating it", path);
@@ -104,12 +100,69 @@ mod tests {
         alias
             .tags
             .extend(["rust".into(), "dev".into(), "rust".into()]);
-        alias.refresh_representation();
         catalog.aliases.insert("test".into(), alias);
 
-        save_catalog(&catalog, &path).unwrap();
+        save_catalog(&mut catalog, &path).unwrap();
         let saved = fs::read_to_string(&path).unwrap();
         assert!(saved.contains("tags = [\"dev\", \"rust\"]"));
+        assert_eq!(load_catalog(&path).unwrap(), catalog);
+    }
+
+    #[test]
+    fn saving_refreshes_each_alias_representation() {
+        let directory = TempDir::new().unwrap();
+        let path = directory.path().join("aliases.toml");
+        let mut catalog = AliasCatalog::new();
+
+        let mut disabled = Alias::new("disabled".into(), true, false);
+        disabled.enabled = false;
+        catalog.aliases.insert("disabled".into(), disabled);
+
+        let mut global = Alias::new("global".into(), true, false);
+        global.global = true;
+        catalog.aliases.insert("global".into(), global);
+
+        let mut described = Alias::new("described".into(), true, false);
+        described.description = Some("Description".into());
+        catalog.aliases.insert("described".into(), described);
+
+        let mut tagged = Alias::new("tagged".into(), true, false);
+        tagged.tags.insert("tag".into());
+        catalog.aliases.insert("tagged".into(), tagged);
+
+        assert!(catalog.aliases.values().all(|alias| !alias.detailed));
+        save_catalog(&mut catalog, &path).unwrap();
+
+        assert!(catalog.aliases.values().all(|alias| alias.detailed));
+        let saved = fs::read_to_string(&path).unwrap();
+        assert_eq!(
+            saved,
+            concat!(
+                "described = { command = \"described\", enabled = true, global = false, description = \"Description\" }\n",
+                "disabled = { command = \"disabled\", enabled = false, global = false }\n",
+                "global = { command = \"global\", enabled = true, global = true }\n",
+                "tagged = { command = \"tagged\", enabled = true, global = false, tags = [\"tag\"] }\n",
+            )
+        );
+        assert_eq!(load_catalog(&path).unwrap(), catalog);
+    }
+
+    #[test]
+    fn saving_normalizes_unneeded_detailed_representation() {
+        let directory = TempDir::new().unwrap();
+        let path = directory.path().join("aliases.toml");
+        fs::write(
+            &path,
+            "ll = { command = \"ls -la\", enabled = true, global = false }\n",
+        )
+        .unwrap();
+        let mut catalog = load_catalog(&path).unwrap();
+        assert!(catalog.aliases["ll"].detailed);
+
+        save_catalog(&mut catalog, &path).unwrap();
+
+        assert!(!catalog.aliases["ll"].detailed);
+        assert_eq!(fs::read_to_string(&path).unwrap(), "ll = \"ls -la\"\n");
         assert_eq!(load_catalog(&path).unwrap(), catalog);
     }
 
@@ -122,9 +175,12 @@ mod tests {
             "ll = \"ls -la\"\ntest = { command = \"cargo test\", tags = [\"dev\"] }\n",
         )
         .unwrap();
-        let catalog = load_catalog(&path).unwrap();
+        let mut catalog = load_catalog(&path).unwrap();
         assert!(!catalog.aliases["ll"].detailed);
         assert!(catalog.aliases["test"].tags.contains("dev"));
+
+        save_catalog(&mut catalog, &path).unwrap();
+        assert_eq!(load_catalog(&path).unwrap(), catalog);
     }
 
     #[test]

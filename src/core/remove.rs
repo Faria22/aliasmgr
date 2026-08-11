@@ -33,7 +33,6 @@ pub fn remove_tag(catalog: &mut AliasCatalog, tag: &str) -> Result<(Outcome, usi
     let mut changed = 0;
     for alias in catalog.aliases.values_mut() {
         if alias.tags.remove(tag) {
-            alias.refresh_representation();
             changed += 1;
         }
     }

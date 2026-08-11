@@ -29,7 +29,6 @@ pub fn handle_add(
     let mut alias = Alias::new(args.command, !args.disabled, args.global);
     alias.description = args.description;
     alias.tags.extend(args.tag);
-    alias.refresh_representation();
 
     let outcome = if catalog.aliases.contains_key(&args.name) {
         if prompt_overwrite_existing_alias(interaction_mode, &args.name) {

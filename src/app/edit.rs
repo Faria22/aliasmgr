@@ -40,7 +40,6 @@ pub fn handle_edit(
     if cmd.no_global {
         alias.global = false;
     }
-    alias.refresh_representation();
     let outcome = edit_alias(catalog, &cmd.name, &alias)?;
     if outcome == Outcome::CatalogChanged {
         for warning in conflict_warnings([cmd.name.as_str()], shell)
