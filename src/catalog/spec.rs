@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::types::{Alias, AliasCatalog};
 
-fn default_enabled() -> bool {
+fn enabled_by_default() -> bool {
     true
 }
 
@@ -14,7 +14,7 @@ fn default_enabled() -> bool {
 pub struct AliasSpec {
     pub command: String,
 
-    #[serde(default = "default_enabled")]
+    #[serde(default = "enabled_by_default")]
     pub enabled: bool,
 
     #[serde(default)]
