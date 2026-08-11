@@ -1,7 +1,7 @@
 use log::{error, warn};
 
 use crate::catalog::types::{Alias, AliasCatalog};
-use crate::cli::add::{AddCommand, AddTarget};
+use crate::cli::add::AddCommand;
 use crate::cli::interaction::{InteractionMode, prompt_overwrite_existing_alias};
 use crate::core::add::add_alias;
 use crate::core::conflict::conflict_warnings;
@@ -13,14 +13,10 @@ use super::shell::ShellType;
 
 pub fn handle_add(
     catalog: &mut AliasCatalog,
-    cmd: AddCommand,
+    args: AddCommand,
     shell: &ShellType,
     interaction_mode: InteractionMode,
 ) -> Result<Outcome, Failure> {
-    let args = match cmd.target {
-        Some(AddTarget::Alias(args)) => args,
-        None => cmd.alias.into_alias_args(),
-    };
     if args.global && *shell != ShellType::Zsh {
         error!("Global aliases are only supported in zsh.");
         return Err(Failure::UnsupportedGlobalAlias);

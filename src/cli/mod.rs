@@ -119,7 +119,6 @@ pub enum Commands {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use crate::cli::add::AddTarget;
 
     #[test]
     fn parses_repeated_add_tags() {
@@ -128,15 +127,15 @@ mod tests {
         ])
         .unwrap();
         assert!(
-            matches!(cli.command, Commands::Add(AddCommand { target: None, alias }) if alias.tag == ["shell", "files"])
+            matches!(cli.command, Commands::Add(AddCommand { tag, .. }) if tag == ["shell", "files"])
         );
     }
 
     #[test]
-    fn explicit_alias_form_allows_reserved_name() {
-        let cli = Cli::try_parse_from(["aliasmgr", "add", "alias", "all", "echo all"]).unwrap();
+    fn alias_is_a_regular_add_name() {
+        let cli = Cli::try_parse_from(["aliasmgr", "add", "alias", "echo alias"]).unwrap();
         assert!(
-            matches!(cli.command, Commands::Add(AddCommand { target: Some(AddTarget::Alias(args)), .. }) if args.name == "all")
+            matches!(cli.command, Commands::Add(AddCommand { name, command, .. }) if name == "alias" && command == "echo alias")
         );
     }
 

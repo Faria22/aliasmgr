@@ -44,7 +44,7 @@ existing_hook() { :; }
 PROMPT_COMMAND=(existing_hook)
 eval "$("$1" init bash --catalog "$2")"
 [ "${#PROMPT_COMMAND[@]}" -eq 2 ] || exit 10
-aliasmgr add alias smoke 'echo smoke' --tag test
+aliasmgr add smoke 'echo smoke' --tag test
 __aliasmgr_prompt_sync
 alias smoke | command grep -q 'echo smoke' || exit 11
 false
@@ -110,8 +110,8 @@ fn zsh_prompt_sync_reconciles_regular_and_global_aliases() {
     let catalog = tempfile::NamedTempFile::new().unwrap();
     let script = r#"
 eval "$("$1" init zsh --catalog "$2")"
-aliasmgr add alias smoke 'echo smoke'
-aliasmgr add alias glob '*.rs' --global
+aliasmgr add smoke 'echo smoke'
+aliasmgr add glob '*.rs' --global
 __aliasmgr_prompt_sync
 alias smoke | command grep -q 'echo smoke' || exit 50
 alias -g glob | command grep -Fq '*.rs' || exit 51

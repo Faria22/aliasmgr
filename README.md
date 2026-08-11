@@ -75,7 +75,6 @@ columns = ["status", "name", "command", "global", "tags", "description"]
 ## Commands
 
 - `aliasmgr add <name> <command> [--description <text>] [--tag <tag>]... [--disabled] [--global]`
-- `aliasmgr add alias <name> <command> ...` (explicit form for reserved names)
 - `aliasmgr edit <name> [command] [--description <text> | --clear-description] [--add-tag <tag>]... [--remove-tag <tag>]... [--toggle-enabled] [--toggle-global]`
 - `aliasmgr list [pattern] [--tag <tag>]... [--enabled | --disabled] [--global] [--columns <columns>] [--format <human|json>]`
 - `aliasmgr remove <name>`
