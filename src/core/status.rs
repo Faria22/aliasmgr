@@ -25,7 +25,6 @@ pub fn set_aliases(
             .expect("selected alias exists");
         if alias.enabled != enabled {
             alias.enabled = enabled;
-            alias.refresh_representation();
             changed += 1;
         }
     }

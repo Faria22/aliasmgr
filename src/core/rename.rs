@@ -37,7 +37,6 @@ pub fn rename_tag(
     for alias in catalog.aliases.values_mut() {
         if alias.tags.remove(old) {
             alias.tags.insert(new.into());
-            alias.refresh_representation();
             changed += 1;
         }
     }

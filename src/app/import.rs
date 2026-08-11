@@ -96,7 +96,6 @@ pub fn handle_import(
 
             let mut alias = Alias::new(command, true, global);
             alias.tags.extend(args.tag.iter().cloned());
-            alias.refresh_representation();
             candidate.aliases.insert(name, alias);
         }
     }

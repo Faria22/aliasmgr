@@ -150,7 +150,8 @@ fn main() {
             match outcome {
                 Outcome::NoChanges => debug!("No changes made to catalog or shell."),
                 Outcome::CatalogChanged => {
-                    if save_catalog(&catalog, &resolve_catalog_path(catalog_path.as_ref())).is_err()
+                    if save_catalog(&mut catalog, &resolve_catalog_path(catalog_path.as_ref()))
+                        .is_err()
                     {
                         eprintln!("Failed to save updated catalog.");
                         return;
