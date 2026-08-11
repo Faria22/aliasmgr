@@ -120,6 +120,57 @@ Notes:
 - `aliasmgr doctor` checks the catalog without modifying it. Invalid alias names or tags and malformed structures are errors; shell-incompatible global aliases and command conflicts are warnings.
 - `list --format json` always emits `name`, `command`, `enabled`, `global`, `tags`, and `description`. Missing descriptions are `null` and untagged aliases have an empty tag array.
 
+## Examples
+
+The recordings below use isolated catalogs under `/tmp`; they do not read or change your normal aliasmgr catalog. Each example includes the equivalent commands so the workflow remains usable without animated media.
+
+### Quick start
+
+Add a documented alias, inspect it, initialize aliasmgr in Bash, and use the alias.
+
+![Terminal recording of adding, listing, initializing, and using a greeting alias](docs/assets/quick-start.gif)
+
+```bash
+export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-quick-start.toml
+: > "$ALIASMGR_CATALOG_PATH"
+aliasmgr add greet "echo Hello from aliasmgr!" --description "Friendly greeting"
+aliasmgr list --columns name,command,description
+eval "$(aliasmgr init bash --no-auto-sync)"
+greet
+```
+
+### Organize and update aliases
+
+Use tags and descriptions to organize an initially disabled alias, then update and enable it.
+
+![Terminal recording of tagging, describing, editing, and enabling an alias named checks](docs/assets/organize-aliases.gif)
+
+```bash
+export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-organize-aliases.toml
+: > "$ALIASMGR_CATALOG_PATH"
+aliasmgr add checks "cargo test" --tag rust --tag dev --description "Run tests" --disabled
+aliasmgr list --all --columns status,name,tags,description
+aliasmgr edit checks "cargo test --all-targets" --remove-tag dev --add-tag ci --description "Run all tests"
+aliasmgr enable checks
+aliasmgr list --all --columns status,name,tags,description
+```
+
+### Automatic shell synchronization
+
+Once the prompt hook is initialized, changes to the catalog are applied before the next prompt. The updated alias is ready without another `eval` or a manual `aliasmgr sync`.
+
+![Terminal recording of an alias becoming available and updating through automatic Bash prompt synchronization](docs/assets/shell-sync.gif)
+
+```bash
+export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-shell-sync.toml
+: > "$ALIASMGR_CATALOG_PATH"
+eval "$(aliasmgr init bash)"
+aliasmgr add greet "echo Hello from the synced alias"
+greet
+aliasmgr edit greet "echo Updated at the next prompt"
+greet
+```
+
 ## Sync Behavior
 
 - Each initialized terminal tracks the alias names and effective catalog revision that it last applied.
@@ -135,6 +186,9 @@ Notes:
 - Run tests: `cargo test`
 - Format: `cargo fmt`
 - Lint: `cargo clippy`
+- Regenerate README recordings: `./scripts/render-vhs.sh` (requires VHS v0.11.0). To render one recording, run `cargo build --locked && vhs docs/vhs/quick-start.tape` from the repository root.
+
+CI uses the same renderer version and fails when regenerating the tapes changes the committed final-frame hashes, so command changes must include updated recordings. The content hash avoids false failures from nondeterministic GIF encoding and capture timing.
 
 ## Releasing
 

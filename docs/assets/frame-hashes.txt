@@ -1,0 +1,3 @@
+2af3f7b4878da33ed22e99adb544372a8e251ecc5e9404f6151a267e91769aec  docs/assets/organize-aliases.gif
+8857e9be1c721111b658256f7f83f39d5a5cdcf182196214c264590664618cd4  docs/assets/quick-start.gif
+2f2cdef52940e4dba169683d2c8972024674101ffc5bc811655a9b2dec5b6a80  docs/assets/shell-sync.gif

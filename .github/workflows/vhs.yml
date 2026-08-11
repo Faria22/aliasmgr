@@ -1,0 +1,32 @@
+name: VHS recordings
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recordings:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install VHS
+        uses: charmbracelet/vhs-action@59641cdc7fadf3978db65eb8c6937ea2752f4ec3 # v2
+        with:
+          version: v0.11.0
+      - name: Render recordings
+        run: ./scripts/render-vhs.sh
+      - name: Check committed recording content
+        run: git diff --exit-code -- docs/assets/frame-hashes.txt
+      - name: Upload generated recordings on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-vhs-recordings
+          path: |
+            docs/assets/*.gif
+            docs/assets/frame-hashes.txt
+          if-no-files-found: ignore
