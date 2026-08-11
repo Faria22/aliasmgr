@@ -49,6 +49,16 @@ pub fn prompt_overwrite_existing_alias(mode: InteractionMode, alias: &str) -> bo
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
+pub fn prompt_replace_imported_alias(mode: InteractionMode, alias: &str) -> bool {
+    confirm(
+        mode,
+        "replace an existing alias during import",
+        format!("Alias \"{alias}\" already exists. Replace it with the imported alias?"),
+        false,
+    )
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn prompt_use_non_existing_catalog_file(mode: InteractionMode, path: &str) -> bool {
     confirm(
         mode,

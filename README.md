@@ -77,6 +77,7 @@ status = "auto"
 
 - `aliasmgr add <name> <command> [-g|--global] [-t|--tag <tag>]... [-d|--description <text>] [--disabled]`
 - `aliasmgr edit <name> [command] [-a|--add-tag <tag>]... [-r|--remove-tag <tag>]... [-d|--description <text> | --clear-description] [-g|--global | --no-global]`
+- `aliasmgr import <path>... [--tag <tag>]... [--dry-run] [--skip-existing | --replace-existing]`
 - `aliasmgr list [pattern] [-t|--tag <tag>]... [-d|--disabled | --all] [-g|--global] [--columns <columns>] [-f|--format <human|json>]`
 - `aliasmgr remove <name>`
 - `aliasmgr remove alias <name>`
@@ -105,6 +106,7 @@ For more details, use `-h` or `--help`.
 Notes:
 
 - Repeat `--tag` when creating an alias or filtering by multiple tags. Filters use AND semantics: every supplied tag must be present.
+- `import` reads ordinary Bash and Zsh alias declarations from one or more files. Unsupported lines are skipped. Existing aliases prompt before replacement and default to being kept; use `--skip-existing` to keep them non-interactively, or `--replace-existing`/`--yes` to replace them. `--dry-run` reports counts without prompting or changing the catalog.
 - `list` shows enabled aliases by default. Use `--disabled` for disabled aliases or `--all` for both.
 - Tags are case-sensitive and cannot be empty or contain whitespace.
 - `-y`/`--yes`, `-n`/`--no`, and `-N`/`--no-input` are mutually exclusive global prompt controls. They respectively accept, decline, or fail with status 2 when confirmation is required.

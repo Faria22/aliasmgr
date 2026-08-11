@@ -4,6 +4,7 @@ pub(crate) mod doctor;
 pub(crate) mod edit;
 pub(crate) mod enable;
 pub(crate) mod file_path;
+pub(crate) mod import;
 pub(crate) mod init;
 pub(crate) mod list;
 pub(crate) mod remove;

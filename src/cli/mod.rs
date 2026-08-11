@@ -5,6 +5,7 @@ pub(crate) mod disable;
 pub(crate) mod doctor;
 pub(crate) mod edit;
 pub(crate) mod enable;
+pub(crate) mod import;
 pub(crate) mod init;
 pub(crate) mod interaction;
 pub(crate) mod list;
@@ -19,6 +20,7 @@ use disable::DisableCommand;
 use doctor::DoctorCommand;
 use edit::EditCommand;
 use enable::EnableCommand;
+use import::ImportCommand;
 use init::InitCommand;
 use list::ListCommand;
 use remove::RemoveCommand;
@@ -97,6 +99,12 @@ impl Cli {
                 format!("{} cannot be used with {}", controls[0], controls[1]),
             ));
         }
+        if self.yes && matches!(&self.command, Commands::Import(cmd) if cmd.skip_existing) {
+            return Err(Self::command().error(
+                ErrorKind::ArgumentConflict,
+                "--yes cannot be used with --skip-existing",
+            ));
+        }
         if matches!(&self.command, Commands::Edit(cmd) if !cmd.has_changes()) {
             return Err(Self::command().error(
                 ErrorKind::MissingRequiredArgument,
@@ -133,6 +141,9 @@ pub enum Commands {
     /// Edit an alias command or metadata
     #[command(visible_alias = "ed")]
     Edit(EditCommand),
+    /// Import aliases from Bash or Zsh files
+    #[command(visible_alias = "im")]
+    Import(ImportCommand),
     /// Synchronize aliases with the catalog
     Sync(SyncCommand),
     #[command(hide = true)]
@@ -145,6 +156,7 @@ pub enum Commands {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use std::collections::HashMap;
+    use std::path::PathBuf;
 
     use super::*;
 
@@ -274,6 +286,24 @@ mod tests {
     }
 
     #[test]
+    fn import_parses_multiple_paths_tags_and_collision_policy() {
+        let cli = Cli::try_parse_from([
+            "aliasmgr",
+            "import",
+            ".bashrc",
+            ".zshrc",
+            "--tag",
+            "shell",
+            "--dry-run",
+            "--replace-existing",
+        ])
+        .unwrap();
+        assert!(
+            matches!(cli.command, Commands::Import(ImportCommand { paths, tag, dry_run: true, replace_existing: true, .. }) if paths == [PathBuf::from(".bashrc"), PathBuf::from(".zshrc")] && tag == ["shell"])
+        );
+    }
+
+    #[test]
     fn flags_have_help_and_unique_short_options_in_every_context() {
         fn assert_command(command: &Command) {
             let mut shorts = HashMap::new();
@@ -362,5 +392,26 @@ mod tests {
             .unwrap();
         assert_eq!(short(remove_alias, "pattern"), Some('p'));
         assert_eq!(short(remove_alias, "tag"), Some('t'));
+    }
+
+    #[test]
+    fn import_rejects_conflicting_collision_policies() {
+        assert!(
+            Cli::try_parse_from([
+                "aliasmgr",
+                "import",
+                ".zshrc",
+                "--skip-existing",
+                "--replace-existing",
+            ])
+            .is_err()
+        );
+
+        let cli = Cli::try_parse_from(["aliasmgr", "--yes", "import", ".zshrc", "--skip-existing"])
+            .unwrap();
+        assert_eq!(
+            cli.validate_prompt_controls().unwrap_err().kind(),
+            ErrorKind::ArgumentConflict
+        );
     }
 }
