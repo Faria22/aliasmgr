@@ -31,11 +31,10 @@ pub fn handle_import(
     catalog: &mut AliasCatalog,
     args: ImportCommand,
     interaction_mode: InteractionMode,
-    force: bool,
 ) -> Result<CommandOutcome, Failure> {
-    let policy = if force || args.replace_existing {
+    let policy = if args.replace_existing || interaction_mode == InteractionMode::Yes {
         CollisionPolicy::Replace
-    } else if args.skip_existing {
+    } else if args.skip_existing || interaction_mode == InteractionMode::No {
         CollisionPolicy::Skip
     } else {
         CollisionPolicy::Prompt

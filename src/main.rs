@@ -128,7 +128,7 @@ fn main() {
         }
         Commands::Rename(cmd) => handle_rename(&mut catalog, cmd),
         Commands::Edit(cmd) => handle_edit(&mut catalog, cmd, &shell).map(CommandOutcome::from),
-        Commands::Import(cmd) => handle_import(&mut catalog, cmd, interaction_mode, cli.yes),
+        Commands::Import(cmd) => handle_import(&mut catalog, cmd, interaction_mode),
         Commands::Enable(cmd) => handle_enable(&mut catalog, cmd),
         Commands::Disable(cmd) => handle_disable(&mut catalog, cmd),
         Commands::Doctor(_) => handle_doctor(&catalog, &shell, quiet).map(CommandOutcome::from),

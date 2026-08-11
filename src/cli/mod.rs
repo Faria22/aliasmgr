@@ -105,6 +105,12 @@ impl Cli {
                 "--yes cannot be used with --skip-existing",
             ));
         }
+        if self.no && matches!(&self.command, Commands::Import(cmd) if cmd.replace_existing) {
+            return Err(Self::command().error(
+                ErrorKind::ArgumentConflict,
+                "--no cannot be used with --replace-existing",
+            ));
+        }
         if matches!(&self.command, Commands::Edit(cmd) if !cmd.has_changes()) {
             return Err(Self::command().error(
                 ErrorKind::MissingRequiredArgument,
@@ -269,6 +275,10 @@ mod tests {
             ]
         );
         assert_eq!(
+            options(command.find_subcommand_mut("import").unwrap(), "Options"),
+            ["dry-run", "skip-existing", "replace-existing", "tag"]
+        );
+        assert_eq!(
             options(command.find_subcommand_mut("list").unwrap(), "Options"),
             ["tag", "disabled", "all", "global", "columns", "format"]
         );
@@ -288,14 +298,7 @@ mod tests {
     #[test]
     fn import_parses_multiple_paths_tags_and_collision_policy() {
         let cli = Cli::try_parse_from([
-            "aliasmgr",
-            "import",
-            ".bashrc",
-            ".zshrc",
-            "--tag",
-            "shell",
-            "--dry-run",
-            "--replace-existing",
+            "aliasmgr", "import", ".bashrc", ".zshrc", "-t", "shell", "-d", "-r",
         ])
         .unwrap();
         assert!(
@@ -385,6 +388,12 @@ mod tests {
         assert_eq!(short(list, "tag"), Some('t'));
         assert!(short(list, "enabled").is_none());
 
+        let import = command.find_subcommand("import").unwrap();
+        assert_eq!(short(import, "dry-run"), Some('d'));
+        assert_eq!(short(import, "skip-existing"), Some('s'));
+        assert_eq!(short(import, "replace-existing"), Some('r'));
+        assert_eq!(short(import, "tag"), Some('t'));
+
         let remove_alias = command
             .find_subcommand("remove")
             .unwrap()
@@ -407,11 +416,15 @@ mod tests {
             .is_err()
         );
 
-        let cli = Cli::try_parse_from(["aliasmgr", "--yes", "import", ".zshrc", "--skip-existing"])
-            .unwrap();
-        assert_eq!(
-            cli.validate_prompt_controls().unwrap_err().kind(),
-            ErrorKind::ArgumentConflict
-        );
+        for args in [
+            &["aliasmgr", "--yes", "import", ".zshrc", "--skip-existing"][..],
+            &["aliasmgr", "--no", "import", ".zshrc", "--replace-existing"][..],
+        ] {
+            let cli = Cli::try_parse_from(args).unwrap();
+            assert_eq!(
+                cli.validate_prompt_controls().unwrap_err().kind(),
+                ErrorKind::ArgumentConflict
+            );
+        }
     }
 }
