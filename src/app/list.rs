@@ -198,7 +198,7 @@ fn format_human(
     colors_enabled: bool,
     terminal_width: Option<usize>,
 ) -> String {
-    if aliases.is_empty() {
+    if aliases.is_empty() || columns.is_empty() {
         return String::new();
     }
     let raw_rows = aliases
@@ -286,7 +286,7 @@ fn format_list_with_width(
     Ok(match cmd.format {
         OutputFormat::Json => format_json(&aliases),
         OutputFormat::Human => {
-            let columns = if let Some(columns) = &cmd.columns {
+            let mut columns = if let Some(columns) = &cmd.columns {
                 columns.clone()
             } else {
                 let mut columns = config.list.columns.clone();
@@ -301,6 +301,9 @@ fn format_list_with_width(
                 }
                 columns
             };
+            if *shell == ShellType::Bash {
+                columns.retain(|column| *column != ListColumn::Global);
+            }
             format_human(&aliases, &columns, config, colors_enabled, terminal_width)
         }
     })
@@ -352,7 +355,7 @@ mod tests {
     }
 
     #[test]
-    fn default_table_hides_redundant_status_column() {
+    fn default_table_hides_redundant_columns_for_bash() {
         let output = format_list_with_width(
             &catalog(),
             &command(OutputFormat::Human),
@@ -363,14 +366,20 @@ mod tests {
         )
         .unwrap();
         assert!(output.lines().next().unwrap().starts_with("Name  Command"));
-        assert!(
-            output
-                .lines()
-                .next()
-                .unwrap()
-                .contains("Global  Tags       Description")
-        );
-        assert!(!output.lines().next().unwrap().contains("Status"));
+        let header = output.lines().next().unwrap();
+        assert!(!header.contains("Status"));
+        assert!(!header.contains("Global"));
+
+        let output = format_list_with_width(
+            &catalog(),
+            &command(OutputFormat::Human),
+            &ShellType::Zsh,
+            &UserConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        assert!(output.lines().next().unwrap().contains("Global"));
     }
 
     #[test]
@@ -387,7 +396,7 @@ mod tests {
         )
         .unwrap();
         assert!(output.contains('…'));
-        assert_eq!(output.lines().next().unwrap().split_whitespace().count(), 6);
+        assert_eq!(output.lines().next().unwrap().split_whitespace().count(), 5);
     }
 
     #[test]
@@ -490,6 +499,34 @@ mod tests {
     }
 
     #[test]
+    fn bash_hides_an_explicit_global_column() {
+        let mut explicit = command(OutputFormat::Human);
+        explicit.columns = Some(vec![ListColumn::Name, ListColumn::Global]);
+        let output = format_list_with_width(
+            &catalog(),
+            &explicit,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        assert_eq!(output, "Name\ntest\n");
+
+        explicit.columns = Some(vec![ListColumn::Global]);
+        let output = format_list_with_width(
+            &catalog(),
+            &explicit,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        assert!(output.is_empty());
+    }
+
+    #[test]
     fn json_always_contains_metadata() {
         let output = format_list_with_width(
             &catalog(),
@@ -501,6 +538,7 @@ mod tests {
         )
         .unwrap();
         let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(value[0]["global"], false);
         assert_eq!(value[0]["tags"], serde_json::json!(["dev", "rust"]));
         assert_eq!(value[0]["description"], "Run the complete test suite");
     }
