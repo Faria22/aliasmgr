@@ -31,14 +31,14 @@ pub fn handle_edit(
     for tag in cmd.remove_tag {
         alias.tags.remove(&tag);
     }
-    if cmd.toggle_enabled {
-        alias.enabled = !alias.enabled;
-    }
-    if cmd.toggle_global {
+    if cmd.global {
         if !alias.global && *shell != ShellType::Zsh {
             return Err(Failure::UnsupportedGlobalAlias);
         }
-        alias.global = !alias.global;
+        alias.global = true;
+    }
+    if cmd.no_global {
+        alias.global = false;
     }
     alias.refresh_representation();
     let outcome = edit_alias(catalog, &cmd.name, &alias)?;

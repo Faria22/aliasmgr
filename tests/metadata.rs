@@ -50,12 +50,31 @@ fn metadata_commands_cover_exact_shorthand_tag_filter_and_all_forms() {
     let rename_shorthand = run_aliasmgr(&catalog, &["rename", "first", "one"]);
     assert!(rename_shorthand.status.success(), "{rename_shorthand:?}");
 
-    let edit = run_aliasmgr(&catalog, &["edit", "one", "--toggle-enabled"]);
-    assert!(edit.status.success(), "{edit:?}");
-    let global = run_aliasmgr_with_shell(&catalog, "zsh", &["edit", "one", "--toggle-global"]);
+    let global = run_aliasmgr_with_shell(&catalog, "zsh", &["edit", "one", "--global"]);
     assert!(global.status.success(), "{global:?}");
-    let global_off = run_aliasmgr_with_shell(&catalog, "bash", &["edit", "one", "--toggle-global"]);
+    let listed = run_aliasmgr_with_shell(&catalog, "zsh", &["list", "--all", "--format", "json"]);
+    let aliases: serde_json::Value = serde_json::from_slice(&listed.stdout).unwrap();
+    let one = aliases
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|alias| alias["command"] == "echo one")
+        .unwrap();
+    assert_eq!(one["enabled"], false);
+    assert_eq!(one["global"], true);
+
+    let global_off = run_aliasmgr_with_shell(&catalog, "bash", &["edit", "one", "--no-global"]);
     assert!(global_off.status.success(), "{global_off:?}");
+    let listed = run_aliasmgr(&catalog, &["list", "--all", "--format", "json"]);
+    let aliases: serde_json::Value = serde_json::from_slice(&listed.stdout).unwrap();
+    let one = aliases
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|alias| alias["command"] == "echo one")
+        .unwrap();
+    assert_eq!(one["enabled"], false);
+    assert_eq!(one["global"], false);
 
     let remove_tag = run_aliasmgr(&catalog, &["remove", "tag", "dev"]);
     assert!(remove_tag.status.success(), "{remove_tag:?}");
@@ -84,7 +103,7 @@ fn metadata_command_failures_are_reported() {
         &["enable", "alias", "missing"][..],
         &["disable", "missing"][..],
         &["edit", "missing", "echo changed"][..],
-        &["edit", "two", "--toggle-global"][..],
+        &["edit", "two", "--global"][..],
         &["remove", "alias", "missing"][..],
         &["remove", "tag", "missing"][..],
         &["rename", "alias", "missing", "new"][..],

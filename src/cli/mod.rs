@@ -74,7 +74,7 @@ impl Cli {
         if matches!(&self.command, Commands::Edit(cmd) if !cmd.has_changes()) {
             return Err(Self::command().error(
                 ErrorKind::MissingRequiredArgument,
-                "edit requires a replacement command or at least one metadata or toggle option",
+                "edit requires a replacement command or at least one metadata option",
             ));
         }
         Ok(())
@@ -163,5 +163,16 @@ mod tests {
             cli.validate_prompt_controls().unwrap_err().kind(),
             ErrorKind::MissingRequiredArgument
         );
+    }
+
+    #[test]
+    fn edit_rejects_removed_toggle_flags_and_conflicting_global_states() {
+        for args in [
+            &["aliasmgr", "edit", "ll", "--toggle-enabled"][..],
+            &["aliasmgr", "edit", "ll", "--toggle-global"][..],
+            &["aliasmgr", "edit", "ll", "--global", "--no-global"][..],
+        ] {
+            assert!(Cli::try_parse_from(args).is_err(), "{args:?}");
+        }
     }
 }

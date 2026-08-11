@@ -26,13 +26,13 @@ pub struct EditCommand {
     #[arg(long, value_name = "TAG", value_parser = validate_tag)]
     pub remove_tag: Vec<String>,
 
-    /// Toggle whether the alias is enabled
-    #[arg(long, short = 'e')]
-    pub toggle_enabled: bool,
+    /// Make the alias global
+    #[arg(short, long, conflicts_with = "no_global")]
+    pub global: bool,
 
-    /// Toggle whether the alias is global
-    #[arg(long, short = 'b')]
-    pub toggle_global: bool,
+    /// Make the alias non-global
+    #[arg(long)]
+    pub no_global: bool,
 }
 
 impl EditCommand {
@@ -42,8 +42,8 @@ impl EditCommand {
             || self.clear_description
             || !self.add_tag.is_empty()
             || !self.remove_tag.is_empty()
-            || self.toggle_enabled
-            || self.toggle_global
+            || self.global
+            || self.no_global
     }
 }
 
@@ -60,8 +60,8 @@ mod tests {
             clear_description: false,
             add_tag: vec![],
             remove_tag: vec![],
-            toggle_enabled: false,
-            toggle_global: false,
+            global: false,
+            no_global: false,
         }
     }
 
@@ -85,10 +85,10 @@ mod tests {
         value.remove_tag.push("tag".into());
         variants.push(value);
         let mut value = command();
-        value.toggle_enabled = true;
+        value.global = true;
         variants.push(value);
         let mut value = command();
-        value.toggle_global = true;
+        value.no_global = true;
         variants.push(value);
         assert!(variants.iter().all(EditCommand::has_changes));
     }
