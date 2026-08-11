@@ -40,7 +40,8 @@ pub fn load_catalog(path: &PathBuf) -> Result<AliasCatalog> {
     Ok(convert_spec_to_catalog(spec))
 }
 
-fn build_alias_item(alias: &Alias) -> Item {
+fn build_alias_item(alias: &mut Alias) -> Item {
+    alias.refresh_representation();
     if !alias.detailed {
         return Item::Value(alias.command.clone().into());
     }
@@ -66,7 +67,6 @@ fn build_alias_item(alias: &Alias) -> Item {
 fn build_toml_document(catalog: &mut AliasCatalog) -> DocumentMut {
     let mut document = DocumentMut::new();
     for (name, alias) in &mut catalog.aliases {
-        alias.refresh_representation();
         document[name] = build_alias_item(alias);
     }
     document
