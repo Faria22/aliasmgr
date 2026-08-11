@@ -1,4 +1,7 @@
 use clap::{ArgGroup, Args, ValueEnum};
+use serde::Deserialize;
+
+use super::validate_tag;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
 pub enum OutputFormat {
@@ -7,35 +10,45 @@ pub enum OutputFormat {
     Json,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum ListColumn {
+    Status,
+    Name,
+    Command,
+    Global,
+    Tags,
+    Description,
+}
+
+impl ListColumn {
+    pub const DEFAULTS: [Self; 6] = [
+        Self::Status,
+        Self::Name,
+        Self::Command,
+        Self::Global,
+        Self::Tags,
+        Self::Description,
+    ];
+}
+
 #[derive(Args)]
-#[command(
-    group(
-        ArgGroup::new("list_scope")
-            .args(["enabled", "disabled"])
-            .multiple(false)
-    )
-)]
+#[command(group(ArgGroup::new("list_scope").args(["disabled", "all"]).multiple(false)))]
 pub struct ListCommand {
-    /// List alias by name pattern
     pub pattern: Option<String>,
-
-    /// List aliases in GROUP. If left empty, list ungrouped aliases.
-    #[arg(short, long, num_args=0..=1, value_name = "GROUP")]
-    pub group: Option<Option<String>>,
-
-    /// List only enabled aliases
-    #[arg(short, long)]
-    pub enabled: bool,
-
-    /// Show only disabled aliases
+    /// List aliases containing every supplied tag
+    #[arg(short, long, value_name = "TAG", value_parser = validate_tag)]
+    pub tag: Vec<String>,
     #[arg(short, long)]
     pub disabled: bool,
-
-    /// Show only global aliases
+    /// List enabled and disabled aliases
+    #[arg(long)]
+    pub all: bool,
     #[arg(long)]
     pub global: bool,
-
-    /// Select the output format
     #[arg(long, value_enum, default_value = "human")]
     pub format: OutputFormat,
+    /// Override configured table columns, in display order
+    #[arg(long, value_enum, value_delimiter = ',', num_args = 1..)]
+    pub columns: Option<Vec<ListColumn>>,
 }

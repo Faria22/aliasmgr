@@ -1,46 +1,46 @@
 //! Catalog types for command aliases.
-//! ! This module defines the structures used to represent command aliases and their catalogs.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Representation of an alias in the catalog.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Alias {
     pub command: String,
-    pub group: Option<String>,
     pub enabled: bool,
+    pub global: bool,
+    pub description: Option<String>,
+    pub tags: BTreeSet<String>,
     // Keeps track of whether the alias uses detailed representation.
     pub detailed: bool,
-    pub global: bool,
 }
 
-/// Constructor for Alias with validation.
 impl Alias {
-    pub fn new(command: String, group: Option<String>, enabled: bool, global: bool) -> Self {
-        Alias {
+    pub fn new(command: String, enabled: bool, global: bool) -> Self {
+        Self {
             command,
             enabled,
-            group,
-            detailed: !enabled || global,
             global,
+            description: None,
+            tags: BTreeSet::new(),
+            detailed: !enabled || global,
         }
+    }
+
+    pub fn refresh_representation(&mut self) {
+        self.detailed =
+            !self.enabled || self.global || self.description.is_some() || !self.tags.is_empty();
     }
 }
 
-/// Overall catalog containing aliases and groups.
-#[derive(PartialEq, Eq, Debug)]
+/// Overall catalog containing aliases in deterministic name order.
+#[derive(PartialEq, Eq, Debug, Default)]
 pub struct AliasCatalog {
     pub aliases: BTreeMap<String, Alias>,
-    pub groups: BTreeMap<String, bool>,
 }
 
-/// Constructor for AliasCatalog.
 impl AliasCatalog {
     pub fn new() -> Self {
-        AliasCatalog {
-            aliases: BTreeMap::new(),
-            groups: BTreeMap::new(),
-        }
+        Self::default()
     }
 }
 
@@ -50,62 +50,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn enabled_non_global_alias_must_not_be_detailed() {
-        let alias = Alias::new("cmd".into(), None, true, false);
-        assert_eq!(
-            alias,
-            Alias {
-                command: "cmd".into(),
-                enabled: true,
-                group: None,
-                detailed: false,
-                global: false,
-            }
-        );
-    }
+    fn metadata_requires_detailed_representation() {
+        let mut alias = Alias::new("cmd".into(), true, false);
+        assert!(!alias.detailed);
 
-    #[test]
-    fn disabled_alias_must_be_detailed() {
-        let alias = Alias::new("cmd".into(), None, false, false);
-        assert_eq!(
-            alias,
-            Alias {
-                command: "cmd".into(),
-                enabled: false,
-                group: None,
-                detailed: true,
-                global: false,
-            }
-        );
-    }
-
-    #[test]
-    fn global_alias_must_be_detailed() {
-        let alias = Alias::new("cmd".into(), None, true, true);
-        assert_eq!(
-            alias,
-            Alias {
-                command: "cmd".into(),
-                enabled: true,
-                group: None,
-                detailed: true,
-                global: true,
-            }
-        );
-    }
-
-    #[test]
-    fn disabled_global_alias_must_be_detailed() {
-        let alias = Alias::new("cmd".into(), None, false, true);
-        assert_eq!(
-            alias,
-            Alias {
-                command: "cmd".into(),
-                enabled: false,
-                group: None,
-                detailed: true,
-                global: true,
-            }
-        )
+        alias.tags.insert("dev".into());
+        alias.refresh_representation();
+        assert!(alias.detailed);
     }
 }

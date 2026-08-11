@@ -1,6 +1,5 @@
 use crate::app::shell::ShellType;
 use crate::catalog::types::AliasCatalog;
-use crate::cli::doctor::DoctorCommand;
 use crate::core::validation::{ValidationReport, validate_catalog};
 use crate::core::{Failure, Outcome};
 
@@ -40,7 +39,6 @@ fn format_report(report: &ValidationReport, shell: &ShellType, quiet: bool) -> (
 
 pub fn handle_doctor(
     catalog: &AliasCatalog,
-    _cmd: DoctorCommand,
     shell: &ShellType,
     quiet: bool,
 ) -> Result<Outcome, Failure> {

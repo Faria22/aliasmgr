@@ -6,10 +6,8 @@ pub(crate) mod enable;
 pub(crate) mod file_path;
 pub(crate) mod init;
 pub(crate) mod list;
-pub(crate) mod r#move;
 pub(crate) mod remove;
 pub(crate) mod rename;
-pub(crate) mod resource;
 pub(crate) mod shell;
 pub(crate) mod sync;
 

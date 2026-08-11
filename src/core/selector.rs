@@ -1,28 +1,20 @@
 use globset::Glob;
 use log::error;
 
-use crate::catalog::types::AliasCatalog;
-
 use super::Failure;
+use crate::catalog::types::AliasCatalog;
 
 pub fn select_aliases(
     catalog: &AliasCatalog,
     pattern: Option<&str>,
-    group: Option<Option<&str>>,
+    tags: &[String],
 ) -> Result<Vec<String>, Failure> {
-    if let Some(Some(group)) = group
-        && !catalog.groups.contains_key(group)
-    {
-        error!("Group '{}' does not exist", group);
-        return Err(Failure::GroupDoesNotExist);
-    }
-
     let matcher = pattern
         .map(|pattern| {
             Glob::new(pattern)
                 .map(|glob| glob.compile_matcher())
                 .map_err(|error| {
-                    error!("Invalid glob pattern '{}': {}", pattern, error);
+                    error!("Invalid glob pattern '{pattern}': {error}");
                     Failure::InvalidPattern
                 })
         })
@@ -36,9 +28,22 @@ pub fn select_aliases(
                 .as_ref()
                 .is_none_or(|matcher| matcher.is_match(name))
         })
-        .filter(|(_, alias)| group.is_none_or(|group| alias.group.as_deref() == group))
+        .filter(|(_, alias)| tags.iter().all(|tag| alias.tags.contains(tag)))
         .map(|(name, _)| name.clone())
         .collect())
+}
+
+pub fn aliases_with_tag(catalog: &AliasCatalog, tag: &str) -> Result<Vec<String>, Failure> {
+    let names = select_aliases(catalog, None, &[tag.to_owned()])?;
+    if names.is_empty()
+        && !catalog
+            .aliases
+            .values()
+            .any(|alias| alias.tags.contains(tag))
+    {
+        return Err(Failure::TagDoesNotExist);
+    }
+    Ok(names)
 }
 
 #[cfg(test)]
@@ -47,50 +52,32 @@ mod tests {
     use super::*;
     use crate::catalog::types::Alias;
 
-    fn sample_catalog() -> AliasCatalog {
+    #[test]
+    fn tag_filters_use_and_semantics() {
         let mut catalog = AliasCatalog::new();
-        catalog.groups.insert("dev".into(), true);
-        catalog.groups.insert("ops".into(), true);
-        catalog.aliases.insert(
-            "build".into(),
-            Alias::new("cargo build".into(), Some("dev".into()), true, false),
-        );
-        catalog.aliases.insert(
-            "bench".into(),
-            Alias::new("cargo bench".into(), Some("dev".into()), true, false),
-        );
-        catalog.aliases.insert(
-            "deploy".into(),
-            Alias::new("deploy".into(), Some("ops".into()), true, false),
-        );
-        catalog.aliases.insert(
-            "local".into(),
-            Alias::new("echo local".into(), None, true, false),
-        );
-        catalog
-    }
+        let mut both = Alias::new("cmd".into(), true, false);
+        both.tags.extend(["dev".into(), "rust".into()]);
+        catalog.aliases.insert("both".into(), both);
+        let mut one = Alias::new("cmd".into(), true, false);
+        one.tags.insert("dev".into());
+        catalog.aliases.insert("one".into(), one);
 
-    #[test]
-    fn combines_pattern_and_group_filters() {
-        let selected = select_aliases(&sample_catalog(), Some("b*"), Some(Some("dev"))).unwrap();
-        assert_eq!(selected, ["bench", "build"]);
-    }
-
-    #[test]
-    fn selects_ungrouped_aliases() {
-        let selected = select_aliases(&sample_catalog(), None, Some(None)).unwrap();
-        assert_eq!(selected, ["local"]);
-    }
-
-    #[test]
-    fn rejects_missing_groups_and_invalid_patterns() {
         assert_eq!(
-            select_aliases(&sample_catalog(), None, Some(Some("missing"))),
-            Err(Failure::GroupDoesNotExist)
+            select_aliases(&catalog, None, &["dev".into(), "rust".into()]).unwrap(),
+            ["both"]
         );
+    }
+
+    #[test]
+    fn invalid_patterns_and_missing_tags_fail() {
+        let catalog = AliasCatalog::new();
         assert_eq!(
-            select_aliases(&sample_catalog(), Some("["), None),
+            select_aliases(&catalog, Some("["), &[]),
             Err(Failure::InvalidPattern)
+        );
+        assert_eq!(
+            aliases_with_tag(&catalog, "missing"),
+            Err(Failure::TagDoesNotExist)
         );
     }
 }

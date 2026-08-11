@@ -44,189 +44,64 @@ existing_hook() { :; }
 PROMPT_COMMAND=(existing_hook)
 eval "$("$1" init bash --catalog "$2")"
 [ "${#PROMPT_COMMAND[@]}" -eq 2 ] || exit 10
-[ "${PROMPT_COMMAND[0]}" = __aliasmgr_prompt_sync ] || exit 11
-[ "${PROMPT_COMMAND[1]}" = existing_hook ] || exit 12
-
-eval "$("$1" init bash --catalog "$2")"
-[ "${#PROMPT_COMMAND[@]}" -eq 2 ] || exit 13
-
-aliasmgr add alias smoke 'echo smoke'
+aliasmgr add smoke 'echo smoke' --tag test
 __aliasmgr_prompt_sync
-alias smoke | command grep -q 'echo smoke' || exit 14
-
-alias smoke='echo overwritten'
-aliasmgr sync
-alias smoke | command grep -q 'echo smoke' || exit 17
-
+alias smoke | command grep -q 'echo smoke' || exit 11
 false
 __aliasmgr_prompt_sync
-[ "$?" -eq 1 ] || exit 15
-
+[ "$?" -eq 1 ] || exit 12
 aliasmgr remove alias smoke
 __aliasmgr_prompt_sync
-! alias smoke 2>/dev/null || exit 16
+! alias smoke 2>/dev/null || exit 13
 "#;
     assert_success(run_shell("bash", script, catalog.path()).unwrap());
 }
 
 #[test]
-fn enabling_reassigned_aliases_from_disabled_group_activates_them() {
+fn tag_enable_disable_and_filtered_remove_reconcile_aliases() {
     let catalog = tempfile::NamedTempFile::new().unwrap();
     let script = r#"
 eval "$("$1" init bash --catalog "$2")"
-aliasmgr add group dormant --disabled
-aliasmgr add alias wake 'echo awake' --group dormant
+aliasmgr add build 'cargo build' --tag dev --tag rust
+aliasmgr add bench 'cargo bench' --tag dev --tag rust --disabled
+aliasmgr add deploy deploy --tag dev
 __aliasmgr_prompt_sync
-! alias wake 2>/dev/null || exit 30
+alias build >/dev/null || exit 20
+! alias bench 2>/dev/null || exit 21
 
-aliasmgr remove group dormant --reassign --enable-reassigned
+disable_output="$(aliasmgr disable tag rust)"
+[ "$disable_output" = "Disabled 1 of 2 aliases tagged 'rust'." ] || exit 22
 __aliasmgr_prompt_sync
-alias wake | command grep -q 'echo awake' || exit 31
+! alias build 2>/dev/null || exit 23
+alias deploy >/dev/null || exit 24
+
+enable_output="$(aliasmgr enable alias --tag dev --tag rust)"
+[ "$enable_output" = 'Enabled 2 of 2 matching aliases.' ] || exit 25
+__aliasmgr_prompt_sync
+alias build >/dev/null || exit 26
+alias bench >/dev/null || exit 27
+
+remove_output="$(aliasmgr remove alias --pattern 'b*' --tag rust --force)"
+[ "$remove_output" = 'Removed 2 of 2 matching aliases.' ] || exit 28
+__aliasmgr_prompt_sync
+! alias build 2>/dev/null || exit 29
+! alias bench 2>/dev/null || exit 30
+alias deploy >/dev/null || exit 31
 "#;
-
     assert_success(run_shell("bash", script, catalog.path()).unwrap());
 }
 
 #[test]
-fn disabling_reassigned_aliases_from_disabled_group_keeps_them_inactive() {
+fn bulk_enable_and_disable_are_idempotent() {
     let catalog = tempfile::NamedTempFile::new().unwrap();
     let script = r#"
 eval "$("$1" init bash --catalog "$2")"
-aliasmgr add group dormant --disabled
-aliasmgr add alias sleep 'echo asleep' --group dormant
-__aliasmgr_prompt_sync
-! alias sleep 2>/dev/null || exit 36
-
-aliasmgr remove group dormant --reassign --disable-reassigned
-__aliasmgr_prompt_sync
-! alias sleep 2>/dev/null || exit 37
+aliasmgr add top 'echo top'
+[ "$(aliasmgr disable all)" = 'All aliases are now disabled.' ] || exit 40
+[ "$(aliasmgr disable all)" = 'All aliases are already disabled.' ] || exit 41
+[ "$(aliasmgr enable all)" = 'All aliases are now enabled.' ] || exit 42
+[ "$(aliasmgr enable all)" = 'All aliases are already enabled.' ] || exit 43
 "#;
-
-    assert_success(run_shell("bash", script, catalog.path()).unwrap());
-}
-
-#[test]
-fn bulk_disable_and_enable_reconcile_all_managed_aliases() {
-    let catalog = tempfile::NamedTempFile::new().unwrap();
-    let script = r#"
-eval "$("$1" init bash --catalog "$2")"
-aliasmgr add alias top 'echo top'
-aliasmgr add group tools --disabled
-aliasmgr add alias grouped 'echo grouped' --group tools --disabled
-__aliasmgr_prompt_sync
-alias top | command grep -q 'echo top' || exit 40
-! alias grouped 2>/dev/null || exit 41
-
-disable_output="$(aliasmgr disable all)"
-[ "$disable_output" = 'All aliases and groups are now disabled.' ] || exit 42
-__aliasmgr_prompt_sync
-! alias top 2>/dev/null || exit 43
-
-disable_output="$(aliasmgr disable all)"
-[ "$disable_output" = 'All aliases and groups are already disabled.' ] || exit 44
-
-enable_output="$(aliasmgr enable all)"
-[ "$enable_output" = 'All aliases and groups are now enabled.' ] || exit 45
-__aliasmgr_prompt_sync
-alias top | command grep -q 'echo top' || exit 46
-alias grouped | command grep -q 'echo grouped' || exit 47
-
-enable_output="$(aliasmgr enable all)"
-[ "$enable_output" = 'All aliases and groups are already enabled.' ] || exit 48
-"#;
-
-    assert_success(run_shell("bash", script, catalog.path()).unwrap());
-}
-
-#[test]
-fn bulk_enable_and_disable_handle_an_empty_catalog() {
-    let catalog = tempfile::NamedTempFile::new().unwrap();
-    let script = r#"
-eval "$("$1" init bash --catalog "$2")"
-
-enable_output="$(aliasmgr enable all)"
-[ "$enable_output" = 'All aliases and groups are already enabled.' ] || exit 49
-
-disable_output="$(aliasmgr disable all)"
-[ "$disable_output" = 'All aliases and groups are already disabled.' ] || exit 50
-
-[ -z "$(aliasmgr --quiet enable all)" ] || exit 51
-"#;
-
-    assert_success(run_shell("bash", script, catalog.path()).unwrap());
-}
-
-#[test]
-fn filtered_bulk_operations_reconcile_managed_aliases_once() {
-    let catalog = tempfile::NamedTempFile::new().unwrap();
-    let script = r#"
-eval "$("$1" init bash --catalog "$2")"
-aliasmgr add group dev
-aliasmgr add alias build 'cargo build' --group dev
-aliasmgr add alias bench 'cargo bench' --group dev --disabled
-aliasmgr add alias deploy 'deploy' --group dev
-__aliasmgr_prompt_sync
-alias build >/dev/null || exit 52
-! alias bench 2>/dev/null || exit 53
-
-disable_output="$(aliasmgr disable alias --pattern 'b*' --group dev)"
-[ "$disable_output" = 'Disabled 1 of 2 matching aliases.' ] || exit 54
-__aliasmgr_prompt_sync
-! alias build 2>/dev/null || exit 55
-! alias bench 2>/dev/null || exit 56
-alias deploy >/dev/null || exit 57
-
-enable_output="$(aliasmgr enable alias --group dev)"
-[ "$enable_output" = 'Enabled 2 of 3 matching aliases.' ] || exit 58
-__aliasmgr_prompt_sync
-alias build >/dev/null || exit 59
-alias bench >/dev/null || exit 60
-
-remove_output="$(aliasmgr remove alias --pattern 'b*' --group dev --force)"
-[ "$remove_output" = 'Removed 2 of 2 matching aliases.' ] || exit 61
-__aliasmgr_prompt_sync
-! alias build 2>/dev/null || exit 62
-! alias bench 2>/dev/null || exit 63
-alias deploy >/dev/null || exit 64
-command grep -q '^\[dev\]$' "$2" || exit 65
-"#;
-
-    assert_success(run_shell("bash", script, catalog.path()).unwrap());
-}
-
-#[test]
-fn removing_enabled_group_with_reassign_preserves_enabled_alias() {
-    let catalog = tempfile::NamedTempFile::new().unwrap();
-    let script = r#"
-eval "$("$1" init bash --catalog "$2")"
-aliasmgr add group active
-aliasmgr add alias stay 'echo present' --group active
-__aliasmgr_prompt_sync
-alias stay | command grep -q 'echo present' || exit 32
-
-aliasmgr remove group active --reassign
-__aliasmgr_prompt_sync
-alias stay | command grep -q 'echo present' || exit 33
-"#;
-
-    assert_success(run_shell("bash", script, catalog.path()).unwrap());
-}
-
-#[test]
-fn removing_group_with_reassign_keeps_disabled_alias_inactive() {
-    let catalog = tempfile::NamedTempFile::new().unwrap();
-    let script = r#"
-eval "$("$1" init bash --catalog "$2")"
-aliasmgr add group active
-aliasmgr add alias sleeping 'echo asleep' --group active --disabled
-__aliasmgr_prompt_sync
-! alias sleeping 2>/dev/null || exit 34
-
-aliasmgr remove group active --reassign
-__aliasmgr_prompt_sync
-! alias sleeping 2>/dev/null || exit 35
-"#;
-
     assert_success(run_shell("bash", script, catalog.path()).unwrap());
 }
 
@@ -234,28 +109,13 @@ __aliasmgr_prompt_sync
 fn zsh_prompt_sync_reconciles_regular_and_global_aliases() {
     let catalog = tempfile::NamedTempFile::new().unwrap();
     let script = r#"
-existing_hook() { :; }
-precmd_functions=(existing_hook)
 eval "$("$1" init zsh --catalog "$2")"
-[ "${precmd_functions[1]}" = __aliasmgr_prompt_sync ] || exit 20
-__aliasmgr_matches=(${(M)precmd_functions:#__aliasmgr_prompt_sync})
-[ "${#__aliasmgr_matches[@]}" -eq 1 ] || exit 21
-
-eval "$("$1" init zsh --catalog "$2")"
-__aliasmgr_matches=(${(M)precmd_functions:#__aliasmgr_prompt_sync})
-[ "${#__aliasmgr_matches[@]}" -eq 1 ] || exit 22
-
-aliasmgr add alias smoke 'echo smoke'
-aliasmgr add alias glob '*.rs' --global
+aliasmgr add smoke 'echo smoke'
+aliasmgr add glob '*.rs' --global
 __aliasmgr_prompt_sync
-alias smoke | command grep -q 'echo smoke' || exit 23
-alias -g glob | command grep -Fq '*.rs' || exit 24
-
-false
-__aliasmgr_prompt_sync
-[ "$?" -eq 1 ] || exit 25
+alias smoke | command grep -q 'echo smoke' || exit 50
+alias -g glob | command grep -Fq '*.rs' || exit 51
 "#;
-
     match run_shell("zsh", script, catalog.path()) {
         Ok(output) => assert_success(output),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}

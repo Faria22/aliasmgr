@@ -19,10 +19,6 @@ fn active_aliases<'a>(catalog: &'a AliasCatalog, shell: &ShellType) -> Vec<Activ
             is_valid_alias_name(name)
                 && alias.enabled
                 && (!alias.global || *shell == ShellType::Zsh)
-                && alias
-                    .group
-                    .as_ref()
-                    .is_none_or(|group| catalog.groups.get(group) == Some(&true))
         })
         .map(|(name, alias)| ActiveAlias { name, alias })
         .collect()
@@ -102,7 +98,7 @@ mod tests {
     use super::*;
 
     fn alias(command: &str) -> Alias {
-        Alias::new(command.into(), None, true, false)
+        Alias::new(command.into(), true, false)
     }
 
     #[test]
@@ -152,19 +148,17 @@ mod tests {
     #[test]
     fn effective_catalog_controls_revision_and_aliases() {
         let mut catalog = AliasCatalog::new();
-        catalog.groups.insert("off".into(), false);
-        catalog.aliases.insert(
-            "disabled_group".into(),
-            Alias::new("nope".into(), Some("off".into()), true, false),
-        );
         catalog
             .aliases
-            .insert("global".into(), Alias::new("*.rs".into(), None, true, true));
+            .insert("disabled".into(), Alias::new("nope".into(), false, false));
+        catalog
+            .aliases
+            .insert("global".into(), Alias::new("*.rs".into(), true, true));
         catalog.aliases.insert("invalid name".into(), alias("nope"));
 
         let bash =
             generate_reconciliation_script(&catalog, &ShellType::Bash, "", "different", true);
-        assert!(!bash.contains("disabled_group"));
+        assert!(!bash.contains("disabled="));
         assert!(!bash.contains("global="));
         assert!(!bash.contains("invalid name="));
 

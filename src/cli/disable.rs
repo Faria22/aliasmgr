@@ -1,41 +1,27 @@
+use super::selector::AliasSelectorArgs;
+use super::validate_tag;
 use clap::{Args, Subcommand};
 
-use super::selector::AliasSelectorArgs;
-
 #[derive(Args)]
-#[command(
-    args_conflicts_with_subcommands = true,
-    subcommand_negates_reqs = true,
-    subcommand_help_heading = "Explicit resources",
-    subcommand_value_name = "RESOURCE"
-)]
+#[command(args_conflicts_with_subcommands = true, subcommand_negates_reqs = true)]
 pub struct DisableCommand {
-    /// Explicit resource type to disable
     #[command(subcommand)]
     pub target: Option<DisableTarget>,
-
-    /// Name of the alias or group to disable
     #[arg(required = true)]
     pub name: Option<String>,
 }
 
 #[derive(Subcommand)]
 pub enum DisableTarget {
-    /// Disable an alias
     #[command(visible_alias = "a")]
     Alias(AliasSelectorArgs),
-
-    /// Disable a group
-    #[command(visible_alias = "g")]
-    Group(DisableArgs),
-
-    /// Disable all aliases and groups
+    #[command(visible_alias = "t")]
+    Tag(TagArgs),
     All,
 }
 
 #[derive(Args)]
-pub struct DisableArgs {
-    // name
-    #[arg()]
+pub struct TagArgs {
+    #[arg(value_parser = validate_tag)]
     pub name: String,
 }

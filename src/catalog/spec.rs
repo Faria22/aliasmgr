@@ -1,182 +1,95 @@
-//! Specification structures and conversion functions for alias catalog.
-//! This module defines the structures used for serializing and deserializing
-//! alias catalogs, as well as functions to convert between the internal
-//! representation and the specification representation.
+//! Serializable catalog specification.
 
-use anyhow::{Result, bail};
+use std::collections::{BTreeMap, BTreeSet};
+
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 use super::types::{Alias, AliasCatalog};
 
-pub(crate) const COLLIDING_ALIAS_KEY: &str = "aliasmgr ungrouped alias";
-
-fn default_enabled() -> bool {
+fn enabled_by_default() -> bool {
     true
 }
 
-/// Specification structures for serialization/deserialization of alias.
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
 pub struct AliasSpec {
     pub command: String,
 
-    #[serde(default = "default_enabled")]
+    #[serde(default = "enabled_by_default")]
     pub enabled: bool,
 
     #[serde(default)]
     pub global: bool,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub tags: BTreeSet<String>,
 }
 
-/// Specification for a group of aliases.
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
-pub struct GroupSpec {
-    #[serde(default = "default_enabled")]
-    pub enabled: bool,
+#[serde(untagged)]
+pub enum AliasSpecTypes {
+    Simple(String),
+    Detailed(AliasSpec),
+}
 
-    #[serde(default, rename = "aliasmgr ungrouped alias")]
-    pub ungrouped_alias: Option<Box<AliasSpecTypes>>,
-
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
+pub struct AliasCatalogSpec {
     #[serde(flatten)]
     pub aliases: BTreeMap<String, AliasSpecTypes>,
 }
 
-/// Different types of alias specifications.
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
-#[serde(untagged)]
-pub enum AliasSpecTypes {
-    // foo = "bar"
-    Simple(String),
-
-    // foo = {command = "bar", enable = true}
-    Detailed(AliasSpec),
-
-    // [foo]
-    // foo = "bar"
-    // or
-    // foo = {command = "bar", enable = true}
-    Group(GroupSpec),
-}
-
-/// Overall catalog specification.
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
-pub struct AliasCatalogSpec {
-    #[serde(flatten)]
-    pub entries: BTreeMap<String, AliasSpecTypes>,
-}
-
-/// Convert an AliasSpecTypes to its corresponding Alias representation.
-///
-/// # Arguments
-/// * `spec` - The AliasSpecTypes to be converted.
-/// * `group` - An optional group name for the alias.
-///
-/// # Returns
-/// * An Alias representation of the given AliasSpecTypes.
-fn convert_spec_to_alias(spec: AliasSpecTypes, group: Option<String>) -> Result<Alias> {
-    Ok(match spec {
-        AliasSpecTypes::Simple(command) => Alias::new(command, group, true, false),
-        AliasSpecTypes::Detailed(alias_spec) => Alias {
-            command: alias_spec.command,
-            group,
-            enabled: alias_spec.enabled,
-            detailed: true,
-            global: alias_spec.global,
-        },
-        AliasSpecTypes::Group(_) => bail!("nested groups are not supported"),
-    })
-}
-
-fn insert_alias(aliases: &mut BTreeMap<String, Alias>, name: String, alias: Alias) -> Result<()> {
-    if aliases.insert(name.clone(), alias).is_some() {
-        bail!("alias '{name}' is defined more than once");
-    }
-    Ok(())
-}
-
-/// Convert an AliasCatalogSpec to its corresponding AliasCatalog representation.
-///
-/// # Arguments
-/// * `spec` - The AliasCatalogSpec to be converted.
-///
-/// # Returns
-/// * An AliasCatalog representation of the given AliasCatalogSpec.
-pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> Result<AliasCatalog> {
-    let mut aliases = BTreeMap::new();
-    let mut groups = BTreeMap::new();
-
-    for (name, entry) in spec.entries {
-        match entry {
-            AliasSpecTypes::Group(group_spec) => {
-                groups.insert(name.clone(), group_spec.enabled);
-
-                if let Some(alias_entry) = group_spec.ungrouped_alias {
-                    let alias = convert_spec_to_alias(*alias_entry, None)?;
-                    insert_alias(&mut aliases, name.clone(), alias)?;
-                }
-
-                for (alias_name, alias_entry) in group_spec.aliases {
-                    let alias = convert_spec_to_alias(alias_entry, Some(name.clone()))?;
-                    insert_alias(&mut aliases, alias_name, alias)?;
-                }
-            }
-            alias => {
-                let alias_cfg = convert_spec_to_alias(alias, None)?;
-                insert_alias(&mut aliases, name, alias_cfg)?;
-            }
-        }
-    }
-
-    Ok(AliasCatalog { aliases, groups })
+pub fn convert_spec_to_catalog(spec: AliasCatalogSpec) -> AliasCatalog {
+    let aliases = spec
+        .aliases
+        .into_iter()
+        .map(|(name, spec)| {
+            let alias = match spec {
+                AliasSpecTypes::Simple(command) => Alias::new(command, true, false),
+                AliasSpecTypes::Detailed(spec) => Alias {
+                    command: spec.command,
+                    enabled: spec.enabled,
+                    global: spec.global,
+                    description: spec.description,
+                    tags: spec.tags,
+                    detailed: true,
+                },
+            };
+            (name, alias)
+        })
+        .collect();
+    AliasCatalog { aliases }
 }
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use crate::catalog::tests::{SAMPLE_TOML, expected_catalog};
 
     #[test]
-    fn test_convert_spec_to_catalog() {
-        let spec: AliasCatalogSpec = toml::from_str(SAMPLE_TOML).unwrap();
-        let catalog = convert_spec_to_catalog(spec).unwrap();
-        assert_eq!(catalog, expected_catalog());
-    }
+    fn converts_mixed_simple_and_detailed_aliases() {
+        let spec: AliasCatalogSpec = toml::from_str(
+            r#"
+            ll = "ls -la"
+            test = { command = "cargo test", description = "Run tests", tags = ["dev", "rust"] }
+            "#,
+        )
+        .unwrap();
+        let catalog = convert_spec_to_catalog(spec);
 
-    #[test]
-    fn test_nested_group_handling() {
-        let toml_data = r#"
-        [group1]
-        enabled = true
-        alias1 = "command1"
-
-        [group1.subgroup]
-        enabled = false
-        alias2 = "command2"
-        "#;
-
-        let spec: AliasCatalogSpec = toml::from_str(toml_data).unwrap();
-        let error = convert_spec_to_catalog(spec).unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("nested groups are not supported")
-        );
-    }
-
-    #[test]
-    fn duplicate_alias_names_across_groups_are_rejected() {
-        let toml_data = r#"
-        [group1]
-        shared = "first"
-
-        [group2]
-        shared = "second"
-        "#;
-        let spec: AliasCatalogSpec = toml::from_str(toml_data).unwrap();
-        let error = convert_spec_to_catalog(spec).unwrap_err();
+        assert!(!catalog.aliases["ll"].detailed);
         assert_eq!(
-            error.to_string(),
-            "alias 'shared' is defined more than once"
+            catalog.aliases["test"].description.as_deref(),
+            Some("Run tests")
+        );
+        assert_eq!(
+            catalog.aliases["test"]
+                .tags
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["dev", "rust"]
         );
     }
 }
