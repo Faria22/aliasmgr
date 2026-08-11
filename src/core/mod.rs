@@ -3,6 +3,7 @@ pub(crate) mod conflict;
 pub(crate) mod disable;
 pub(crate) mod edit;
 pub(crate) mod enable;
+pub(crate) mod import;
 pub(crate) mod list;
 pub(crate) mod remove;
 pub(crate) mod rename;

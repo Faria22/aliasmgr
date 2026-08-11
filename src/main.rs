@@ -24,6 +24,7 @@ use app::doctor::handle_doctor;
 use app::edit::handle_edit;
 use app::enable::handle_enable;
 use app::file_path::determine_catalog_path;
+use app::import::handle_import;
 use app::init::handle_init;
 use app::list::handle_list;
 use app::remove::handle_remove;
@@ -114,6 +115,7 @@ fn main() {
         }
         Commands::Rename(cmd) => handle_rename(&mut catalog, cmd),
         Commands::Edit(cmd) => handle_edit(&mut catalog, cmd, &shell).map(CommandOutcome::from),
+        Commands::Import(cmd) => handle_import(&mut catalog, cmd, interaction_mode, cli.force),
         Commands::Enable(cmd) => handle_enable(&mut catalog, cmd),
         Commands::Disable(cmd) => handle_disable(&mut catalog, cmd),
         Commands::Doctor(_) => handle_doctor(&catalog, &shell, quiet).map(CommandOutcome::from),
