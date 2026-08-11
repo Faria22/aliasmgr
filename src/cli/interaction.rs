@@ -61,20 +61,32 @@ pub fn prompt_confirm_remove_all(mode: InteractionMode) -> bool {
 
 #[cfg_attr(coverage_nightly, coverage(off))]
 pub fn prompt_confirm_remove_aliases(mode: InteractionMode, count: usize) -> bool {
-    non_interactive_answer(
-        mode,
-        &format!("remove {count} aliases matching the selector"),
+    prompt_confirm_selected_aliases(mode, count, "matching the selector")
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn prompt_confirm_remove_tagged_aliases(
+    mode: InteractionMode,
+    count: usize,
+    tag: &str,
+) -> bool {
+    prompt_confirm_selected_aliases(mode, count, &format!("tagged '{tag}'"))
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn prompt_confirm_selected_aliases(mode: InteractionMode, count: usize, selection: &str) -> bool {
+    non_interactive_answer(mode, &format!("remove {count} aliases {selection}")).unwrap_or_else(
+        || {
+            Confirm::new()
+                .with_prompt(format!(
+                    "Remove {count} alias{} {selection}?",
+                    if count == 1 { "" } else { "es" },
+                ))
+                .default(false)
+                .interact()
+                .unwrap()
+        },
     )
-    .unwrap_or_else(|| {
-        Confirm::new()
-            .with_prompt(format!(
-                "Remove {count} alias{} matching the selector?",
-                if count == 1 { "" } else { "es" }
-            ))
-            .default(false)
-            .interact()
-            .unwrap()
-    })
 }
 
 #[cfg(test)]

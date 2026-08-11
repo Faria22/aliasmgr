@@ -1,10 +1,11 @@
 use crate::catalog::types::AliasCatalog;
 use crate::cli::interaction::{
     InteractionMode, prompt_confirm_remove_aliases, prompt_confirm_remove_all,
+    prompt_confirm_remove_tagged_aliases,
 };
 use crate::cli::remove::{RemoveCommand, RemoveTarget};
 use crate::core::remove::{remove_alias, remove_aliases, remove_all, remove_tag};
-use crate::core::selector::select_aliases;
+use crate::core::selector::{aliases_with_tag, select_aliases};
 use crate::core::{Failure, Outcome};
 
 use super::CommandOutcome;
@@ -37,6 +38,25 @@ pub fn handle_remove(
         Some(RemoveTarget::Alias(args)) => {
             remove_alias(catalog, args.name.as_deref().expect("exact name required"))
                 .map(CommandOutcome::from)
+        }
+        Some(RemoveTarget::Tag(args)) if args.aliases => {
+            let names = aliases_with_tag(catalog, &args.name)?;
+            let matched = names.len();
+            let confirmed =
+                prompt_confirm_remove_tagged_aliases(interaction_mode, matched, &args.name);
+            let outcome = if confirmed {
+                remove_aliases(catalog, &names)
+            } else {
+                Outcome::NoChanges
+            };
+            Ok(CommandOutcome::with_message(
+                outcome,
+                format!(
+                    "Removed {} of {matched} aliases tagged '{}'.",
+                    if confirmed { matched } else { 0 },
+                    args.name,
+                ),
+            ))
         }
         Some(RemoveTarget::Tag(args)) => {
             let (outcome, changed) = remove_tag(catalog, &args.name)?;

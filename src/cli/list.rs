@@ -33,7 +33,7 @@ impl ListColumn {
 }
 
 #[derive(Args)]
-#[command(group(ArgGroup::new("list_scope").args(["enabled", "disabled"]).multiple(false)))]
+#[command(group(ArgGroup::new("list_scope").args(["enabled", "disabled", "all"]).multiple(false)))]
 pub struct ListCommand {
     pub pattern: Option<String>,
     /// List aliases containing every supplied tag
@@ -43,6 +43,9 @@ pub struct ListCommand {
     pub enabled: bool,
     #[arg(short, long)]
     pub disabled: bool,
+    /// List enabled and disabled aliases
+    #[arg(long)]
+    pub all: bool,
     #[arg(long)]
     pub global: bool,
     #[arg(long, value_enum, default_value = "human")]

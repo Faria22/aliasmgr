@@ -27,6 +27,7 @@ fn explicit_configuration_controls_symbols_and_styles() {
         enabled = "+"
         [list]
         columns = ["status", "name"]
+        status = "always"
         [styles.enabled]
         foreground = "#ff00aa"
         bold = false

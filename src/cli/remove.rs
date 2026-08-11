@@ -24,4 +24,7 @@ pub enum RemoveTarget {
 pub struct TagArgs {
     #[arg(value_parser = validate_tag)]
     pub name: String,
+    /// Remove every alias carrying the tag instead of detaching it
+    #[arg(long)]
+    pub aliases: bool,
 }

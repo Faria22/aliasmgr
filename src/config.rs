@@ -84,12 +84,23 @@ pub struct StyleConfig {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ListConfig {
     pub columns: Vec<ListColumn>,
+    pub status: StatusColumnMode,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum StatusColumnMode {
+    #[default]
+    Auto,
+    Always,
+    Never,
 }
 
 impl Default for ListConfig {
     fn default() -> Self {
         Self {
             columns: ListColumn::DEFAULTS.to_vec(),
+            status: StatusColumnMode::Auto,
         }
     }
 }
@@ -136,6 +147,7 @@ struct RawConfig {
 #[serde(default)]
 struct RawListConfig {
     columns: Option<Vec<ListColumn>>,
+    status: Option<StatusColumnMode>,
     #[serde(flatten)]
     unknown: BTreeMap<String, toml::Value>,
 }
@@ -244,6 +256,9 @@ fn parse_config(content: &str) -> Result<UserConfig> {
         }
         config.list.columns = columns;
     }
+    if let Some(status) = raw.list.status {
+        config.list.status = status;
+    }
     Ok(config)
 }
 
@@ -293,6 +308,7 @@ mod tests {
         assert_eq!(config.styles.enabled.foreground, "green");
         assert!(config.styles.enabled.bold);
         assert_eq!(config.list.columns, ListColumn::DEFAULTS);
+        assert_eq!(config.list.status, StatusColumnMode::Auto);
     }
 
     #[test]
@@ -334,10 +350,13 @@ mod tests {
 
     #[test]
     fn list_columns_are_configurable_in_order() {
-        let config = parse_config("[list]\ncolumns = [\"name\", \"tags\"]\n").unwrap();
+        let config =
+            parse_config("[list]\ncolumns = [\"name\", \"tags\"]\nstatus = \"always\"\n").unwrap();
         assert_eq!(config.list.columns, [ListColumn::Name, ListColumn::Tags]);
+        assert_eq!(config.list.status, StatusColumnMode::Always);
         assert!(parse_config("[list]\ncolumns = []\n").is_err());
         assert!(parse_config("[list]\ncolumns = [\"name\", \"name\"]\n").is_err());
+        assert!(parse_config("[list]\nstatus = \"sometimes\"\n").is_err());
     }
 
     #[test]

@@ -68,6 +68,34 @@ fn tag_removal_detaches_without_removing_aliases() {
 }
 
 #[test]
+fn tag_removal_can_delete_tagged_aliases_after_one_confirmation() {
+    let directory = tempfile::tempdir().unwrap();
+    let catalog = directory.path().join("aliases.toml");
+    let original = concat!(
+        "build = { command = \"cargo build\", tags = [\"dev\", \"rust\"] }\n",
+        "test = { command = \"cargo test\", tags = [\"dev\"] }\n",
+        "release = { command = \"cargo release\", tags = [\"ops\"] }\n",
+    );
+    fs::write(&catalog, original).unwrap();
+
+    let no_input = run_aliasmgr(
+        &catalog,
+        &["remove", "tag", "dev", "--aliases", "--no-input"],
+    );
+    assert_eq!(no_input.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&no_input.stderr).contains("remove 2 aliases tagged 'dev'"));
+    assert_eq!(fs::read_to_string(&catalog).unwrap(), original);
+
+    let force = run_aliasmgr(&catalog, &["remove", "tag", "dev", "--aliases", "--force"]);
+    assert!(force.status.success(), "{force:?}");
+    assert_eq!(stdout(&force), "Removed 2 of 2 aliases tagged 'dev'.");
+    let content = fs::read_to_string(&catalog).unwrap();
+    assert!(!content.contains("build ="));
+    assert!(!content.contains("test ="));
+    assert!(content.contains("release ="));
+}
+
+#[test]
 fn filtered_remove_prompts_once_and_empty_matches_are_noops() {
     let directory = tempfile::tempdir().unwrap();
     let catalog = directory.path().join("aliases.toml");

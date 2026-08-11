@@ -8,7 +8,7 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use crate::app::shell::ShellType;
 use crate::catalog::types::{Alias, AliasCatalog};
 use crate::cli::list::{ListColumn, ListCommand, OutputFormat};
-use crate::config::UserConfig;
+use crate::config::{StatusColumnMode, UserConfig};
 use crate::core::list::visible_aliases;
 use crate::core::{Failure, Outcome};
 
@@ -44,8 +44,14 @@ fn selected_aliases<'a>(
                 .is_none_or(|matcher| matcher.is_match(name))
         })
         .filter(|(_, alias)| cmd.tag.iter().all(|tag| alias.tags.contains(tag)))
-        .filter(|(_, alias)| !cmd.enabled || alias.enabled)
-        .filter(|(_, alias)| !cmd.disabled || !alias.enabled)
+        .filter(|(_, alias)| {
+            cmd.all
+                || if cmd.disabled {
+                    !alias.enabled
+                } else {
+                    alias.enabled
+                }
+        })
         .filter(|(_, alias)| !cmd.global || alias.global)
         .map(|(name, alias)| (name.as_str(), alias))
         .collect())
@@ -280,8 +286,22 @@ fn format_list_with_width(
     Ok(match cmd.format {
         OutputFormat::Json => format_json(&aliases),
         OutputFormat::Human => {
-            let columns = cmd.columns.as_deref().unwrap_or(&config.list.columns);
-            format_human(&aliases, columns, config, colors_enabled, terminal_width)
+            let columns = if let Some(columns) = &cmd.columns {
+                columns.clone()
+            } else {
+                let mut columns = config.list.columns.clone();
+                let show_status = match config.list.status {
+                    StatusColumnMode::Auto => cmd.all,
+                    StatusColumnMode::Always => true,
+                    StatusColumnMode::Never => false,
+                };
+                columns.retain(|column| *column != ListColumn::Status);
+                if show_status {
+                    columns.insert(0, ListColumn::Status);
+                }
+                columns
+            };
+            format_human(&aliases, &columns, config, colors_enabled, terminal_width)
         }
     })
 }
@@ -316,6 +336,7 @@ mod tests {
             tag: vec![],
             enabled: false,
             disabled: false,
+            all: false,
             global: false,
             format,
             columns: None,
@@ -332,7 +353,7 @@ mod tests {
     }
 
     #[test]
-    fn default_table_has_six_columns_in_contract_order() {
+    fn default_table_hides_redundant_status_column() {
         let output = format_list_with_width(
             &catalog(),
             &command(OutputFormat::Human),
@@ -342,13 +363,7 @@ mod tests {
             None,
         )
         .unwrap();
-        assert!(
-            output
-                .lines()
-                .next()
-                .unwrap()
-                .starts_with("Status  Name  Command")
-        );
+        assert!(output.lines().next().unwrap().starts_with("Name  Command"));
         assert!(
             output
                 .lines()
@@ -356,13 +371,16 @@ mod tests {
                 .unwrap()
                 .contains("Global  Tags       Description")
         );
+        assert!(!output.lines().next().unwrap().contains("Status"));
     }
 
     #[test]
     fn narrow_tables_truncate_without_dropping_columns() {
+        let mut cmd = command(OutputFormat::Human);
+        cmd.all = true;
         let output = format_list_with_width(
             &catalog(),
-            &command(OutputFormat::Human),
+            &cmd,
             &ShellType::Bash,
             &UserConfig::default(),
             false,
@@ -371,6 +389,105 @@ mod tests {
         .unwrap();
         assert!(output.contains('…'));
         assert_eq!(output.lines().next().unwrap().split_whitespace().count(), 6);
+    }
+
+    #[test]
+    fn list_scope_defaults_to_enabled_and_all_includes_both_states() {
+        let mut catalog = catalog();
+        catalog.aliases.insert(
+            "disabled".into(),
+            Alias::new("echo disabled".into(), false, false),
+        );
+
+        let default = format_list_with_width(
+            &catalog,
+            &command(OutputFormat::Json),
+            &ShellType::Bash,
+            &UserConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        let default: serde_json::Value = serde_json::from_str(&default).unwrap();
+        assert_eq!(default.as_array().unwrap().len(), 1);
+        assert_eq!(default[0]["name"], "test");
+
+        let mut disabled = command(OutputFormat::Json);
+        disabled.disabled = true;
+        let disabled = format_list_with_width(
+            &catalog,
+            &disabled,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        let disabled: serde_json::Value = serde_json::from_str(&disabled).unwrap();
+        assert_eq!(disabled.as_array().unwrap().len(), 1);
+        assert_eq!(disabled[0]["name"], "disabled");
+
+        let mut all = command(OutputFormat::Json);
+        all.all = true;
+        let all = format_list_with_width(
+            &catalog,
+            &all,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        let all: serde_json::Value = serde_json::from_str(&all).unwrap();
+        assert_eq!(all.as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn status_policy_is_dynamic_unless_columns_are_explicit() {
+        let mut all = command(OutputFormat::Human);
+        all.all = true;
+        let output = format_list_with_width(
+            &catalog(),
+            &all,
+            &ShellType::Bash,
+            &UserConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        assert!(output.starts_with("Status  Name"));
+
+        let mut config = UserConfig::default();
+        config.list.status = StatusColumnMode::Never;
+        let output =
+            format_list_with_width(&catalog(), &all, &ShellType::Bash, &config, false, None)
+                .unwrap();
+        assert!(output.starts_with("Name  Command"));
+
+        let mut explicit = command(OutputFormat::Human);
+        explicit.columns = Some(vec![ListColumn::Status, ListColumn::Name]);
+        let output = format_list_with_width(
+            &catalog(),
+            &explicit,
+            &ShellType::Bash,
+            &config,
+            false,
+            None,
+        )
+        .unwrap();
+        assert!(output.starts_with("Status  Name"));
+
+        config.list.status = StatusColumnMode::Always;
+        let output = format_list_with_width(
+            &catalog(),
+            &command(OutputFormat::Human),
+            &ShellType::Bash,
+            &config,
+            false,
+            None,
+        )
+        .unwrap();
+        assert!(output.starts_with("Status  Name"));
     }
 
     #[test]

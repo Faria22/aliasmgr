@@ -66,9 +66,10 @@ global = { foreground = "blue", bold = true }
 
 [list]
 columns = ["status", "name", "command", "global", "tags", "description"]
+status = "auto"
 ```
 
-`list.columns` is exhaustive and ordered: only the selected columns render, in the listed order. Valid names are `status`, `name`, `command`, `global`, `tags`, and `description`. Use `list --columns name,command,tags` for a one-command override. Interactive tables truncate wide cells with an ellipsis to fit the terminal; selected columns are never dropped.
+`list.columns` is ordered. Valid names are `status`, `name`, `command`, `global`, `tags`, and `description`. With the default `status = "auto"`, the Status column is hidden when listing only enabled or disabled aliases and shown by `list --all`. Use `always` or `never` to override that behavior. An explicit `list --columns name,command,tags` is exhaustive and overrides the status policy for that command. Interactive tables truncate wide cells with an ellipsis to fit the terminal; selected columns are never dropped.
 
 `auto` color applies only to terminal output and respects `NO_COLOR`. The global `--color <auto|always|never>` option overrides the configured mode. Invalid known settings fail clearly; unknown settings warn and are ignored.
 
@@ -76,11 +77,12 @@ columns = ["status", "name", "command", "global", "tags", "description"]
 
 - `aliasmgr add <name> <command> [--description <text>] [--tag <tag>]... [--disabled] [--global]`
 - `aliasmgr edit <name> [command] [--description <text> | --clear-description] [--add-tag <tag>]... [--remove-tag <tag>]... [--toggle-enabled] [--toggle-global]`
-- `aliasmgr list [pattern] [--tag <tag>]... [--enabled | --disabled] [--global] [--columns <columns>] [--format <human|json>]`
+- `aliasmgr list [pattern] [--tag <tag>]... [--enabled | --disabled | --all] [--global] [--columns <columns>] [--format <human|json>]`
 - `aliasmgr remove <name>`
 - `aliasmgr remove alias <name>`
 - `aliasmgr remove alias [--pattern <glob>] [--tag <tag>]...` (bulk filter; prompts once)
 - `aliasmgr remove tag <tag>` (detaches the tag without removing aliases)
+- `aliasmgr remove tag <tag> --aliases` (removes every tagged alias after one prompt)
 - `aliasmgr remove all`
 - `aliasmgr rename <old-name> <new-name>`
 - `aliasmgr rename alias <old-name> <new-name>`
@@ -103,6 +105,7 @@ For more details, use `-h` or `--help`.
 Notes:
 
 - Repeat `--tag` when creating an alias or filtering by multiple tags. Filters use AND semantics: every supplied tag must be present.
+- `list` shows enabled aliases by default. Use `--disabled` for disabled aliases or `--all` for both.
 - Tags are case-sensitive and cannot be empty or contain whitespace.
 - `--force` and `--no-input` are mutually exclusive global automation flags. `--force` accepts overwrite and removal prompts; `--no-input` exits with status 2 if input would be required.
 - Alias names cannot be empty or contain whitespace or `=`.
