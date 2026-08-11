@@ -132,6 +132,7 @@ Add a documented alias, inspect it, initialize aliasmgr in Bash, and use the ali
 
 ```bash
 export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-quick-start.toml
+export ALIASMGR_SHELL=bash
 : > "$ALIASMGR_CATALOG_PATH"
 aliasmgr add greet "echo Hello from aliasmgr!" --description "Friendly greeting"
 aliasmgr list --columns name,command,description
@@ -147,6 +148,7 @@ Use tags and descriptions to organize an initially disabled alias, then update a
 
 ```bash
 export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-organize-aliases.toml
+export ALIASMGR_SHELL=bash
 : > "$ALIASMGR_CATALOG_PATH"
 aliasmgr add checks "cargo test" --tag rust --tag dev --description "Run tests" --disabled
 aliasmgr list --all --columns status,name,tags,description
@@ -163,6 +165,7 @@ Once the prompt hook is initialized, changes to the catalog are applied before t
 
 ```bash
 export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-shell-sync.toml
+export ALIASMGR_SHELL=bash
 : > "$ALIASMGR_CATALOG_PATH"
 eval "$(aliasmgr init bash)"
 aliasmgr add greet "echo Hello from the synced alias"
