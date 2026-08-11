@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.0.0 - 2026-08-11
+### Added
+- Add optional alias descriptions and case-sensitive tags, including repeated-tag creation, AND-based filtering, and tag rename, detach, enable, disable, and removal operations.
+- Add `config.toml` for presentation preferences, with configurable list columns, symbols, styles, and color modes; `--color` overrides the configured mode and automatic color respects `NO_COLOR`.
+- Add `import` for ordinary Bash and Zsh alias declaration files, with multiple input paths, dry-run reporting, tags, global-alias support, and explicit collision policies.
+- Render human-readable lists as terminal-width-aware tables with configurable columns, and include tags and descriptions in JSON output.
+
+### Changed
+- Replace the group-based catalog model and group selectors with flat aliases and metadata tags. Legacy group tables are rejected and must be migrated before using v2.0.0.
+- Save aliases and tags in deterministic, case-sensitive alphabetical order, remove duplicate tags, and normalize aliases to the compact TOML form whenever their metadata permits it.
+- Replace global `--force` prompt handling with mutually exclusive `--yes`, `--no`, and `--no-input` modes, with short forms `-y`, `-n`, and `-N`.
+- Show enabled aliases by default in `list`; use `--disabled` or `--all` to select other status views.
+- Make list table headers bold by default when styling is enabled.
+
+### Fixed
+- Refresh each alias's TOML representation at the catalog save boundary so mutations cannot leave stale detailed entries behind.
+
+### Removed
+- Remove group-oriented commands and options, including `add group`, `move`, group selectors, and group enable, disable, rename, and removal operations.
+- Remove the manual `sort` command now that catalog ordering is automatic.
+
 ## 1.3.0 - 2026-08-09
 ### Added
 - Add `list --format json` for machine-readable alias output using the same pattern, group, status, global, and shell-compatibility filters as the human-readable view.
