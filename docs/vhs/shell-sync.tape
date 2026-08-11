@@ -3,40 +3,43 @@ Output docs/assets/shell-sync.txt
 Source docs/vhs/settings.tape
 
 Hide
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Type 'export PATH="$PWD/target/debug:$PATH"'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Type 'export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-shell-sync.toml'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Type ': > "$ALIASMGR_CATALOG_PATH"'
 Enter
-Wait+Line /[$>]$/
-Type 'eval "$(aliasmgr init bash)"'
+Wait+Line /❯$/
+Type 'eval "$(aliasmgr init zsh)"'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
+Type 'source "$PWD/docs/vhs/terminal.zsh"'
+Enter
+Wait+Line /❯$/
 Type 'clear'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Show
 
 Sleep 750ms
 Type 'aliasmgr add greet "echo Hello from the synced alias"'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Sleep 1s
 Type 'greet'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Sleep 2s
 Type 'aliasmgr edit greet "echo Updated at the next prompt"'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Sleep 1s
 Type 'greet'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Sleep 2s
 
 Hide

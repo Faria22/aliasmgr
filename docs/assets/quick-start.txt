@@ -1,8 +1,8 @@
-$ aliasmgr add greet "echo Hello from aliasmgr!" --description "Friendly greet
-ing"
-$ aliasmgr list --columns name,command,description
-Name   Command                    Description
-greet  echo Hello from aliasmgr!  Friendly greeting
-$ greet
+❯ aliasmgr add greet 'echo Hello from aliasmgr!' --description 'Friendly gr
+eeting'
+❯ aliasmgr list
+Name   Command                    Global  Tags  Description
+greet  echo Hello from aliasmgr!                Friendly greeting
+❯ greet
 Hello from aliasmgr!
-$
+❯

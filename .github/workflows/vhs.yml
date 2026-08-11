@@ -40,7 +40,7 @@ jobs:
           echo "$tools_dir" >> "$GITHUB_PATH"
 
           sudo apt-get update
-          sudo apt-get install --yes ffmpeg
+          sudo apt-get install --yes ffmpeg zsh
       - name: Render recordings
         run: ./scripts/render-vhs.sh
       - name: Check committed recording transcripts

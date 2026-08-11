@@ -3,36 +3,39 @@ Output docs/assets/quick-start.txt
 Source docs/vhs/settings.tape
 
 Hide
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Type 'export PATH="$PWD/target/debug:$PATH"'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Type 'export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-quick-start.toml'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Type ': > "$ALIASMGR_CATALOG_PATH"'
 Enter
-Wait+Line /[$>]$/
-Type 'eval "$(aliasmgr init bash)"'
+Wait+Line /❯$/
+Type 'eval "$(aliasmgr init zsh)"'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
+Type 'source "$PWD/docs/vhs/terminal.zsh"'
+Enter
+Wait+Line /❯$/
 Type 'clear'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Show
 
 Sleep 750ms
-Type 'aliasmgr add greet "echo Hello from aliasmgr!" --description "Friendly greeting"'
+Type "aliasmgr add greet 'echo Hello from aliasmgr!' --description 'Friendly greeting'"
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Sleep 1s
-Type 'aliasmgr list --columns name,command,description'
+Type 'aliasmgr list'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Sleep 2s
 Type 'greet'
 Enter
-Wait+Line /[$>]$/
+Wait+Line /❯$/
 Sleep 2s
 
 Hide

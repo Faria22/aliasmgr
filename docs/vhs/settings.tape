@@ -1,6 +1,5 @@
-Set Shell bash
+Set Shell zsh
 Set TypingSpeed 25ms
 
-Env NO_COLOR "1"
-Env ALIASMGR_SHELL "bash"
-Env PS1 "$ "
+Env ALIASMGR_SHELL "zsh"
+Env PS1 "%B%F{green}❯%f%b "

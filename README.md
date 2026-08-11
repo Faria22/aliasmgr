@@ -131,8 +131,8 @@ Add a documented alias, inspect it, and use the alias.
 ![Terminal recording of adding, listing, and using a greeting alias](docs/assets/quick-start.gif)
 
 ```bash
-aliasmgr add greet "echo Hello from aliasmgr!" --description "Friendly greeting"
-aliasmgr list --columns name,command,description
+aliasmgr add greet 'echo Hello from aliasmgr!' --description 'Friendly greeting'
+aliasmgr list
 greet
 ```
 
@@ -144,17 +144,17 @@ Use tags and descriptions to organize an initially disabled alias, then update a
 
 ```bash
 aliasmgr add checks "cargo test" --tag rust --tag dev --description "Run tests" --disabled
-aliasmgr list --all --columns status,name,tags,description
+aliasmgr list --all
 aliasmgr edit checks "cargo test --all-targets" --remove-tag dev --add-tag ci --description "Run all tests"
 aliasmgr enable checks
-aliasmgr list --all --columns status,name,tags,description
+aliasmgr list --all
 ```
 
 ### Automatic shell synchronization
 
 Once the prompt hook is initialized, changes to the catalog are applied before the next prompt. The updated alias is ready without another `eval` or a manual `aliasmgr sync`.
 
-![Terminal recording of an alias becoming available and updating through automatic Bash prompt synchronization](docs/assets/shell-sync.gif)
+![Terminal recording of an alias becoming available and updating through automatic Zsh prompt synchronization](docs/assets/shell-sync.gif)
 
 ```bash
 aliasmgr add greet "echo Hello from the synced alias"

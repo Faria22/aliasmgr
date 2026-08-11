@@ -1,12 +1,12 @@
-$ aliasmgr add checks "cargo test" --tag rust --tag dev --description "Run
+❯ aliasmgr add checks "cargo test" --tag rust --tag dev --description "Run
 tests" --disabled
-$ aliasmgr list --all --columns status,name,tags,description
-Status  Name    Tags       Description
-✘       checks  dev, rust  Run tests
-$ aliasmgr edit checks "cargo test --all-targets" --remove-tag dev --add-ta
+❯ aliasmgr list --all
+Status  Name    Command     Global  Tags       Description
+✘       checks  cargo test          dev, rust  Run tests
+❯ aliasmgr edit checks "cargo test --all-targets" --remove-tag dev --add-ta
 g ci --description "Run all tests"
-$ aliasmgr enable checks
-$ aliasmgr list --all --columns status,name,tags,description
-Status  Name    Tags      Description
-✔       checks  ci, rust  Run all tests
-$
+❯ aliasmgr enable checks
+❯ aliasmgr list --all
+Status  Name    Command                   Global  Tags      Description
+✔       checks  cargo test --all-targets          ci, rust  Run all tests
+❯
