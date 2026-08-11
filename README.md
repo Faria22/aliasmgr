@@ -191,7 +191,7 @@ greet
 - Lint: `cargo clippy`
 - Regenerate README recordings: `./scripts/render-vhs.sh` (requires VHS v0.11.0). To render one recording, run `cargo build --locked && vhs docs/vhs/quick-start.tape` from the repository root.
 
-CI uses the same renderer version and fails when regenerating the tapes changes the committed final-frame hashes, so command changes must include updated recordings. The content hash avoids false failures from nondeterministic GIF encoding and capture timing.
+CI uses the same renderer version and fails when regenerating the tapes changes their committed final-screen terminal transcripts, so command or output changes must include updated recordings. Normalized golden transcripts avoid false failures from nondeterministic GIF encoding and capture timing.
 
 ## Releasing
 

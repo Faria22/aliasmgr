@@ -43,8 +43,8 @@ jobs:
           sudo apt-get install --yes ffmpeg
       - name: Render recordings
         run: ./scripts/render-vhs.sh
-      - name: Check committed recording content
-        run: git diff --exit-code -- docs/assets/frame-hashes.txt
+      - name: Check committed recording transcripts
+        run: git diff --exit-code -- 'docs/assets/*.txt'
       - name: Upload generated recordings on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -52,5 +52,5 @@ jobs:
           name: generated-vhs-recordings
           path: |
             docs/assets/*.gif
-            docs/assets/frame-hashes.txt
+            docs/assets/*.txt
           if-no-files-found: ignore

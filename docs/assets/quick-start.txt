@@ -1,0 +1,9 @@
+$ aliasmgr add greet "echo Hello from aliasmgr!" --description "Friendly greet
+ing"
+$ aliasmgr list --columns name,command,description
+Name   Command                    Description
+greet  echo Hello from aliasmgr!  Friendly greeting
+$ eval "$(aliasmgr init bash --no-auto-sync)"
+$ greet
+Hello from aliasmgr!
+$

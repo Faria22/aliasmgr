@@ -19,4 +19,4 @@ for tape in docs/vhs/*.tape; do
     vhs "$tape"
 done
 
-./scripts/hash-vhs-frames.sh > docs/assets/frame-hashes.txt
+./scripts/normalize-vhs-transcripts.sh
