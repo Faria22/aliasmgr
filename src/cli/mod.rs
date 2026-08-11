@@ -1,5 +1,3 @@
-use std::collections::{BTreeMap, HashMap};
-
 use clap::{Command, CommandFactory, FromArgMatches, Parser, Subcommand, error::ErrorKind};
 
 pub(crate) mod add;
@@ -52,24 +50,24 @@ pub struct Cli {
         help_heading = "Global Options"
     )]
     pub color: Option<ColorMode>,
-    /// Show debug diagnostics
-    #[arg(short = 'D', long, global = true, conflicts_with_all = ["verbose", "quiet"], help_heading = "Global Options")]
-    pub debug: bool,
-    /// Automatically decline confirmation prompts
-    #[arg(short = 'n', long, global = true, conflicts_with_all = ["yes", "no_input"], help_heading = "Global Options")]
-    pub no: bool,
-    /// Never prompt; fail when confirmation is required
-    #[arg(short = 'N', long, global = true, conflicts_with_all = ["yes", "no"], help_heading = "Global Options")]
-    pub no_input: bool,
     /// Suppress normal command output
     #[arg(short, long, global = true, conflicts_with_all = ["verbose", "debug"], help_heading = "Global Options")]
     pub quiet: bool,
     /// Show informational diagnostics
     #[arg(short, long, global = true, conflicts_with_all = ["quiet", "debug"], help_heading = "Global Options")]
     pub verbose: bool,
+    /// Show debug diagnostics
+    #[arg(short = 'D', long, global = true, conflicts_with_all = ["verbose", "quiet"], help_heading = "Global Options")]
+    pub debug: bool,
     /// Automatically accept confirmation prompts
     #[arg(short = 'y', long, global = true, conflicts_with_all = ["no", "no_input"], help_heading = "Global Options")]
     pub yes: bool,
+    /// Automatically decline confirmation prompts
+    #[arg(short = 'n', long, global = true, conflicts_with_all = ["yes", "no_input"], help_heading = "Global Options")]
+    pub no: bool,
+    /// Never prompt; fail when confirmation is required
+    #[arg(short = 'N', long, global = true, conflicts_with_all = ["yes", "no"], help_heading = "Global Options")]
+    pub no_input: bool,
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -81,7 +79,7 @@ impl Cli {
     }
 
     pub fn command() -> Command {
-        alphabetize_help(<Self as CommandFactory>::command())
+        <Self as CommandFactory>::command()
     }
 
     pub fn validate_prompt_controls(&self) -> Result<(), clap::Error> {
@@ -107,38 +105,6 @@ impl Cli {
         }
         Ok(())
     }
-}
-
-fn alphabetize_help(mut command: Command) -> Command {
-    let mut headings = BTreeMap::<Option<String>, Vec<(String, String)>>::new();
-    for argument in command
-        .get_arguments()
-        .filter(|argument| !argument.is_positional())
-    {
-        if let Some(long) = argument.get_long() {
-            headings
-                .entry(argument.get_help_heading().map(str::to_owned))
-                .or_default()
-                .push((long.to_owned(), argument.get_id().as_str().to_owned()));
-        }
-    }
-
-    let mut orders = HashMap::new();
-    for arguments in headings.values_mut() {
-        arguments.sort_unstable();
-        for (order, (_, id)) in arguments.iter().enumerate() {
-            orders.insert(id.clone(), order);
-        }
-    }
-
-    command = command.mut_args(|argument| {
-        if let Some(order) = orders.get(argument.get_id().as_str()) {
-            argument.display_order(*order)
-        } else {
-            argument
-        }
-    });
-    command.mut_subcommands(alphabetize_help)
 }
 
 #[derive(Subcommand)]
@@ -178,6 +144,8 @@ pub enum Commands {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     #[test]
@@ -238,47 +206,71 @@ mod tests {
     }
 
     #[test]
-    fn help_options_are_sorted_by_long_name_within_each_heading() {
-        fn assert_command(command: &mut Command) {
+    fn help_options_are_ordered_by_meaning() {
+        fn options(command: &mut Command, heading: &str) -> Vec<String> {
             command.build();
             let help = command.render_help().to_string();
-            let mut heading = None;
-            let mut options = BTreeMap::<String, Vec<String>>::new();
+            let mut current_heading = None;
+            let mut options = Vec::new();
             for line in help.lines() {
                 if let Some(name) = line.strip_suffix(':') {
-                    heading = Some(name.to_owned());
+                    current_heading = Some(name);
                     continue;
                 }
-                let Some(current) = heading.as_ref() else {
-                    continue;
-                };
-                if current == "Arguments" || !line.starts_with("  ") {
+                if current_heading != Some(heading) || !line.starts_with("  ") {
                     continue;
                 }
                 if let Some(long) = line
                     .split_whitespace()
                     .find_map(|part| part.strip_prefix("--"))
                 {
-                    if matches!(long, "help" | "version") {
-                        continue;
+                    let long = long.trim_end_matches([',', '>']);
+                    if !matches!(long, "help" | "version") {
+                        options.push(long.to_owned());
                     }
-                    options
-                        .entry(current.clone())
-                        .or_default()
-                        .push(long.trim_end_matches([',', '>']).to_owned());
                 }
             }
-            for (heading, actual) in options {
-                let mut expected = actual.clone();
-                expected.sort();
-                assert_eq!(actual, expected, "{heading} in {}", command.get_name());
-            }
-            for subcommand in command.get_subcommands_mut() {
-                assert_command(subcommand);
-            }
+            options
         }
 
-        assert_command(&mut Cli::command());
+        let mut command = Cli::command();
+        command.build();
+        assert_eq!(
+            options(&mut command, "Global Options"),
+            [
+                "color", "quiet", "verbose", "debug", "yes", "no", "no-input"
+            ]
+        );
+        assert_eq!(
+            options(command.find_subcommand_mut("add").unwrap(), "Options"),
+            ["global", "tag", "description", "disabled"]
+        );
+        assert_eq!(
+            options(command.find_subcommand_mut("edit").unwrap(), "Options"),
+            [
+                "add-tag",
+                "remove-tag",
+                "description",
+                "clear-description",
+                "global",
+                "no-global",
+            ]
+        );
+        assert_eq!(
+            options(command.find_subcommand_mut("list").unwrap(), "Options"),
+            ["tag", "disabled", "all", "global", "columns", "format"]
+        );
+        assert_eq!(
+            options(
+                command
+                    .find_subcommand_mut("remove")
+                    .unwrap()
+                    .find_subcommand_mut("alias")
+                    .unwrap(),
+                "Options",
+            ),
+            ["pattern", "tag"]
+        );
     }
 
     #[test]

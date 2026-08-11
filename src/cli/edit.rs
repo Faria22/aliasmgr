@@ -10,21 +10,21 @@ pub struct EditCommand {
     /// Replacement command
     pub command: Option<String>,
 
+    /// Add a tag; repeat to add multiple tags
+    #[arg(short, long, value_name = "TAG", value_parser = validate_tag)]
+    pub add_tag: Vec<String>,
+
+    /// Remove a tag; repeat to remove multiple tags
+    #[arg(short, long, value_name = "TAG", value_parser = validate_tag)]
+    pub remove_tag: Vec<String>,
+
     /// Set the alias description
-    #[arg(short = 'd', long, conflicts_with = "clear_description")]
+    #[arg(short, long, conflicts_with = "clear_description")]
     pub description: Option<String>,
 
     /// Remove the alias description
     #[arg(long)]
     pub clear_description: bool,
-
-    /// Add a tag; repeat to add multiple tags
-    #[arg(short = 'a', long, value_name = "TAG", value_parser = validate_tag)]
-    pub add_tag: Vec<String>,
-
-    /// Remove a tag; repeat to remove multiple tags
-    #[arg(short = 'r', long, value_name = "TAG", value_parser = validate_tag)]
-    pub remove_tag: Vec<String>,
 
     /// Make the alias global
     #[arg(short, long, conflicts_with = "no_global")]

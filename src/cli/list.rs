@@ -48,10 +48,10 @@ pub struct ListCommand {
     /// List only Zsh global aliases
     #[arg(short = 'g', long)]
     pub global: bool,
-    /// Select human-readable or JSON output
-    #[arg(short = 'f', long, value_enum, default_value = "human")]
-    pub format: OutputFormat,
     /// Override configured table columns, in display order
     #[arg(long, value_enum, value_delimiter = ',', num_args = 1..)]
     pub columns: Option<Vec<ListColumn>>,
+    /// Select human-readable or JSON output
+    #[arg(short, long, value_enum, default_value = "human")]
+    pub format: OutputFormat,
 }

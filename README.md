@@ -75,8 +75,8 @@ status = "auto"
 
 ## Commands
 
-- `aliasmgr add <name> <command> [-d|--description <text>] [-t|--tag <tag>]... [--disabled] [-g|--global]`
-- `aliasmgr edit <name> [command] [-d|--description <text> | --clear-description] [-a|--add-tag <tag>]... [-r|--remove-tag <tag>]... [-g|--global | --no-global]`
+- `aliasmgr add <name> <command> [-g|--global] [-t|--tag <tag>]... [-d|--description <text>] [--disabled]`
+- `aliasmgr edit <name> [command] [-a|--add-tag <tag>]... [-r|--remove-tag <tag>]... [-d|--description <text> | --clear-description] [-g|--global | --no-global]`
 - `aliasmgr list [pattern] [-t|--tag <tag>]... [-d|--disabled | --all] [-g|--global] [--columns <columns>] [-f|--format <human|json>]`
 - `aliasmgr remove <name>`
 - `aliasmgr remove alias <name>`
