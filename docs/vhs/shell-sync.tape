@@ -24,23 +24,23 @@ Enter
 Wait+Line /❯$/
 Show
 
-Sleep 750ms
+Sleep 3s
 Type 'aliasmgr add greet "echo Hello from the synced alias"'
 Enter
 Wait+Line /❯$/
-Sleep 1s
+Sleep 3s
 Type 'greet'
 Enter
 Wait+Line /❯$/
-Sleep 2s
+Sleep 3s
 Type 'aliasmgr edit greet "echo Updated at the next prompt"'
 Enter
 Wait+Line /❯$/
-Sleep 1s
+Sleep 3s
 Type 'greet'
 Enter
 Wait+Line /❯$/
-Sleep 2s
+Sleep 3s
 
 Hide
 Type 'rm -f "$ALIASMGR_CATALOG_PATH"'

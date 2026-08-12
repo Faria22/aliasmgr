@@ -24,27 +24,27 @@ Enter
 Wait+Line /❯$/
 Show
 
-Sleep 750ms
+Sleep 3s
 Type 'aliasmgr add checks "cargo test" --tag rust --tag dev --description "Run tests" --disabled'
 Enter
 Wait+Line /❯$/
-Sleep 1s
+Sleep 3s
 Type 'aliasmgr list --all'
 Enter
 Wait+Line /❯$/
-Sleep 2s
+Sleep 3s
 Type 'aliasmgr edit checks "cargo test --all-targets" --remove-tag dev --add-tag ci --description "Run all tests"'
 Enter
 Wait+Line /❯$/
-Sleep 1s
+Sleep 3s
 Type 'aliasmgr enable checks'
 Enter
 Wait+Line /❯$/
-Sleep 1s
+Sleep 3s
 Type 'aliasmgr list --all'
 Enter
 Wait+Line /❯$/
-Sleep 2s
+Sleep 3s
 
 Hide
 Type 'rm -f "$ALIASMGR_CATALOG_PATH"'

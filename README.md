@@ -124,16 +124,18 @@ Notes:
 
 The examples assume that aliasmgr has already been initialized in the current shell. The recordings use isolated catalogs under `/tmp`; they do not read or change your normal aliasmgr catalog. Each example includes the equivalent commands so the workflow remains usable without animated media.
 
-### Quick start
+### Git shortcuts
 
-Add a documented alias, inspect it, and use the alias.
+Create shortcuts for common Git commands, inspect them, and use them in a repository.
 
-![Terminal recording of adding, listing, and using a greeting alias](docs/assets/quick-start.gif)
+![Terminal recording of adding and using shortcuts for Git and Git push](docs/assets/quick-start.gif)
 
 ```bash
-aliasmgr add greet 'echo Hello from aliasmgr!' --description 'Friendly greeting'
+aliasmgr add g git --description "Git shorthand"
+aliasmgr add gp "git push" --description "Push the current branch"
 aliasmgr list
-greet
+g status --short
+gp --set-upstream origin main
 ```
 
 ### Organize and update aliases
@@ -148,6 +150,18 @@ aliasmgr list --all
 aliasmgr edit checks "cargo test --all-targets" --remove-tag dev --add-tag ci --description "Run all tests"
 aliasmgr enable checks
 aliasmgr list --all
+```
+
+### Zsh global alias
+
+Compose a regular Git shortcut with a global alias that expands anywhere in the command.
+
+![Terminal recording of filtering Git branches with a Zsh global alias](docs/assets/global-alias.gif)
+
+```zsh
+aliasmgr add g git --description "Git shorthand"
+aliasmgr add G "| grep" --global --description "Filter command output"
+g branch G main
 ```
 
 ### Automatic shell synchronization
@@ -178,7 +192,7 @@ greet
 - Run tests: `cargo test`
 - Format: `cargo fmt`
 - Lint: `cargo clippy`
-- Regenerate README recordings: `./scripts/render-vhs.sh` (requires VHS v0.11.0). To render one recording, run `cargo build --locked && vhs docs/vhs/quick-start.tape` from the repository root.
+- Regenerate README recordings: `./scripts/render-vhs.sh` (requires VHS v0.11.0). To render one recording, pass its tape path, for example `./scripts/render-vhs.sh docs/vhs/quick-start.tape`.
 
 CI uses the same renderer version and fails when regenerating the tapes changes their committed final-screen terminal transcripts, so command or output changes must include updated recordings. Normalized golden transcripts avoid false failures from nondeterministic GIF encoding and capture timing.
 

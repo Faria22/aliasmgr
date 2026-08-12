@@ -1,5 +1,5 @@
-Output docs/assets/quick-start.gif
-Output docs/assets/quick-start.txt
+Output docs/assets/global-alias.gif
+Output docs/assets/global-alias.txt
 Source docs/vhs/settings.tape
 
 Hide
@@ -10,7 +10,7 @@ Wait+Line /❯$/
 Type 'export PATH="$ALIASMGR_REPO_ROOT/target/debug:$PATH"'
 Enter
 Wait+Line /❯$/
-Type 'export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-quick-start.toml'
+Type 'export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-global-alias.toml'
 Enter
 Wait+Line /❯$/
 Type ': > "$ALIASMGR_CATALOG_PATH"'
@@ -35,19 +35,11 @@ Type 'aliasmgr add g git --description "Git shorthand"'
 Enter
 Wait+Line /❯$/
 Sleep 3s
-Type 'aliasmgr add gp "git push" --description "Push the current branch"'
+Type 'aliasmgr add G "| grep" --global --description "Filter command output"'
 Enter
 Wait+Line /❯$/
 Sleep 3s
-Type 'aliasmgr list'
-Enter
-Wait+Line /❯$/
-Sleep 3s
-Type 'g status --short'
-Enter
-Wait+Line /❯$/
-Sleep 3s
-Type 'gp --set-upstream origin main'
+Type 'g branch G main'
 Enter
 Wait+Line /❯$/
 Sleep 3s

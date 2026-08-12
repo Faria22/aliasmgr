@@ -1,8 +1,17 @@
-❯ aliasmgr add greet 'echo Hello from aliasmgr!' --description 'Friendly gr
-eeting'
+❯ aliasmgr add g git --description "Git shorthand"
+❯ aliasmgr add gp "git push" --description "Push the current branch"
 ❯ aliasmgr list
-Name   Command                    Global  Tags  Description
-greet  echo Hello from aliasmgr!                Friendly greeting
-❯ greet
-Hello from aliasmgr!
+Name  Command   Global  Tags  Description
+g     git                     Git shorthand
+gp    git push                Push the current branch
+❯ g status --short
+?? notes.txt
+❯ gp --set-upstream origin main
+Enumerating objects: 3, done.
+Counting objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 228 bytes | 228.00 KiB/s, done.
+Total 3 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To /tmp/aliasmgr-vhs-demo-remote.git
+ * [new branch]      main -> main
+branch 'main' set up to track 'origin/main'.
 ❯
