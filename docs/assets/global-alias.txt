@@ -1,5 +1,0 @@
-❯ aliasmgr add g git --description "Git shorthand"
-❯ aliasmgr add G "| grep" --global --description "Filter command output"
-❯ g branch G main
-* main
-❯

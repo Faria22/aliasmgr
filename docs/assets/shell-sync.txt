@@ -1,7 +1,0 @@
-❯ aliasmgr add greet "echo Hello from the synced alias"
-❯ greet
-Hello from the synced alias
-❯ aliasmgr edit greet "echo Updated at the next prompt"
-❯ greet
-Updated at the next prompt
-❯

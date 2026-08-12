@@ -78,33 +78,18 @@ Table headers are bold by default when styling is enabled. Set `styles.header.bo
 
 ## Commands
 
-- `aliasmgr add <name> <command> [-g|--global] [-t|--tag <tag>]... [-d|--description <text>] [--disabled]`
-- `aliasmgr edit <name> [command] [-a|--add-tag <tag>]... [-r|--remove-tag <tag>]... [-d|--description <text> | --clear-description] [-g|--global | --no-global]`
-- `aliasmgr import <path>... [-d|--dry-run] [-s|--skip-existing | -r|--replace-existing] [-t|--tag <tag>]...`
-- `aliasmgr list [pattern] [-t|--tag <tag>]... [-d|--disabled | --all] [-g|--global] [--columns <columns>] [-f|--format <human|json>]`
-- `aliasmgr remove <name>`
-- `aliasmgr remove alias <name>`
-- `aliasmgr remove alias [-p|--pattern <glob>] [-t|--tag <tag>]...` (bulk filter; prompts once)
-- `aliasmgr remove tag <tag>` (detaches the tag without removing aliases)
-- `aliasmgr remove tag <tag> --aliases` (removes every tagged alias after one prompt)
-- `aliasmgr remove all`
-- `aliasmgr rename <old-name> <new-name>`
-- `aliasmgr rename alias <old-name> <new-name>`
-- `aliasmgr rename tag <old-tag> <new-tag>`
-- `aliasmgr enable <name>`
-- `aliasmgr enable alias <name>`
-- `aliasmgr enable alias [-p|--pattern <glob>] [-t|--tag <tag>]...`
-- `aliasmgr enable tag <tag>`
-- `aliasmgr enable all`
-- `aliasmgr disable <name>`
-- `aliasmgr disable alias <name>`
-- `aliasmgr disable alias [-p|--pattern <glob>] [-t|--tag <tag>]...`
-- `aliasmgr disable tag <tag>`
-- `aliasmgr disable all`
-- `aliasmgr sync`
-- `aliasmgr doctor` (also available as `aliasmgr validate`)
+- `aliasmgr add` — Add an alias to the catalog.
+- `aliasmgr edit` — Change an existing alias and its metadata.
+- `aliasmgr import` — Import aliases from Bash or Zsh files.
+- `aliasmgr list` — List aliases in the catalog.
+- `aliasmgr remove` — Remove aliases or tags.
+- `aliasmgr rename` — Rename an alias or tag.
+- `aliasmgr enable` — Enable aliases by name, tag, or filter.
+- `aliasmgr disable` — Disable aliases by name, tag, or filter.
+- `aliasmgr sync` — Reconcile the current shell with the catalog.
+- `aliasmgr doctor` — Validate the catalog and report potential problems.
 
-For more details, use `-h` or `--help`.
+Use `-h` or `--help` with aliasmgr or any command for more information.
 
 Notes:
 
@@ -122,9 +107,7 @@ Notes:
 
 ## Examples
 
-The examples assume that aliasmgr has already been initialized in the current shell. The recordings use isolated catalogs under `/tmp`; they do not read or change your normal aliasmgr catalog. Each example includes the equivalent commands so the workflow remains usable without animated media.
-
-### Common examples
+The example assumes that aliasmgr has already been initialized in the current shell. The recording uses an isolated catalog and Git repository under `/tmp`; it does not read or change your normal aliasmgr catalog or repositories. The equivalent commands keep the example usable without animated media.
 
 Create shortcuts for common Git commands, inspect them, and use them in a repository.
 
@@ -136,45 +119,6 @@ aliasmgr add gp "git push" --description "Push the current branch"
 aliasmgr list
 g status --short
 gp --set-upstream origin main
-```
-
-### Organize and update aliases
-
-Use tags and descriptions to organize an initially disabled alias, then update and enable it.
-
-![Terminal recording of tagging, describing, editing, and enabling an alias named checks](docs/assets/organize-aliases.gif)
-
-```bash
-aliasmgr add checks "cargo test" --tag rust --tag dev --description "Run tests" --disabled
-aliasmgr list --all
-aliasmgr edit checks "cargo test --all-targets" --remove-tag dev --add-tag ci --description "Run all tests"
-aliasmgr enable checks
-aliasmgr list --all
-```
-
-### Zsh global alias
-
-Compose a regular Git shortcut with a global alias that expands anywhere in the command.
-
-![Terminal recording of filtering Git branches with a Zsh global alias](docs/assets/global-alias.gif)
-
-```zsh
-aliasmgr add g git --description "Git shorthand"
-aliasmgr add G "| grep" --global --description "Filter command output"
-g branch G main
-```
-
-### Automatic shell synchronization
-
-Once the prompt hook is initialized, changes to the catalog are applied before the next prompt. The updated alias is ready without another `eval` or a manual `aliasmgr sync`.
-
-![Terminal recording of an alias becoming available and updating through automatic Zsh prompt synchronization](docs/assets/shell-sync.gif)
-
-```bash
-aliasmgr add greet "echo Hello from the synced alias"
-greet
-aliasmgr edit greet "echo Updated at the next prompt"
-greet
 ```
 
 ## Sync Behavior
