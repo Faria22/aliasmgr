@@ -124,7 +124,7 @@ Notes:
 
 The examples assume that aliasmgr has already been initialized in the current shell. The recordings use isolated catalogs under `/tmp`; they do not read or change your normal aliasmgr catalog. Each example includes the equivalent commands so the workflow remains usable without animated media.
 
-### Git shortcuts
+### Common examples
 
 Create shortcuts for common Git commands, inspect them, and use them in a repository.
 

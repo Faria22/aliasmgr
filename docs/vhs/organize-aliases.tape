@@ -7,6 +7,9 @@ Wait+Line /❯$/
 Type 'export PATH="$PWD/target/debug:$PATH"'
 Enter
 Wait+Line /❯$/
+Type 'unset NO_COLOR'
+Enter
+Wait+Line /❯$/
 Type 'export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-organize-aliases.toml'
 Enter
 Wait+Line /❯$/
@@ -24,27 +27,31 @@ Enter
 Wait+Line /❯$/
 Show
 
-Sleep 3s
 Type 'aliasmgr add checks "cargo test" --tag rust --tag dev --description "Run tests" --disabled'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 Type 'aliasmgr list --all'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 Type 'aliasmgr edit checks "cargo test --all-targets" --remove-tag dev --add-tag ci --description "Run all tests"'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 Type 'aliasmgr enable checks'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 Type 'aliasmgr list --all'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 
 Hide
 Type 'rm -f "$ALIASMGR_CATALOG_PATH"'

@@ -7,6 +7,9 @@ Wait+Line /❯$/
 Type 'export PATH="$PWD/target/debug:$PATH"'
 Enter
 Wait+Line /❯$/
+Type 'unset NO_COLOR'
+Enter
+Wait+Line /❯$/
 Type 'export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-shell-sync.toml'
 Enter
 Wait+Line /❯$/
@@ -24,23 +27,26 @@ Enter
 Wait+Line /❯$/
 Show
 
-Sleep 3s
 Type 'aliasmgr add greet "echo Hello from the synced alias"'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 Type 'greet'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 Type 'aliasmgr edit greet "echo Updated at the next prompt"'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 Type 'greet'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 
 Hide
 Type 'rm -f "$ALIASMGR_CATALOG_PATH"'

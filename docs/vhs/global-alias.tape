@@ -10,6 +10,9 @@ Wait+Line /❯$/
 Type 'export PATH="$ALIASMGR_REPO_ROOT/target/debug:$PATH"'
 Enter
 Wait+Line /❯$/
+Type 'unset NO_COLOR'
+Enter
+Wait+Line /❯$/
 Type 'export ALIASMGR_CATALOG_PATH=/tmp/aliasmgr-global-alias.toml'
 Enter
 Wait+Line /❯$/
@@ -30,19 +33,21 @@ Enter
 Wait+Line /❯$/
 Show
 
-Sleep 3s
 Type 'aliasmgr add g git --description "Git shorthand"'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 Type 'aliasmgr add G "| grep" --global --description "Filter command output"'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 Type 'g branch G main'
+Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 5s
 
 Hide
 Type 'cd "$ALIASMGR_REPO_ROOT"'

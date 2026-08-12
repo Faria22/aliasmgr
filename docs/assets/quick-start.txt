@@ -9,7 +9,7 @@ gp    git push                Push the current branch
 ❯ gp --set-upstream origin main
 Enumerating objects: 3, done.
 Counting objects: 100% (3/3), done.
-Writing objects: 100% (3/3), 228 bytes | 228.00 KiB/s, done.
+Writing objects: 100% (3/3), done.
 Total 3 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
 To /tmp/aliasmgr-vhs-demo-remote.git
  * [new branch]      main -> main
