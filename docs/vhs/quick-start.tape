@@ -25,44 +25,27 @@ Wait+Line /❯$/
 Type 'source "$ALIASMGR_REPO_ROOT/docs/vhs/terminal.zsh"'
 Enter
 Wait+Line /❯$/
-Type 'source "$ALIASMGR_REPO_ROOT/docs/vhs/git-demo.zsh"'
-Enter
-Wait+Line /❯$/
 Type 'clear'
 Enter
 Wait+Line /❯$/
 Show
 
-Type 'aliasmgr add g git --description "Git shorthand"'
+Type 'aliasmgr add am aliasmgr'
 Sleep 500ms
 Enter
 Wait+Line /❯$/
 Sleep 5s
-Type 'aliasmgr add gp "git push" --description "Push the current branch"'
+Type 'am add ll "ls -la"'
 Sleep 500ms
 Enter
 Wait+Line /❯$/
 Sleep 5s
-Type 'aliasmgr list'
-Sleep 500ms
-Enter
-Wait+Line /❯$/
-Sleep 5s
-Type 'g status --short'
-Sleep 500ms
-Enter
-Wait+Line /❯$/
-Sleep 5s
-Type 'gp --set-upstream origin main'
+Type 'am ls'
 Sleep 500ms
 Enter
 Wait+Line /❯$/
 Sleep 5s
 
 Hide
-Type 'cd "$ALIASMGR_REPO_ROOT"'
-Enter
 Type 'rm -f "$ALIASMGR_CATALOG_PATH"'
-Enter
-Type 'rm -rf -- /tmp/aliasmgr-vhs-demo-repo /tmp/aliasmgr-vhs-demo-remote.git'
 Enter

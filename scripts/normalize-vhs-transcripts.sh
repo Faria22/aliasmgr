@@ -20,7 +20,6 @@ for transcript in docs/assets/*.txt; do
             next
         }
         {
-            sub(/, [0-9]+ bytes \| [^,]+, done\.$/, ", done.")
             current[++current_count] = $0
             if ($0 != "") {
                 current_last = current_count

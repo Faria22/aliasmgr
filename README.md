@@ -93,32 +93,23 @@ Use `-h` or `--help` with aliasmgr or any command for more information.
 
 Notes:
 
-- Repeat `--tag` when creating an alias or filtering by multiple tags. Filters use AND semantics: every supplied tag must be present.
-- `import` reads ordinary Bash and Zsh alias declarations from one or more files. Unsupported lines are skipped. Existing aliases prompt before replacement and default to being kept. `--yes` behaves like `--replace-existing`, while `--no` behaves like `--skip-existing`; the command-specific policies also work with `--no-input`. `--dry-run` reports counts without prompting or changing the catalog.
 - `list` shows enabled aliases by default. Use `--disabled` for disabled aliases or `--all` for both.
-- Tags are case-sensitive and cannot be empty or contain whitespace.
-- `-y`/`--yes`, `-n`/`--no`, and `-N`/`--no-input` are mutually exclusive global prompt controls. They respectively accept, decline, or fail with status 2 when confirmation is required.
-- Global options also provide `-c`/`--color`, `-D`/`--debug`, `-q`/`--quiet`, and `-v`/`--verbose`.
-- Alias names cannot be empty or contain whitespace or `=`.
+- Tags are case-sensitive. Repeated tag filters use AND semantics.
 - Global aliases only work on Zsh and are skipped for other shells.
-- Adding or editing an alias warns without blocking when its name conflicts with a builtin in the active Bash/Zsh shell or an executable found on `PATH`.
-- `aliasmgr doctor` checks the catalog without modifying it. Invalid alias names or tags and malformed structures are errors; shell-incompatible global aliases and command conflicts are warnings.
-- `list --format json` always emits `name`, `command`, `enabled`, `global`, `tags`, and `description`. Missing descriptions are `null` and untagged aliases have an empty tag array.
+- Adding or editing an alias warns when its name conflicts with a shell builtin or executable on `PATH`.
 
 ## Examples
 
-The example assumes that aliasmgr has already been initialized in the current shell. The recording uses an isolated catalog and Git repository under `/tmp`; it does not read or change your normal aliasmgr catalog or repositories. The equivalent commands keep the example usable without animated media.
+The example assumes that aliasmgr has already been initialized in the current shell. The recording uses an isolated catalog under `/tmp`; it does not read or change your normal aliasmgr catalog. The equivalent commands keep the example usable without animated media.
 
-Create shortcuts for common Git commands, inspect them, and use them in a repository.
+Create a shorter name for aliasmgr, use it to add a familiar listing alias, and inspect both aliases.
 
-![Terminal recording of adding and using shortcuts for Git and Git push](docs/assets/quick-start.gif)
+![Terminal recording of adding and using am and ll aliases](docs/assets/quick-start.gif)
 
 ```bash
-aliasmgr add g git --description "Git shorthand"
-aliasmgr add gp "git push" --description "Push the current branch"
-aliasmgr list
-g status --short
-gp --set-upstream origin main
+aliasmgr add am aliasmgr
+am add ll "ls -la"
+am ls
 ```
 
 ## Sync Behavior
