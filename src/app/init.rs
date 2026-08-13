@@ -1,6 +1,7 @@
 use super::file_path::CATALOG_FILE_ENV_VAR;
 use super::shell::{SHELL_ENV_VAR, ShellType, shell_quote};
 use crate::cli::init::InitCommand;
+use crate::config::CONFIG_FILE_ENV_VAR;
 
 const COMMON_SHELL_FUNCTIONS: &str = r#"
 : "${__aliasmgr_managed_aliases:=}"
@@ -104,6 +105,13 @@ pub fn handle_init(cmd: InitCommand) -> String {
             shell_quote(&catalog_path.to_string_lossy())
         );
     }
+    if let Some(config_path) = cmd.config {
+        content += &format!(
+            "export {}={}\n",
+            CONFIG_FILE_ENV_VAR,
+            shell_quote(&config_path.to_string_lossy())
+        );
+    }
 
     content += "\n# Resolve the executable before defining the wrapper function\n";
     content += &format!("__aliasmgr_cmd=$({})\n", helper_shell_command(&cmd.shell));
@@ -132,6 +140,7 @@ mod tests {
         InitCommand {
             shell,
             catalog: None,
+            config: None,
             no_auto_sync: false,
         }
     }
@@ -169,8 +178,20 @@ mod tests {
         let output = handle_init(InitCommand {
             shell: ShellType::Bash,
             catalog: Some(PathBuf::from("/catalog/it's here.toml")),
+            config: None,
             no_auto_sync: false,
         });
         assert!(output.contains("ALIASMGR_CATALOG_PATH='/catalog/it'\"'\"'s here.toml'"));
+    }
+
+    #[test]
+    fn custom_config_path_is_shell_quoted() {
+        let output = handle_init(InitCommand {
+            shell: ShellType::Zsh,
+            catalog: None,
+            config: Some(PathBuf::from("/config/it's here.toml")),
+            no_auto_sync: false,
+        });
+        assert!(output.contains("ALIASMGR_CONFIG_PATH='/config/it'\"'\"'s here.toml'"));
     }
 }
