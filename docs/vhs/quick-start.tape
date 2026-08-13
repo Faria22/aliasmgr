@@ -1,5 +1,4 @@
 Output docs/assets/quick-start.gif
-Output docs/assets/quick-start.txt
 Source docs/vhs/settings.tape
 
 Hide
@@ -23,6 +22,21 @@ Type 'eval "$(aliasmgr init zsh)"'
 Enter
 Wait+Line /❯$/
 Type 'source "$ALIASMGR_REPO_ROOT/docs/vhs/terminal.zsh"'
+Enter
+Wait+Line /❯$/
+Type 'rm -rf -- /tmp/aliasmgr-vhs-demo'
+Enter
+Wait+Line /❯$/
+Type 'mkdir -p /tmp/aliasmgr-vhs-demo/documents'
+Enter
+Wait+Line /❯$/
+Type 'touch /tmp/aliasmgr-vhs-demo/notes.txt'
+Enter
+Wait+Line /❯$/
+Type 'touch -t 202601010000 /tmp/aliasmgr-vhs-demo/notes.txt /tmp/aliasmgr-vhs-demo/documents /tmp/aliasmgr-vhs-demo'
+Enter
+Wait+Line /❯$/
+Type 'cd /tmp/aliasmgr-vhs-demo'
 Enter
 Wait+Line /❯$/
 Type 'clear'
@@ -52,5 +66,9 @@ Wait+Line /❯$/
 Sleep 4s
 
 Hide
+Type 'cd "$ALIASMGR_REPO_ROOT"'
+Enter
 Type 'rm -f "$ALIASMGR_CATALOG_PATH"'
+Enter
+Type 'rm -rf -- /tmp/aliasmgr-vhs-demo'
 Enter

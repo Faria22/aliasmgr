@@ -1,7 +1,0 @@
-❯ aliasmgr add am aliasmgr
-❯ am add ll "ls -la"
-❯ am ls
-Name  Command   Global  Tags  Description
-am    aliasmgr
-ll    ls -la
-❯

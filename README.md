@@ -112,6 +112,4 @@ Table headers are bold by default when styling is enabled. Set `styles.header.bo
 - Run tests: `cargo test`
 - Format: `cargo fmt`
 - Lint: `cargo clippy`
-- Regenerate README recordings: `./scripts/render-vhs.sh` (requires VHS v0.11.0). To render one recording, pass its tape path, for example `./scripts/render-vhs.sh docs/vhs/quick-start.tape`.
-
-CI uses the same renderer version and fails when regenerating the tapes changes their committed final-screen terminal transcripts, so command or output changes must include updated recordings. Normalized golden transcripts avoid false failures from nondeterministic GIF encoding and capture timing.
+- Regenerate the README recording: `just render-vhs` (requires VHS v0.11.0).
