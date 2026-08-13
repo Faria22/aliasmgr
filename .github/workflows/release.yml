@@ -25,6 +25,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up just
+        uses: extractions/setup-just@v3
+
       - name: Check if release already exists
         id: guard
         env:
@@ -44,7 +47,7 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           VERSION="${TAG#v}"
-          NOTES=$(python3 scripts/release-changelog.py "$VERSION" notes)
+          NOTES=$(just release-changelog "$VERSION" notes)
           DELIM="EOF_NOTES_$$"
           {
             echo "notes<<$DELIM"
@@ -59,7 +62,7 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           VERSION="${TAG#v}"
-          PREV=$(python3 scripts/release-changelog.py "$VERSION" previous-version)
+          PREV=$(just release-changelog "$VERSION" previous-version)
 
           echo "version=$PREV" >> "$GITHUB_OUTPUT"
 
