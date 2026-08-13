@@ -48,22 +48,22 @@ Type 'aliasmgr add am aliasmgr'
 Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 2s
 Type 'am add ll "ls -la"'
 Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 2s
 Type 'll'
 Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 2s
 Type 'am ls'
 Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 3s
+Sleep 2s
 
 Hide
 Type 'cd "$ALIASMGR_REPO_ROOT"'
