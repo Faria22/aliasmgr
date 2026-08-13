@@ -28,17 +28,48 @@ CLI tool to manage shell aliases from a single, versionable TOML file, written i
   - Bash: `eval "$(aliasmgr init bash)"`
   - Zsh: `eval "$(aliasmgr init zsh)"`
 - Custom catalog location: `eval "$(aliasmgr init zsh --catalog ~/.aliases.toml)"`
-  - This sets `ALIASMGR_CATALOG_PATH` so subsequent commands use that file.
 - Use `--no-auto-sync` to load aliases initially without installing the prompt hook. Catalog changes then require an explicit `aliasmgr sync`.
-- The init script exports `ALIASMGR_SHELL`, defines the `aliasmgr` wrapper, and keeps the applied revision and managed alias names local to each terminal.
+
+## Commands
+
+- `aliasmgr add` — Add an alias to the catalog.
+- `aliasmgr edit` — Change an existing alias and its metadata.
+- `aliasmgr import` — Import aliases from Bash or Zsh files.
+- `aliasmgr list` — List aliases in the catalog.
+- `aliasmgr remove` — Remove aliases or tags.
+- `aliasmgr rename` — Rename an alias or tag.
+- `aliasmgr enable` — Enable aliases by name, tag, or filter.
+- `aliasmgr disable` — Disable aliases by name, tag, or filter.
+- `aliasmgr sync` — Reconcile the current shell with the catalog.
+- `aliasmgr doctor` — Validate the catalog and report potential problems.
+
+Use `-h` or `--help` with aliasmgr or any command for more information.
+
+Notes:
+
+- `list` shows enabled aliases by default. Use `--disabled` for disabled aliases or `--all` for both.
+- Tags are case-sensitive. Repeated tag filters use AND semantics.
+- Global aliases only work on Zsh and are skipped for other shells.
+- Adding or editing an alias warns when its name conflicts with a shell builtin or executable on `PATH`.
+
+## Examples
+
+![Terminal recording of adding and using am and ll aliases](docs/assets/quick-start.gif)
+
+## Sync Behavior
+
+- Each initialized terminal tracks the alias names and effective catalog revision that it last applied.
+- Before each prompt, aliasmgr compares that terminal's revision with the current catalog. It emits no shell changes when they match.
+- When the effective catalog changes, aliases tracked by that terminal are removed with targeted, quiet `unalias` commands before all current active aliases are added back.
+- This avoids `unalias -a`, so aliases maintained outside aliasmgr are not cleared.
+- Disabled aliases, invalid alias names, and Zsh global aliases in non-Zsh shells are skipped when generating shell commands.
+- Changes made in another terminal or by manually editing the catalog are applied when the next prompt is displayed.
+- `aliasmgr sync` forces immediate reconciliation even when the stored revision matches.
 
 ## Alias Catalog File
 
 - Default path: `~/.config/aliasmgr/aliases.toml` (XDG config home).
-- Enabled aliases without metadata use the simple string form.
-- Disabled, global, described, or tagged aliases use the detailed inline form.
-- Aliases and tags are saved in case-sensitive alphabetical order; duplicate tags are removed.
-- Legacy group tables are not accepted. Their migration is handled separately.
+- Aliases and tags are saved in case-sensitive alphabetical order.
 
 ```toml
 ll = "ls -la"
@@ -48,7 +79,7 @@ test = { command = "cargo test", enabled = true, global = false, description = "
 
 ## User Configuration
 
-Presentation preferences live in `~/.config/aliasmgr/config.toml` (XDG config home). A missing default file uses built-in defaults without creating a file. Set `ALIASMGR_CONFIG_PATH` to require and use an explicit file.
+Presentation preferences live in `~/.config/aliasmgr/config.toml` (XDG config home). A missing configuration file uses built-in. [Instead of the following sentence mention to use the --config flag in the init command]. Set `ALIASMGR_CONFIG_PATH` to require and use an explicit file.
 
 ```toml
 [color]
@@ -76,52 +107,6 @@ Table headers are bold by default when styling is enabled. Set `styles.header.bo
 
 `auto` color applies only to terminal output and respects `NO_COLOR`. The global `--color <auto|always|never>` option overrides the configured mode. Invalid known settings fail clearly; unknown settings warn and are ignored.
 
-## Commands
-
-- `aliasmgr add` — Add an alias to the catalog.
-- `aliasmgr edit` — Change an existing alias and its metadata.
-- `aliasmgr import` — Import aliases from Bash or Zsh files.
-- `aliasmgr list` — List aliases in the catalog.
-- `aliasmgr remove` — Remove aliases or tags.
-- `aliasmgr rename` — Rename an alias or tag.
-- `aliasmgr enable` — Enable aliases by name, tag, or filter.
-- `aliasmgr disable` — Disable aliases by name, tag, or filter.
-- `aliasmgr sync` — Reconcile the current shell with the catalog.
-- `aliasmgr doctor` — Validate the catalog and report potential problems.
-
-Use `-h` or `--help` with aliasmgr or any command for more information.
-
-Notes:
-
-- `list` shows enabled aliases by default. Use `--disabled` for disabled aliases or `--all` for both.
-- Tags are case-sensitive. Repeated tag filters use AND semantics.
-- Global aliases only work on Zsh and are skipped for other shells.
-- Adding or editing an alias warns when its name conflicts with a shell builtin or executable on `PATH`.
-
-## Examples
-
-The example assumes that aliasmgr has already been initialized in the current shell. The recording uses an isolated catalog under `/tmp`; it does not read or change your normal aliasmgr catalog. The equivalent commands keep the example usable without animated media.
-
-Create a shorter name for aliasmgr, use it to add a familiar listing alias, and inspect both aliases.
-
-![Terminal recording of adding and using am and ll aliases](docs/assets/quick-start.gif)
-
-```bash
-aliasmgr add am aliasmgr
-am add ll "ls -la"
-am ls
-```
-
-## Sync Behavior
-
-- Each initialized terminal tracks the alias names and effective catalog revision that it last applied.
-- Before each prompt, aliasmgr compares that terminal's revision with the current catalog. It emits no shell changes when they match.
-- When the effective catalog changes, aliases tracked by that terminal are removed with targeted, quiet `unalias` commands before all current active aliases are added back.
-- This avoids `unalias -a`, so aliases maintained outside aliasmgr are not cleared.
-- Disabled aliases, invalid alias names, and Zsh global aliases in non-Zsh shells are skipped when generating shell commands.
-- Changes made in another terminal or by manually editing the catalog are applied when the next prompt is displayed.
-- `aliasmgr sync` forces immediate reconciliation even when the stored revision matches.
-
 ## Development
 
 - Run tests: `cargo test`
@@ -130,10 +115,3 @@ am ls
 - Regenerate README recordings: `./scripts/render-vhs.sh` (requires VHS v0.11.0). To render one recording, pass its tape path, for example `./scripts/render-vhs.sh docs/vhs/quick-start.tape`.
 
 CI uses the same renderer version and fails when regenerating the tapes changes their committed final-screen terminal transcripts, so command or output changes must include updated recordings. Normalized golden transcripts avoid false failures from nondeterministic GIF encoding and capture timing.
-
-## Releasing
-
-1. Add a dated `## <version> - <date>` entry to `CHANGELOG.md` with non-empty release notes.
-2. Run `cargo release <major|minor|patch> --execute`.
-
-`cargo release` bumps the package version, verifies and publishes the crate to crates.io, creates the release commit and `v<version>` tag, and pushes them to GitHub. Before committing, its release hook runs the build, tests, linter, formatter check, and changelog validation. Pushing the tag creates a GitHub Release and opens a formula update pull request in the Homebrew tap.

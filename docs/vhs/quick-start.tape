@@ -34,17 +34,22 @@ Type 'aliasmgr add am aliasmgr'
 Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 5s
+Sleep 4s
 Type 'am add ll "ls -la"'
 Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 5s
+Sleep 4s
+Type 'll'
+Sleep 500ms
+Enter
+Wait+Line /❯$/
+Sleep 4s
 Type 'am ls'
 Sleep 500ms
 Enter
 Wait+Line /❯$/
-Sleep 5s
+Sleep 4s
 
 Hide
 Type 'rm -f "$ALIASMGR_CATALOG_PATH"'
