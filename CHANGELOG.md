@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.1 - 2026-08-12
+### Added
+- Add a reproducible, non-looping README quick-start recording with its VHS tape source and a `just render-vhs` recipe.
+- Allow `aliasmgr init --config <path>` to emit shell setup for an explicit catalog path.
+
+### Changed
+- Consolidate pre-release and changelog release tasks in the repository `justfile`.
+
 ## 2.0.0 - 2026-08-11
 ### Added
 - Add optional alias descriptions and case-sensitive tags, including repeated-tag creation, AND-based filtering, and tag rename, detach, enable, disable, and removal operations.
