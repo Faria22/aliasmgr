@@ -162,7 +162,7 @@ pub enum Commands {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use std::collections::HashMap;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     use super::*;
 
@@ -183,6 +183,26 @@ mod tests {
         assert!(
             matches!(cli.command, Commands::Add(AddCommand { name, command, .. }) if name == "alias" && command == "echo alias")
         );
+    }
+
+    #[test]
+    fn init_parses_custom_catalog_and_config_paths() {
+        let cli = Cli::try_parse_from([
+            "aliasmgr",
+            "init",
+            "zsh",
+            "--catalog",
+            "/tmp/aliases.toml",
+            "--config",
+            "/tmp/config.toml",
+        ])
+        .unwrap();
+        assert!(matches!(
+            cli.command,
+            Commands::Init(InitCommand { catalog: Some(catalog), config: Some(config), .. })
+                if catalog == Path::new("/tmp/aliases.toml")
+                    && config == Path::new("/tmp/config.toml")
+        ));
     }
 
     #[test]

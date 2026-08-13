@@ -79,7 +79,7 @@ test = { command = "cargo test", enabled = true, global = false, description = "
 
 ## User Configuration
 
-Presentation preferences live in `~/.config/aliasmgr/config.toml` (XDG config home). A missing configuration file uses built-in. [Instead of the following sentence mention to use the --config flag in the init command]. Set `ALIASMGR_CONFIG_PATH` to require and use an explicit file.
+Presentation preferences live in `~/.config/aliasmgr/config.toml` (XDG config home). A missing configuration file uses built-in defaults. To use a custom file, pass it when initializing the shell, for example `eval "$(aliasmgr init zsh --config ~/.config/aliasmgr/work.toml)"`.
 
 ```toml
 [color]

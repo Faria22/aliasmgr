@@ -12,6 +12,10 @@ pub struct InitCommand {
     #[arg(long)]
     pub catalog: Option<PathBuf>,
 
+    /// Custom location of the aliasmgr configuration file
+    #[arg(long)]
+    pub config: Option<PathBuf>,
+
     /// Do not synchronize aliases automatically before each prompt
     #[arg(long, default_value_t = false)]
     pub no_auto_sync: bool,
