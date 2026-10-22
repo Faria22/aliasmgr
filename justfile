@@ -7,9 +7,9 @@ pre-release:
         exit 1
     fi
 
-    cargo build --verbose
-    cargo test --verbose
-    cargo clippy
+    cargo build --locked --verbose
+    cargo test --locked --verbose
+    cargo clippy --locked --all-targets --all-features -- -D warnings
     cargo fmt --check
     just release-changelog "$NEW_VERSION" check
 
@@ -17,7 +17,7 @@ release-changelog version output:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    python3 - {{quote(version)}} {{quote(output)}} <<'PY'
+    python3 - {{ quote(version) }} {{ quote(output) }} <<'PY'
     import argparse
     import re
     from pathlib import Path

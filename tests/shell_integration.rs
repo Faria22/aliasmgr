@@ -13,7 +13,17 @@ fn path_with_binary(binary: &Path) -> String {
 
 fn run_shell(shell: &str, script: &str, catalog: &Path) -> std::io::Result<Output> {
     let binary = Path::new(env!("CARGO_BIN_EXE_aliasmgr"));
-    let mut command = Command::new(shell);
+    // Homebrew can shadow the macOS system shells on PATH.
+    let program = if cfg!(target_os = "macos") {
+        match shell {
+            "bash" => "/bin/bash",
+            "zsh" => "/bin/zsh",
+            _ => unreachable!(),
+        }
+    } else {
+        shell
+    };
+    let mut command = Command::new(program);
     match shell {
         "bash" => command.args(["--noprofile", "--norc", "-c", script, "aliasmgr-test"]),
         "zsh" => command.args(["-f", "-c", script, "aliasmgr-test"]),
@@ -116,9 +126,47 @@ __aliasmgr_prompt_sync
 alias smoke | command grep -q 'echo smoke' || exit 50
 alias -g glob | command grep -Fq '*.rs' || exit 51
 "#;
-    match run_shell("zsh", script, catalog.path()) {
-        Ok(output) => assert_success(output),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => panic!("failed to run zsh: {error}"),
-    }
+    assert_success(
+        run_shell("zsh", script, catalog.path()).expect("Zsh is required for shell tests"),
+    );
+}
+
+#[test]
+fn bash_init_preserves_scalar_prompt_hook_and_is_idempotent() {
+    let directory = tempfile::tempdir().unwrap();
+    let catalog = directory.path().join("catalog.toml");
+    std::fs::write(&catalog, "").unwrap();
+    let script = r#"
+existing_hook() { hook_ran=yes; }
+PROMPT_COMMAND=existing_hook
+"$1" init bash --catalog "$2" > "$2.init" || exit 80
+source "$2.init" || exit 81
+"$1" init bash --catalog "$2" > "$2.init" || exit 80
+source "$2.init" || exit 81
+[ "$PROMPT_COMMAND" = '__aliasmgr_prompt_sync;existing_hook' ] || exit 60
+aliasmgr add smoke 'echo smoke' || exit 61
+eval "$PROMPT_COMMAND"
+[ "$hook_ran" = yes ] || exit 62
+alias smoke | command grep -q 'echo smoke' || exit 63
+"#;
+    assert_success(run_shell("bash", script, &catalog).unwrap());
+}
+
+#[test]
+#[cfg(target_os = "macos")]
+fn macos_system_bash_3_2_sources_init() {
+    let directory = tempfile::tempdir().unwrap();
+    let catalog = directory.path().join("catalog.toml");
+    std::fs::write(&catalog, "").unwrap();
+    let script = r#"
+[[ "$BASH_VERSION" == 3.2.* ]] || exit 70
+unset PROMPT_COMMAND
+"$1" init bash --catalog "$2" > "$2.init" || exit 80
+source "$2.init" || exit 81
+[ "$PROMPT_COMMAND" = __aliasmgr_prompt_sync ] || exit 71
+aliasmgr add smoke 'echo smoke' || exit 72
+"$PROMPT_COMMAND"
+alias smoke | command grep -q 'echo smoke' || exit 73
+"#;
+    assert_success(run_shell("bash", script, &catalog).unwrap());
 }
