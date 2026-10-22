@@ -158,6 +158,25 @@ pub enum Commands {
     Init(InitCommand),
 }
 
+impl Commands {
+    pub fn mutates_catalog(&self) -> bool {
+        match self {
+            Self::Add(_)
+            | Self::Remove(_)
+            | Self::Enable(_)
+            | Self::Disable(_)
+            | Self::Rename(_)
+            | Self::Edit(_) => true,
+            Self::Import(command) => !command.dry_run,
+            Self::List(_)
+            | Self::Doctor(_)
+            | Self::Sync(_)
+            | Self::ShellSync(_)
+            | Self::Init(_) => false,
+        }
+    }
+}
+
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {

@@ -70,6 +70,9 @@ Notes:
 
 - Default path: `~/.config/aliasmgr/aliases.toml` (XDG config home).
 - Aliases and tags are saved in case-sensitive alphabetical order.
+- Catalog saves use atomic replacement, preserve existing permissions, and update symlink targets without replacing the symlink.
+- Concurrent modifying commands wait for one another, then load the latest catalog before applying their changes. Read-only commands remain available while a modifying command runs.
+- A persistent `<catalog filename>.lock` file beside the resolved catalog target coordinates modifying commands. Leave this file in place, including when the catalog is in a dotfiles repository; add it to your ignore rules if needed. This advisory lock coordinates aliasmgr commands, so external editors must avoid writing during a command.
 
 ```toml
 ll = "ls -la"

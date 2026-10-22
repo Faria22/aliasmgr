@@ -10,7 +10,9 @@ use cli::interaction::InteractionMode;
 use cli::{Cli, Commands};
 use config::load_config;
 
-use catalog::io::{catalog_path as resolve_catalog_path, load_catalog, save_catalog};
+use catalog::io::{
+    CatalogTransaction, catalog_path as resolve_catalog_path, load_catalog, save_catalog,
+};
 
 use catalog::types::AliasCatalog;
 use core::Outcome;
@@ -85,6 +87,7 @@ fn main() {
 
     let mut catalog = AliasCatalog::new();
     let mut catalog_path = None;
+    let mut catalog_transaction = None;
     let mut shell = DEFAULT_SHELL;
 
     let is_doctor = matches!(&cli.command, Commands::Doctor(_));
@@ -104,7 +107,19 @@ fn main() {
         };
         debug!("Using catalog path: {:?}", catalog_path);
 
-        let resolved_catalog_path = resolve_catalog_path(catalog_path.as_ref());
+        let mut resolved_catalog_path = resolve_catalog_path(catalog_path.as_ref());
+        if cli.command.mutates_catalog() {
+            let transaction = match CatalogTransaction::begin(&resolved_catalog_path) {
+                Ok(transaction) => transaction,
+                Err(error) => {
+                    eprintln!("ERROR: {error:#}");
+                    std::process::exit(1);
+                }
+            };
+            resolved_catalog_path = transaction.path().clone();
+            catalog_transaction = Some(transaction);
+        }
+        catalog_path = Some(resolved_catalog_path.clone());
         catalog = match load_catalog(&resolved_catalog_path) {
             Ok(catalog) => catalog,
             Err(error) => {
@@ -150,11 +165,11 @@ fn main() {
             match outcome {
                 Outcome::NoChanges => debug!("No changes made to catalog or shell."),
                 Outcome::CatalogChanged => {
-                    if save_catalog(&mut catalog, &resolve_catalog_path(catalog_path.as_ref()))
-                        .is_err()
+                    if let Err(error) =
+                        save_catalog(&mut catalog, &resolve_catalog_path(catalog_path.as_ref()))
                     {
-                        eprintln!("Failed to save updated catalog.");
-                        return;
+                        eprintln!("ERROR: {error:#}");
+                        std::process::exit(1);
                     }
                     debug!("New catalog saved.");
                 }
@@ -174,4 +189,5 @@ fn main() {
             std::process::exit(1);
         }
     }
+    drop(catalog_transaction);
 }
