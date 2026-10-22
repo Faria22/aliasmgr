@@ -112,7 +112,12 @@ Table headers are bold by default when styling is enabled. Set `styles.header.bo
 
 ## Development
 
-- Run tests: `cargo test`
+Requires Rust 1.99.1 or newer, Bash, and Zsh. CI tests the latest stable Rust on Linux and macOS and builds with the minimum version declared in `Cargo.toml`. On macOS, shell integration tests use `/bin/bash` (the system Bash 3.2) and `/bin/zsh`.
+
+- Build: `cargo build --locked`
+- Run tests: `cargo test --locked`
 - Format: `cargo fmt`
-- Lint: `cargo clippy`
+- Lint: `cargo clippy --locked --all-targets --all-features -- -D warnings`
 - Regenerate the README recording: `just render-vhs` (requires VHS v0.11.0).
+
+The VHS recording remains manual because the previous automated workflow was unreliable. Regenerate `docs/assets/quick-start.gif` whenever commands, output, formatting, or shell behavior shown in `docs/vhs/quick-start.tape` change, and whenever the tape or its settings change. Review the GIF and commit it with the corresponding change.

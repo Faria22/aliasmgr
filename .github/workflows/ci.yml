@@ -6,21 +6,55 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Run linter
-      run: cargo clippy
-    - name: Run formatter check
-      run: cargo fmt --check
+      - uses: actions/checkout@v5
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy,rustfmt --no-self-update
+          rustup default stable
+      - name: Install Zsh on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes zsh
+      - name: Verify system shells
+        run: |
+          /bin/bash --version
+          /bin/zsh --version
+      - name: Build
+        run: cargo build --locked --verbose
+      - name: Run tests
+        run: cargo test --locked --verbose
+      - name: Run linter
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - name: Run formatter check
+        run: cargo fmt --check
+
+  msrv:
+    name: Minimum supported Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Read minimum Rust version
+        id: msrv
+        run: |
+          python3 -c 'import tomllib; print("version=" + tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])' >> "$GITHUB_OUTPUT"
+      - name: Install minimum Rust
+        env:
+          MSRV: ${{ steps.msrv.outputs.version }}
+        run: rustup toolchain install "$MSRV" --profile minimal --no-self-update
+      - name: Build with minimum Rust
+        env:
+          MSRV: ${{ steps.msrv.outputs.version }}
+        run: cargo +"$MSRV" build --locked --all-targets --all-features

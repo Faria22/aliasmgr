@@ -4,6 +4,7 @@ version = "2.0.1"
 description = "A clean and simple CLI alias manager"
 authors = ["Felipe Faria <fariafelipe22@outlook.com>"]
 edition = "2024"
+rust-version = "1.99.1"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/Faria22/aliasmgr"
