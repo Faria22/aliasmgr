@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.2 - 2026-10-22
+### Fixed
+- Save catalogs atomically and serialize concurrent mutations to prevent partial writes and lost updates.
+- Keep read-only commands and shell initialization from prompting to create a missing catalog.
+- Report invalid configured paths and XDG resolution failures without panicking.
+- Correct the crate license declaration to match the MIT license.
+
+### Changed
+- Require Rust 1.99.1 or newer and validate Linux, macOS, Bash, and Zsh compatibility in CI.
+
 ## 2.0.1 - 2026-08-12
 ### Added
 - Add a reproducible, non-looping README quick-start recording with its VHS tape source and a `just render-vhs` recipe.
