@@ -28,6 +28,7 @@ CLI tool to manage shell aliases from a single, versionable TOML file, written i
   - Bash: `eval "$(aliasmgr init bash)"`
   - Zsh: `eval "$(aliasmgr init zsh)"`
 - Custom catalog location: `eval "$(aliasmgr init zsh --catalog ~/.aliases.toml)"`
+- A missing custom catalog is treated as empty by read-only commands and shell synchronization. Commands that can save ask before using a missing custom catalog; use `--yes` to accept, `--no` to decline, or `--no-input` to fail without prompting.
 - Use `--no-auto-sync` to load aliases initially without installing the prompt hook. Catalog changes then require an explicit `aliasmgr sync`.
 
 ## Commands

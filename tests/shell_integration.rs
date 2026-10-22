@@ -47,6 +47,34 @@ fn assert_success(output: Output) {
 }
 
 #[test]
+fn missing_custom_catalog_initializes_and_syncs_silently_in_both_shells() {
+    for shell in ["bash", "zsh"] {
+        let directory = tempfile::tempdir().unwrap();
+        let catalog = directory.path().join("missing.toml");
+        let script = format!(
+            r#"
+unset ALIASMGR_MANAGED_ALIASES ALIASMGR_CATALOG_REVISION
+unset __aliasmgr_managed_aliases __aliasmgr_catalog_revision
+"$1" init {shell} --catalog "$2" > "$2.init" || exit 80
+source "$2.init" || exit 81
+[ -n "$__aliasmgr_catalog_revision" ] || exit 82
+[ -z "$__aliasmgr_managed_aliases" ] || exit 83
+__aliasmgr_prompt_sync
+__aliasmgr_prompt_sync
+aliasmgr sync || exit 84
+[ ! -e "$2" ] || exit 85
+"#
+        );
+        let output = run_shell(shell, &script, &catalog).unwrap();
+        assert!(output.stdout.is_empty(), "{shell}: {output:?}");
+        assert!(output.stderr.is_empty(), "{shell}: {output:?}");
+        assert_success(output);
+        assert!(!catalog.exists());
+        assert!(!directory.path().join("missing.toml.lock").exists());
+    }
+}
+
+#[test]
 fn bash_prompt_sync_reconciles_catalog_and_preserves_hooks_and_status() {
     let catalog = tempfile::NamedTempFile::new().unwrap();
     let script = r#"

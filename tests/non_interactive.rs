@@ -134,13 +134,77 @@ fn declining_a_missing_catalog_path_is_a_successful_noop() {
     let directory = tempfile::tempdir().unwrap();
     let catalog = directory.path().join("missing.toml");
 
-    let output = run_aliasmgr(&catalog, &["list", "--no"]);
+    let output = run_aliasmgr(&catalog, &["add", "ll", "ls", "--no"]);
     assert!(output.status.success(), "{output:?}");
     assert_eq!(
         String::from_utf8(output.stdout).unwrap(),
         "Catalog path was declined. No changes made.\n"
     );
     assert!(!catalog.exists());
+}
+
+#[test]
+fn missing_catalog_still_requires_confirmation_before_mutation() {
+    let directory = tempfile::tempdir().unwrap();
+    let catalog = directory.path().join("missing.toml");
+
+    let no_input = run_aliasmgr(&catalog, &["add", "ll", "ls", "--no-input"]);
+    assert_input_required(&no_input, "use missing catalog path");
+    assert!(!catalog.exists());
+
+    let interactive = run_aliasmgr(&catalog, &["add", "ll", "ls"]);
+    assert_eq!(interactive.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&interactive.stderr).contains("Could not prompt"));
+    assert!(!catalog.exists());
+
+    let accepted = run_aliasmgr(&catalog, &["add", "ll", "ls", "--yes"]);
+    assert!(accepted.status.success(), "{accepted:?}");
+    assert_eq!(fs::read_to_string(&catalog).unwrap(), "ll = \"ls\"\n");
+}
+
+#[test]
+fn read_only_commands_use_missing_catalog_without_confirmation_or_creation() {
+    let directory = tempfile::tempdir().unwrap();
+    let catalog = directory.path().join("missing-parent/aliases.toml");
+    let config = directory.path().join("config.toml");
+    let source = directory.path().join("import.sh");
+    fs::write(&config, "").unwrap();
+    fs::write(&source, "alias ll='ls'\n").unwrap();
+
+    for args in [
+        &["list", "--format", "json"][..],
+        &["doctor"][..],
+        &["validate"][..],
+        &["sync"][..],
+        &["shell-sync", "--if-changed"][..],
+        &["shell-sync", "--force"][..],
+        &["import", source.to_str().unwrap(), "--dry-run"][..],
+    ] {
+        for mode in [None, Some("--no-input"), Some("--no")] {
+            let mut command = Command::new(env!("CARGO_BIN_EXE_aliasmgr"));
+            command.args(args);
+            if let Some(mode) = mode {
+                command.arg(mode);
+            }
+            let output = command
+                .env("ALIASMGR_CATALOG_PATH", &catalog)
+                .env("ALIASMGR_CONFIG_PATH", &config)
+                .env("ALIASMGR_SHELL", "bash")
+                .env_remove("RUST_LOG")
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "{args:?} {mode:?}: {output:?}");
+            assert!(!String::from_utf8_lossy(&output.stdout).contains("declined"));
+            if args[0] == "list" {
+                assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "[]");
+            }
+            if args[0] == "shell-sync" {
+                assert!(output.stderr.is_empty(), "{output:?}");
+                assert!(!String::from_utf8_lossy(&output.stdout).contains("alias --"));
+            }
+            assert!(!catalog.parent().unwrap().exists());
+        }
+    }
 }
 
 #[test]
