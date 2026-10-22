@@ -11,16 +11,15 @@ use toml_edit::{DocumentMut, InlineTable, Item};
 use super::spec::{AliasCatalogSpec, convert_spec_to_catalog};
 use super::types::{Alias, AliasCatalog};
 
-pub fn catalog_path(path: Option<&PathBuf>) -> PathBuf {
+pub fn catalog_path(path: Option<&PathBuf>) -> Result<PathBuf> {
     if let Some(path) = path {
         info!("Using custom catalog path: {:?}", path);
-        return path.clone();
+        return Ok(path.clone());
     }
-    cross_xdg::BaseDirs::new()
-        .expect("could not determine XDG base directories")
-        .config_home()
+    Ok(crate::config::config_home()
+        .context("could not resolve default catalog path; set ALIASMGR_CATALOG_PATH or use init --catalog")?
         .join("aliasmgr")
-        .join("aliases.toml")
+        .join("aliases.toml"))
 }
 
 pub fn load_catalog(path: &PathBuf) -> Result<AliasCatalog> {
@@ -541,11 +540,51 @@ mod tests {
     #[test]
     fn custom_catalog_path_is_used_verbatim() {
         let path = PathBuf::from("custom-aliases.toml");
-        assert_eq!(catalog_path(Some(&path)), path);
+        assert_eq!(catalog_path(Some(&path)).unwrap(), path);
     }
 
     #[test]
     fn default_catalog_path_uses_aliasmgr_config_directory() {
-        assert!(catalog_path(None).ends_with("aliasmgr/aliases.toml"));
+        let directory = tempfile::tempdir().unwrap();
+        temp_env::with_vars(
+            [
+                ("HOME", Some(directory.path().as_os_str())),
+                ("XDG_CONFIG_HOME", None),
+            ],
+            || {
+                assert_eq!(
+                    catalog_path(None).unwrap(),
+                    directory.path().join(".config/aliasmgr/aliases.toml")
+                )
+            },
+        );
+    }
+
+    #[test]
+    fn default_path_requires_home_or_xdg_config_home() {
+        temp_env::with_vars([("HOME", None::<&str>), ("XDG_CONFIG_HOME", None)], || {
+            let error = format!("{:#}", catalog_path(None).unwrap_err());
+            assert!(error.contains("HOME"));
+            assert!(error.contains("XDG_CONFIG_HOME"));
+            let custom = PathBuf::from("custom.toml");
+            assert_eq!(catalog_path(Some(&custom)).unwrap(), custom);
+        });
+    }
+
+    #[test]
+    fn xdg_config_home_works_without_home() {
+        let directory = tempfile::tempdir().unwrap();
+        temp_env::with_vars(
+            [
+                ("HOME", None),
+                ("XDG_CONFIG_HOME", Some(directory.path().as_os_str())),
+            ],
+            || {
+                assert_eq!(
+                    catalog_path(None).unwrap(),
+                    directory.path().join("aliasmgr/aliases.toml")
+                )
+            },
+        );
     }
 }

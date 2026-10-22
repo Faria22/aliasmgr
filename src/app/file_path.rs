@@ -33,7 +33,7 @@ fn determine_configured_file_path(
     file_type: FileType,
     prompt: impl Fn(&str) -> bool,
 ) -> CatalogPathDecision {
-    if let Ok(path) = env::var(file_type.env_var()) {
+    if let Some(path) = env::var_os(file_type.env_var()) {
         let path = PathBuf::from(path);
         handle_configured_file_path(&path, prompt)
     } else {
@@ -46,7 +46,7 @@ fn handle_configured_file_path(path: &Path, create: impl Fn(&str) -> bool) -> Ca
         return CatalogPathDecision::Use(Some(path.to_path_buf()));
     }
 
-    if create(path.to_str().unwrap()) {
+    if create(&path.to_string_lossy()) {
         return CatalogPathDecision::Use(Some(path.to_path_buf()));
     }
 
@@ -119,5 +119,34 @@ mod tests {
             );
             assert!(!path.exists());
         });
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn missing_non_utf8_path_is_displayed_lossily_and_preserved() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory
+            .path()
+            .join(OsString::from_vec(b"aliases-\xff.toml".to_vec()));
+        let result = handle_configured_file_path(&path, |display| {
+            assert_eq!(display, path.to_string_lossy());
+            assert!(display.contains('\u{fffd}'));
+            true
+        });
+        assert_eq!(result, CatalogPathDecision::Use(Some(path.clone())));
+        assert_eq!(
+            handle_configured_file_path(&path, |_| false),
+            CatalogPathDecision::Decline
+        );
+        with_var(CATALOG_FILE_ENV_VAR, Some(path.as_os_str()), || {
+            assert_eq!(
+                determine_catalog_path(InteractionMode::Yes, true),
+                CatalogPathDecision::Use(Some(path.clone()))
+            );
+        });
+        assert!(!path.exists());
     }
 }
