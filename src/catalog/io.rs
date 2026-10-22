@@ -1,7 +1,8 @@
 //! Load and save the alias catalog.
 
-use std::fs;
-use std::path::PathBuf;
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use log::{debug, info, warn};
@@ -72,16 +73,114 @@ fn build_toml_document(catalog: &mut AliasCatalog) -> DocumentMut {
     document
 }
 
+/// Resolve links in both the catalog name and its parents, including dangling
+/// links to a catalog that has not been created yet.
+fn resolve_target(path: &Path) -> Result<PathBuf> {
+    fn resolve(path: &Path, links: &mut usize) -> io::Result<PathBuf> {
+        match fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                *links += 1;
+                if *links > 40 {
+                    return Err(io::Error::other("too many catalog symlinks"));
+                }
+                let target = fs::read_link(path)?;
+                let target = if target.is_absolute() {
+                    target
+                } else {
+                    path.parent().unwrap_or(Path::new(".")).join(target)
+                };
+                resolve(&target, links)
+            }
+            Ok(_) => fs::canonicalize(path),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                let name = path.file_name().ok_or(error)?;
+                let parent = path
+                    .parent()
+                    .filter(|p| !p.as_os_str().is_empty())
+                    .unwrap_or(Path::new("."));
+                Ok(resolve(parent, links)?.join(name))
+            }
+            Err(error) => Err(error),
+        }
+    }
+    resolve(path, &mut 0).with_context(|| format!("could not resolve catalog '{}'", path.display()))
+}
+
+/// Hold this guard from before loading until after saving a mutating command.
+/// The sidecar must stay in place: unlinking it would let waiting processes
+/// lock a different inode and break serialization after an atomic replacement.
+pub struct CatalogTransaction {
+    _lock: File,
+    path: PathBuf,
+}
+
+impl CatalogTransaction {
+    pub fn begin(path: &Path) -> Result<Self> {
+        Self::begin_with_lock(path, File::lock)
+    }
+
+    fn begin_with_lock(path: &Path, acquire: impl FnOnce(&File) -> io::Result<()>) -> Result<Self> {
+        let path = resolve_target(path)?;
+        let parent = path.parent().context("catalog path has no parent")?;
+        fs::create_dir_all(parent).with_context(|| {
+            format!("could not create catalog directory '{}'", parent.display())
+        })?;
+        let mut lock_path = path.as_os_str().to_os_string();
+        lock_path.push(".lock");
+        let lock_path = PathBuf::from(lock_path);
+        let lock = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&lock_path)
+            .with_context(|| format!("could not open catalog lock '{}'", lock_path.display()))?;
+        debug!("Waiting for catalog lock '{}'", lock_path.display());
+        acquire(&lock).with_context(|| format!("could not lock catalog '{}'", path.display()))?;
+        debug!("Acquired catalog lock '{}'", lock_path.display());
+        Ok(Self { _lock: lock, path })
+    }
+
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+}
+
+fn atomic_replace(path: &Path, write: impl FnOnce(&mut File) -> io::Result<()>) -> Result<()> {
+    let parent = path.parent().context("catalog path has no parent")?;
+    fs::create_dir_all(parent)?;
+    let permissions = match fs::metadata(path) {
+        Ok(metadata) => {
+            // Preserve the old write-access check even though rename only needs
+            // directory access. Never truncate the original file.
+            OpenOptions::new().write(true).open(path)?;
+            Some(metadata.permissions())
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+        Err(error) => return Err(error.into()),
+    };
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+    write(temporary.as_file_mut())?;
+    temporary.as_file_mut().flush()?;
+    if let Some(permissions) = permissions {
+        temporary.as_file().set_permissions(permissions)?;
+    }
+    temporary.as_file().sync_all()?;
+    temporary.persist(path)?;
+    #[cfg(unix)]
+    File::open(parent)?.sync_all()?;
+    Ok(())
+}
+
 pub fn save_catalog(catalog: &mut AliasCatalog, path: &PathBuf) -> Result<()> {
     let content = build_toml_document(catalog).to_string();
-    if !path.exists() {
+    let target = resolve_target(path)?;
+    if !target.exists() {
         warn!("alias catalog file {:?} does not exist, creating it", path);
     }
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    debug!("Saving catalog to {:?}", path);
-    fs::write(path, content).with_context(|| format!("could not save catalog '{}'", path.display()))
+    debug!("Saving catalog to {:?}", target);
+    atomic_replace(&target, |file| file.write_all(content.as_bytes()))
+        .with_context(|| format!("could not save catalog '{}'", path.display()))
 }
 
 #[cfg(test)]
@@ -89,6 +188,240 @@ pub fn save_catalog(catalog: &mut AliasCatalog, path: &PathBuf) -> Result<()> {
 mod tests {
     use super::*;
     use assert_fs::TempDir;
+
+    fn example_catalog() -> AliasCatalog {
+        let mut catalog = AliasCatalog::new();
+        catalog
+            .aliases
+            .insert("ll".into(), Alias::new("ls -la".into(), true, false));
+        catalog
+    }
+
+    #[test]
+    fn failed_partial_write_keeps_original_and_removes_temporary_file() {
+        let directory = TempDir::new().unwrap();
+        let path = directory.path().join("aliases.toml");
+        fs::write(&path, "original = \"echo original\"\n").unwrap();
+        let error = atomic_replace(&path, |file| {
+            file.write_all(b"partial")?;
+            Err(io::Error::other("simulated disk full"))
+        })
+        .unwrap_err();
+        assert!(error.to_string().contains("simulated disk full"));
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "original = \"echo original\"\n"
+        );
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn saving_preserves_symlink_chain_and_permissions() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+        let directory = TempDir::new().unwrap();
+        let target = directory.path().join("target.toml");
+        fs::write(&target, "old = \"echo old\"\n").unwrap();
+        fs::set_permissions(&target, fs::Permissions::from_mode(0o640)).unwrap();
+        let link = directory.path().join("aliases.toml");
+        let intermediate = directory.path().join("intermediate.toml");
+        symlink("target.toml", &intermediate).unwrap();
+        symlink("intermediate.toml", &link).unwrap();
+        save_catalog(&mut example_catalog(), &link).unwrap();
+        assert_eq!(
+            fs::read_link(&link).unwrap(),
+            Path::new("intermediate.toml")
+        );
+        assert_eq!(
+            fs::read_link(&intermediate).unwrap(),
+            Path::new("target.toml")
+        );
+        assert_eq!(
+            fs::metadata(&target).unwrap().permissions().mode() & 0o777,
+            0o640
+        );
+        assert_eq!(load_catalog(&target).unwrap(), example_catalog());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn saving_through_dangling_symlink_creates_target() {
+        use std::os::unix::fs::symlink;
+        let directory = TempDir::new().unwrap();
+        let link = directory.path().join("aliases.toml");
+        let target = directory.path().join("nested/target.toml");
+        symlink("nested/target.toml", &link).unwrap();
+        let transaction = CatalogTransaction::begin(&link).unwrap();
+        assert_eq!(
+            transaction.path(),
+            &target
+                .parent()
+                .unwrap()
+                .canonicalize()
+                .unwrap()
+                .join("target.toml")
+        );
+        save_catalog(&mut example_catalog(), transaction.path()).unwrap();
+        assert!(
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(load_catalog(&target).unwrap(), example_catalog());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_loop_returns_error() {
+        use std::os::unix::fs::symlink;
+        let directory = TempDir::new().unwrap();
+        let link = directory.path().join("loop");
+        symlink("loop", &link).unwrap();
+        assert!(
+            format!("{:#}", resolve_target(&link).unwrap_err())
+                .contains("too many catalog symlinks")
+        );
+    }
+
+    #[test]
+    fn transaction_uses_stable_sidecar_across_replacement() {
+        let directory = TempDir::new().unwrap();
+        let path = directory.path().join("aliases.toml");
+        let transaction = CatalogTransaction::begin(&path).unwrap();
+        save_catalog(&mut example_catalog(), transaction.path()).unwrap();
+        let contender = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(directory.path().join("aliases.toml.lock"))
+            .unwrap();
+        assert!(matches!(
+            contender.try_lock(),
+            Err(std::fs::TryLockError::WouldBlock)
+        ));
+        drop(transaction);
+        contender.try_lock().unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn saving_through_absolute_symlink_preserves_link() {
+        use std::os::unix::fs::symlink;
+        let directory = TempDir::new().unwrap();
+        let target = directory.path().join("target.toml");
+        let link = directory.path().join("aliases.toml");
+        symlink(&target, &link).unwrap();
+        save_catalog(&mut example_catalog(), &link).unwrap();
+        assert_eq!(fs::read_link(&link).unwrap(), target);
+        assert_eq!(load_catalog(&target).unwrap(), example_catalog());
+    }
+
+    #[test]
+    fn lock_open_failure_reports_sidecar_path() {
+        let directory = TempDir::new().unwrap();
+        let path = directory.path().join("aliases.toml");
+        let lock = directory.path().join("aliases.toml.lock");
+        fs::create_dir(&lock).unwrap();
+        let error = CatalogTransaction::begin(&path)
+            .err()
+            .expect("directory cannot be opened as lock file");
+        let message = format!("{error:#}");
+        assert!(message.contains("could not open catalog lock"), "{message}");
+        assert!(message.contains("aliases.toml.lock"), "{message}");
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn lock_acquisition_failure_reports_catalog_and_releases_handle() {
+        let directory = TempDir::new().unwrap();
+        let path = directory.path().join("aliases.toml");
+        fs::write(&path, "original = \"echo original\"\n").unwrap();
+        let error = CatalogTransaction::begin_with_lock(&path, |file| {
+            // Model a filesystem lock failure after opening the sidecar.
+            file.lock()?;
+            Err(io::Error::other("simulated filesystem lock failure"))
+        })
+        .err()
+        .expect("lock failure must propagate");
+        let message = format!("{error:#}");
+        assert!(message.contains("could not lock catalog"), "{message}");
+        assert!(message.contains("aliases.toml"), "{message}");
+        assert!(
+            message.contains("simulated filesystem lock failure"),
+            "{message}"
+        );
+        let lock = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(directory.path().join("aliases.toml.lock"))
+            .unwrap();
+        lock.try_lock().unwrap();
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "original = \"echo original\"\n"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn inaccessible_catalog_reports_resolution_and_metadata_errors() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = TempDir::new().unwrap();
+        let parent = directory.path().join("private");
+        fs::create_dir(&parent).unwrap();
+        let path = parent.join("aliases.toml");
+        fs::write(&path, "original = \"echo original\"\n").unwrap();
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o000)).unwrap();
+        let resolution = resolve_target(&path);
+        let replacement = atomic_replace(&path, |file| file.write_all(b"replacement"));
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o700)).unwrap();
+        let message = format!("{:#}", resolution.unwrap_err());
+        assert!(message.contains("could not resolve catalog"), "{message}");
+        assert!(
+            message.to_lowercase().contains("permission denied"),
+            "{message}"
+        );
+        assert_eq!(
+            replacement
+                .unwrap_err()
+                .downcast_ref::<io::Error>()
+                .unwrap()
+                .kind(),
+            io::ErrorKind::PermissionDenied
+        );
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "original = \"echo original\"\n"
+        );
+        assert_eq!(fs::read_dir(&parent).unwrap().count(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn catalog_directory_creation_failure_reports_directory() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = TempDir::new().unwrap();
+        let parent = directory.path().join("readonly");
+        fs::create_dir(&parent).unwrap();
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o555)).unwrap();
+        let path = parent.join("missing/aliases.toml");
+        let result = CatalogTransaction::begin(&path);
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o700)).unwrap();
+        let error = result
+            .err()
+            .expect("readonly directory must reject creation");
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("could not create catalog directory"),
+            "{message}"
+        );
+        assert!(message.contains("missing"), "{message}");
+        assert!(
+            message.to_lowercase().contains("permission denied"),
+            "{message}"
+        );
+        assert!(!path.exists());
+    }
 
     #[test]
     fn metadata_round_trip_is_sorted_and_detailed() {
