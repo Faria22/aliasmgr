@@ -116,6 +116,10 @@ pub struct CatalogTransaction {
 
 impl CatalogTransaction {
     pub fn begin(path: &Path) -> Result<Self> {
+        Self::begin_with_lock(path, File::lock)
+    }
+
+    fn begin_with_lock(path: &Path, acquire: impl FnOnce(&File) -> io::Result<()>) -> Result<Self> {
         let path = resolve_target(path)?;
         let parent = path.parent().context("catalog path has no parent")?;
         fs::create_dir_all(parent).with_context(|| {
@@ -132,8 +136,7 @@ impl CatalogTransaction {
             .open(&lock_path)
             .with_context(|| format!("could not open catalog lock '{}'", lock_path.display()))?;
         debug!("Waiting for catalog lock '{}'", lock_path.display());
-        lock.lock()
-            .with_context(|| format!("could not lock catalog '{}'", path.display()))?;
+        acquire(&lock).with_context(|| format!("could not lock catalog '{}'", path.display()))?;
         debug!("Acquired catalog lock '{}'", lock_path.display());
         Ok(Self { _lock: lock, path })
     }
@@ -298,6 +301,126 @@ mod tests {
         ));
         drop(transaction);
         contender.try_lock().unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn saving_through_absolute_symlink_preserves_link() {
+        use std::os::unix::fs::symlink;
+        let directory = TempDir::new().unwrap();
+        let target = directory.path().join("target.toml");
+        let link = directory.path().join("aliases.toml");
+        symlink(&target, &link).unwrap();
+        save_catalog(&mut example_catalog(), &link).unwrap();
+        assert_eq!(fs::read_link(&link).unwrap(), target);
+        assert_eq!(load_catalog(&target).unwrap(), example_catalog());
+    }
+
+    #[test]
+    fn lock_open_failure_reports_sidecar_path() {
+        let directory = TempDir::new().unwrap();
+        let path = directory.path().join("aliases.toml");
+        let lock = directory.path().join("aliases.toml.lock");
+        fs::create_dir(&lock).unwrap();
+        let error = CatalogTransaction::begin(&path)
+            .err()
+            .expect("directory cannot be opened as lock file");
+        let message = format!("{error:#}");
+        assert!(message.contains("could not open catalog lock"), "{message}");
+        assert!(message.contains("aliases.toml.lock"), "{message}");
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn lock_acquisition_failure_reports_catalog_and_releases_handle() {
+        let directory = TempDir::new().unwrap();
+        let path = directory.path().join("aliases.toml");
+        fs::write(&path, "original = \"echo original\"\n").unwrap();
+        let error = CatalogTransaction::begin_with_lock(&path, |file| {
+            // Model a filesystem lock failure after opening the sidecar.
+            file.lock()?;
+            Err(io::Error::other("simulated filesystem lock failure"))
+        })
+        .err()
+        .expect("lock failure must propagate");
+        let message = format!("{error:#}");
+        assert!(message.contains("could not lock catalog"), "{message}");
+        assert!(message.contains("aliases.toml"), "{message}");
+        assert!(
+            message.contains("simulated filesystem lock failure"),
+            "{message}"
+        );
+        let lock = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(directory.path().join("aliases.toml.lock"))
+            .unwrap();
+        lock.try_lock().unwrap();
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "original = \"echo original\"\n"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn inaccessible_catalog_reports_resolution_and_metadata_errors() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = TempDir::new().unwrap();
+        let parent = directory.path().join("private");
+        fs::create_dir(&parent).unwrap();
+        let path = parent.join("aliases.toml");
+        fs::write(&path, "original = \"echo original\"\n").unwrap();
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o000)).unwrap();
+        let resolution = resolve_target(&path);
+        let replacement = atomic_replace(&path, |file| file.write_all(b"replacement"));
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o700)).unwrap();
+        let message = format!("{:#}", resolution.unwrap_err());
+        assert!(message.contains("could not resolve catalog"), "{message}");
+        assert!(
+            message.to_lowercase().contains("permission denied"),
+            "{message}"
+        );
+        assert_eq!(
+            replacement
+                .unwrap_err()
+                .downcast_ref::<io::Error>()
+                .unwrap()
+                .kind(),
+            io::ErrorKind::PermissionDenied
+        );
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "original = \"echo original\"\n"
+        );
+        assert_eq!(fs::read_dir(&parent).unwrap().count(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn catalog_directory_creation_failure_reports_directory() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = TempDir::new().unwrap();
+        let parent = directory.path().join("readonly");
+        fs::create_dir(&parent).unwrap();
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o555)).unwrap();
+        let path = parent.join("missing/aliases.toml");
+        let result = CatalogTransaction::begin(&path);
+        fs::set_permissions(&parent, fs::Permissions::from_mode(0o700)).unwrap();
+        let error = result
+            .err()
+            .expect("readonly directory must reject creation");
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("could not create catalog directory"),
+            "{message}"
+        );
+        assert!(message.contains("missing"), "{message}");
+        assert!(
+            message.to_lowercase().contains("permission denied"),
+            "{message}"
+        );
+        assert!(!path.exists());
     }
 
     #[test]
