@@ -85,6 +85,8 @@ test = { command = "cargo test", enabled = true, global = false, description = "
 
 Presentation preferences live in `~/.config/aliasmgr/config.toml` (XDG config home). A missing configuration file uses built-in defaults. To use a custom file, pass it when initializing the shell, for example `eval "$(aliasmgr init zsh --config ~/.config/aliasmgr/work.toml)"`.
 
+Default catalog and configuration paths require a non-empty `HOME` or `XDG_CONFIG_HOME`. In minimal environments, set `XDG_CONFIG_HOME` or provide both `ALIASMGR_CATALOG_PATH` and `ALIASMGR_CONFIG_PATH`. The `init --catalog <path> --config <path>` options include these overrides in the generated shell setup. If the default directory cannot be resolved, aliasmgr exits with a clear error.
+
 ```toml
 [color]
 mode = "auto" # auto, always, or never

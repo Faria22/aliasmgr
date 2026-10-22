@@ -108,7 +108,13 @@ fn main() {
         };
         debug!("Using catalog path: {:?}", catalog_path);
 
-        let mut resolved_catalog_path = resolve_catalog_path(catalog_path.as_ref());
+        let mut resolved_catalog_path = match resolve_catalog_path(catalog_path.as_ref()) {
+            Ok(path) => path,
+            Err(error) => {
+                eprintln!("ERROR: {error:#}");
+                std::process::exit(1);
+            }
+        };
         if cli.command.mutates_catalog() {
             let transaction = match CatalogTransaction::begin(&resolved_catalog_path) {
                 Ok(transaction) => transaction,
@@ -166,8 +172,8 @@ fn main() {
             match outcome {
                 Outcome::NoChanges => debug!("No changes made to catalog or shell."),
                 Outcome::CatalogChanged => {
-                    if let Err(error) =
-                        save_catalog(&mut catalog, &resolve_catalog_path(catalog_path.as_ref()))
+                    if let Err(error) = resolve_catalog_path(catalog_path.as_ref())
+                        .and_then(|path| save_catalog(&mut catalog, &path))
                     {
                         eprintln!("ERROR: {error:#}");
                         std::process::exit(1);

@@ -319,14 +319,27 @@ fn parse_config(content: &str) -> Result<UserConfig> {
     Ok(parse_config_with_warnings(content)?.config)
 }
 
-pub fn config_path(path: Option<&Path>) -> PathBuf {
-    path.map(Path::to_path_buf).unwrap_or_else(|| {
-        cross_xdg::BaseDirs::new()
-            .expect("could not determine XDG base directories")
-            .config_home()
-            .join("aliasmgr")
-            .join("config.toml")
-    })
+pub(crate) fn config_home() -> Result<PathBuf> {
+    if let Some(path) = env::var_os("XDG_CONFIG_HOME").filter(|path| !path.is_empty()) {
+        return Ok(PathBuf::from(path));
+    }
+    if env::var_os("HOME").is_none_or(|path| path.is_empty()) {
+        bail!("could not determine XDG config directory: set HOME or XDG_CONFIG_HOME");
+    }
+    Ok(cross_xdg::BaseDirs::new()
+        .context("could not determine XDG base directories; set HOME or XDG_CONFIG_HOME")?
+        .config_home()
+        .to_path_buf())
+}
+
+pub fn config_path(path: Option<&Path>) -> Result<PathBuf> {
+    if let Some(path) = path {
+        return Ok(path.to_path_buf());
+    }
+    Ok(config_home()
+        .context("could not resolve default configuration path; set ALIASMGR_CONFIG_PATH or use init --config")?
+        .join("aliasmgr")
+        .join("config.toml"))
 }
 
 #[cfg(test)]
@@ -350,7 +363,7 @@ fn load_config_from_with_warnings(path: &Path, required: bool) -> Result<LoadedC
 
 pub fn load_config() -> Result<LoadedConfig> {
     let explicit = env::var_os(CONFIG_FILE_ENV_VAR).map(PathBuf::from);
-    let path = config_path(explicit.as_deref());
+    let path = config_path(explicit.as_deref())?;
     load_config_from_with_warnings(&path, explicit.is_some())
 }
 
@@ -470,8 +483,20 @@ mod tests {
     #[test]
     fn custom_and_default_paths_are_resolved() {
         let custom = Path::new("/custom/config.toml");
-        assert_eq!(config_path(Some(custom)), custom);
-        assert!(config_path(None).ends_with(".config/aliasmgr/config.toml"));
+        assert_eq!(config_path(Some(custom)).unwrap(), custom);
+        let directory = tempfile::tempdir().unwrap();
+        temp_env::with_vars(
+            [
+                ("HOME", Some(directory.path().as_os_str())),
+                ("XDG_CONFIG_HOME", None),
+            ],
+            || {
+                assert_eq!(
+                    config_path(None).unwrap(),
+                    directory.path().join(".config/aliasmgr/config.toml")
+                )
+            },
+        );
     }
 
     #[test]
@@ -504,5 +529,33 @@ mod tests {
         };
         assert_eq!(style.render("x", false), "x");
         assert_eq!(style.render("x", true), "\u{1b}[31;1mx\u{1b}[0m");
+    }
+
+    #[test]
+    fn default_path_requires_home_or_xdg_config_home() {
+        temp_env::with_vars([("HOME", None::<&str>), ("XDG_CONFIG_HOME", None)], || {
+            let error = format!("{:#}", config_path(None).unwrap_err());
+            assert!(error.contains("HOME"));
+            assert!(error.contains("XDG_CONFIG_HOME"));
+            let custom = PathBuf::from("custom.toml");
+            assert_eq!(config_path(Some(&custom)).unwrap(), custom);
+        });
+    }
+
+    #[test]
+    fn xdg_config_home_works_without_home() {
+        let directory = tempfile::tempdir().unwrap();
+        temp_env::with_vars(
+            [
+                ("HOME", None),
+                ("XDG_CONFIG_HOME", Some(directory.path().as_os_str())),
+            ],
+            || {
+                assert_eq!(
+                    config_path(None).unwrap(),
+                    directory.path().join("aliasmgr/config.toml")
+                )
+            },
+        );
     }
 }
