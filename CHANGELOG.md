@@ -3,7 +3,7 @@
 ## 2.0.1 - 2026-08-12
 ### Added
 - Add a reproducible, non-looping README quick-start recording with its VHS tape source and a `just render-vhs` recipe.
-- Allow `aliasmgr init --config <path>` to emit shell setup for an explicit catalog path.
+- Allow `aliasmgr init --config <path>` to emit shell setup for a custom configuration file.
 
 ### Changed
 - Consolidate pre-release and changelog release tasks in the repository `justfile`.
