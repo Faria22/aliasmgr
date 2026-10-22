@@ -23,9 +23,9 @@ impl FileType {
     }
 }
 
-pub fn determine_catalog_path(mode: InteractionMode) -> CatalogPathDecision {
+pub fn determine_catalog_path(mode: InteractionMode, mutates_catalog: bool) -> CatalogPathDecision {
     determine_configured_file_path(FileType::Catalog, |path| {
-        prompt_use_non_existing_catalog_file(mode, path)
+        !mutates_catalog || prompt_use_non_existing_catalog_file(mode, path)
     })
 }
 
@@ -66,7 +66,7 @@ mod tests {
             CATALOG_FILE_ENV_VAR,
             Some(temp_file.path().to_str().unwrap()),
             || {
-                let result = determine_catalog_path(InteractionMode::Interactive);
+                let result = determine_catalog_path(InteractionMode::Interactive, true);
                 assert_eq!(
                     result,
                     CatalogPathDecision::Use(Some(temp_file.path().to_path_buf()))
@@ -95,8 +95,29 @@ mod tests {
     #[test]
     fn test_determine_catalog_path_env_var_not_set() {
         with_var(CATALOG_FILE_ENV_VAR, None as Option<&str>, || {
-            let result = determine_catalog_path(InteractionMode::Interactive);
+            let result = determine_catalog_path(InteractionMode::Interactive, true);
             assert_eq!(result, CatalogPathDecision::Use(None));
+        });
+    }
+
+    #[test]
+    fn missing_catalog_only_requires_confirmation_for_mutations() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("missing.toml");
+        with_var(CATALOG_FILE_ENV_VAR, Some(path.as_os_str()), || {
+            assert_eq!(
+                determine_catalog_path(InteractionMode::NoInput, false),
+                CatalogPathDecision::Use(Some(path.clone()))
+            );
+            assert_eq!(
+                determine_catalog_path(InteractionMode::No, true),
+                CatalogPathDecision::Decline
+            );
+            assert_eq!(
+                determine_catalog_path(InteractionMode::Yes, true),
+                CatalogPathDecision::Use(Some(path.clone()))
+            );
+            assert!(!path.exists());
         });
     }
 }

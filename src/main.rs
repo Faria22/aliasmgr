@@ -96,7 +96,8 @@ fn main() {
         shell = determine_shell();
         debug!("Determined shell: {}", shell);
 
-        catalog_path = match determine_catalog_path(interaction_mode) {
+        catalog_path = match determine_catalog_path(interaction_mode, cli.command.mutates_catalog())
+        {
             CatalogPathDecision::Use(path) => path,
             CatalogPathDecision::Decline => {
                 if !quiet {
